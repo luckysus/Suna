@@ -72,6 +72,8 @@ pub(crate) struct McpHealth {
     pub resource_count: usize,
     pub prompt_count: usize,
     pub tools: Vec<McpToolSummary>,
+    pub resources: Vec<McpResourceSummary>,
+    pub prompts: Vec<McpPromptSummary>,
     pub error: Option<String>,
     pub diagnostic: Option<McpDiagnostic>,
     pub checked_at: String,
@@ -83,4 +85,21 @@ pub(crate) struct McpDiagnostic {
     pub code: String,
     pub message: String,
     pub suggested_action: String,
+}
+
+/// 第 51 章：MCP 详情展示的 Resources 与 Prompts 条目。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) struct McpResourceSummary {
+    pub uri: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub mime_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) struct McpPromptSummary {
+    pub name: String,
+    pub description: Option<String>,
 }

@@ -617,3 +617,10 @@ html[data-density="spacious"] .suna-settings-page .suna-theme-preview-card{
 .suna-settings-save-state.is-error{display:flex;align-items:center;gap:7px;flex-wrap:wrap;max-width:280px;white-space:normal;text-align:right}
 .suna-settings-save-state.is-error button{padding:0;border:0;background:transparent;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
 .suna-settings-inline-retry{margin-left:8px;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
+
+/* 第 53 章：Skill 编辑器与卡片操作 */
+.suna-skill-editor{display:grid;gap:10px;padding:14px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-soft);margin-bottom:12px}
+.suna-skill-editor label{display:grid;gap:6px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-skill-editor-head{display:flex;align-items:center;justify-content:space-between;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
+.suna-skill-card-actions{display:flex;gap:8px;border-top:1px solid var(--suna-line);padding-top:8px;margin-top:8px}
+.suna-skill-card-actions .suna-ghost-button{padding:4px 8px;font-size:calc(11px * var(--suna-ui-font-scale))}

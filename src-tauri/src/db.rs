@@ -128,6 +128,15 @@ pub fn db_init(
     if let Err(error) = bundled_result {
         log::error!("ensure bundled steel domain package failed: {error}");
     }
+    if let Some(seed_result) = crate::skills::bundled::seed_bundled_user_skills() {
+        match seed_result {
+            Ok(count) if count > 0 => {
+                log::info!("seeded {count} bundled skills into the user skill directory")
+            }
+            Ok(_) => {}
+            Err(error) => log::error!("seed bundled skills failed: {error}"),
+        }
+    }
     // Start scheduler with Tauri event sink for real progress updates
     use crate::app::event_sink::TauriEventSink;
     use crate::tasks::scheduler::{Scheduler, SchedulerConfig, SystemClock};

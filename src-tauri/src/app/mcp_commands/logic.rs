@@ -1,8 +1,11 @@
 use crate::{
     agent::protocol::PermissionRisk,
+    app::mcp_commands::types::{McpPromptSummary, McpResourceSummary},
     app::mcp_runtime::McpRuntimeState,
     db::{current_workspace_id, with_conn, DbState},
-    mcp::{McpError, McpServerConfig, McpSupervisor, McpTool, McpTransportKind},
+    mcp::{
+        McpError, McpPrompt, McpResource, McpServerConfig, McpSupervisor, McpTool, McpTransportKind,
+    },
     storage::{
         repositories::mcp as mcp_repository,
         secrets::{SecretRef, SecretState, SecretStore, SecretValue},
@@ -165,31 +168,33 @@ pub(super) async fn inspect(
         .list_tools()
         .await
         .map_err(|error| error.to_string())?;
-    let resource_count = if capabilities.resources {
-        client
+    let (resources, resource_count) = if capabilities.resources {
+        let resources = client
             .list_resources()
             .await
-            .map_err(|error| error.to_string())?
-            .len()
+            .map_err(|error| error.to_string())?;
+        let count = resources.len();
+        (resources, count)
     } else {
-        0
+        (Vec::new(), 0)
     };
-    let prompt_count = if capabilities.prompts {
-        client
+    let (prompts, prompt_count) = if capabilities.prompts {
+        let prompts = client
             .list_prompts()
             .await
-            .map_err(|error| error.to_string())?
-            .len()
+            .map_err(|error| error.to_string())?;
+        let count = prompts.len();
+        (prompts, count)
     } else {
-        0
+        (Vec::new(), 0)
     };
     Ok(health_from_tools(
         configured_server_id.to_string(),
         identity.name,
         identity.version,
         tools,
-        resource_count,
-        prompt_count,
+        resources,
+        prompts,
     ))
 }
 
@@ -203,6 +208,8 @@ pub(super) fn health_from_error(error: impl Into<String>) -> McpHealth {
         resource_count: 0,
         prompt_count: 0,
         tools: Vec::new(),
+        resources: Vec::new(),
+        prompts: Vec::new(),
         error: Some(error.clone()),
         diagnostic: Some(diagnostic_from_error(&error)),
         checked_at: Utc::now().to_rfc3339(),
@@ -253,13 +260,15 @@ fn health_from_tools(
     server_name: String,
     server_version: String,
     tools: Vec<McpTool>,
-    resource_count: usize,
-    prompt_count: usize,
+    resources: Vec<McpResource>,
+    prompts: Vec<McpPrompt>,
 ) -> McpHealth {
     let summaries = tools
         .into_iter()
         .map(|tool| tool_summary(&configured_server_id, tool))
         .collect::<Vec<_>>();
+    let resource_count = resources.len();
+    let prompt_count = prompts.len();
     McpHealth {
         status: "healthy".to_string(),
         server_name: Some(server_name),
@@ -268,6 +277,22 @@ fn health_from_tools(
         resource_count,
         prompt_count,
         tools: summaries,
+        resources: resources
+            .into_iter()
+            .map(|resource| McpResourceSummary {
+                uri: resource.uri,
+                name: resource.name,
+                description: resource.description,
+                mime_type: resource.mime_type,
+            })
+            .collect(),
+        prompts: prompts
+            .into_iter()
+            .map(|prompt| McpPromptSummary {
+                name: prompt.name,
+                description: prompt.description,
+            })
+            .collect(),
         error: None,
         diagnostic: None,
         checked_at: Utc::now().to_rfc3339(),

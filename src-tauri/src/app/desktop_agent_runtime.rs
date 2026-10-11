@@ -475,10 +475,14 @@ async fn run_standard_agent_inner(
     let combined_tools = CompositeToolExecutor::try_new(tool_sources)
         .map_err(|error| format!("combine Agent tools failed: {error}"))?;
     let mut capability_tools = CapabilityToolExecutor::new(&combined_tools, &agent_preferences);
+    // 第 49 章：工具中心停用的工具不进入模型工具清单（子 Agent 从这里派生，同样生效）。
+    let disabled_tool_ids =
+        crate::app::capability_commands::load_disabled_tools(&connection, workspace_id);
     capability_tools.registrations.retain(|registration| {
         selected_profile.tool_ids.contains(&registration.spec.id)
             && current_profile.tool_ids.contains(&registration.spec.id)
             && (retrieval_tools_enabled || registration.spec.id != "steel.knowledge_search")
+            && !disabled_tool_ids.contains(&registration.spec.id)
     });
     if !tool_calls_enabled {
         capability_tools.registrations.clear();

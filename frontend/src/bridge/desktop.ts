@@ -1210,6 +1210,17 @@ export interface SkillCatalog {
   errors: SkillLoadError[];
 }
 
+/** 第 53 章：页面内创建/编辑 Skill 的结构化输入；body 即 Agent 工作流程提示。 */
+export interface SkillDraft {
+  name: string;
+  description: string;
+  version?: string | null;
+  tags: string[];
+  tools: string[];
+  knowledge_base?: string | null;
+  body: string;
+}
+
 export interface AgentPermissionRestrictions {
   allowFileAccess: boolean;
   allowShell: boolean;
@@ -1361,6 +1372,18 @@ export interface McpDiagnostic {
   suggested_action: string;
 }
 
+export interface McpResourceSummary {
+  uri: string;
+  name: string;
+  description: string | null;
+  mime_type: string | null;
+}
+
+export interface McpPromptSummary {
+  name: string;
+  description: string | null;
+}
+
 export interface McpHealth {
   status: "healthy" | "failed";
   server_name: string | null;
@@ -1369,6 +1392,9 @@ export interface McpHealth {
   resource_count: number;
   prompt_count: number;
   tools: McpToolSummary[];
+  /** 第 51 章：MCP 详情展示的 Resources / Prompts 条目。 */
+  resources: McpResourceSummary[];
+  prompts: McpPromptSummary[];
   error: string | null;
   diagnostic: McpDiagnostic | null;
   checked_at: string;
@@ -1641,6 +1667,12 @@ getComputeOptimizationResult: (id: string) =>
     call<SecretStatus>("secret_delete", { profileId, credentialName }),
   deleteProviderProfile: (id: string) => call<void>("delete_provider_profile", { id }),
   listSkills: () => call<SkillCatalog>("list_skills"),
+  createSkill: (draft: SkillDraft) =>
+    call<SkillCatalog>("create_skill", { draft }),
+  updateSkill: (name: string, draft: SkillDraft) =>
+    call<SkillCatalog>("update_skill", { name, draft }),
+  duplicateSkill: (name: string) => call<SkillCatalog>("duplicate_skill", { name }),
+  deleteSkill: (name: string) => call<SkillCatalog>("delete_skill", { name }),
   setSkillEnabled: (name: string, enabled: boolean) =>
     call<SkillCatalog>("set_skill_enabled", { name, enabled }),
   listAgentProfiles: () => call<AgentProfileSummary[]>("list_agent_profiles"),
@@ -1654,6 +1686,8 @@ getComputeOptimizationResult: (id: string) =>
   deleteAgentSchedule: (id: string) => call<void>("delete_agent_schedule", { id }),
   setAgentScheduleEnabled: (id: string, enabled: boolean) => call<void>("set_agent_schedule_enabled", { id, enabled }),
   listToolCapabilities: () => call<ToolCapabilitySummary[]>("list_tool_capabilities"),
+  setToolEnabled: (id: string, enabled: boolean) =>
+    call<ToolCapabilitySummary[]>("set_tool_enabled", { id, enabled }),
   listDomainPackages: () => call<DomainPackageRecord[]>("list_domain_packages"),
   installDomainPackage: (sourcePath: string) =>
     call<DomainInstallResult>("install_domain_package", { sourcePath }),

@@ -2,3 +2,12 @@
 @media(max-width:900px){.suna-mcp-page{padding:22px 18px 42px}.suna-mcp-header{display:block}.suna-mcp-actions{margin-top:14px}.suna-mcp-list{grid-template-columns:1fr}.suna-mcp-editor-grid{grid-template-columns:1fr}}
 .suna-mcp-loading{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:180px;color:#7890ad;font-size:calc(12px * var(--suna-ui-font-scale))}.suna-mcp-notice{display:flex;align-items:center;gap:8px;margin-top:15px;padding:10px 12px;border:1px solid #cde7d9;border-radius:7px;background:#f4fcf7;color:#2d8656;font-size:calc(12px * var(--suna-ui-font-scale))}
 .suna-mcp-credential-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;color:#55749c;font-size:calc(11px * var(--suna-ui-font-scale))}.suna-mcp-credential-actions label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}.suna-mcp-credential-actions input,.suna-mcp-enabled-field input{accent-color:#2563eb}.suna-mcp-diagnostic{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding:9px 10px;border-left:3px solid #e0a348;border-radius:4px;background:#fff9ed;color:#7d5a2e;font-size:calc(10px * var(--suna-ui-font-scale))}.suna-mcp-diagnostic span{color:#9a7748;line-height:1.45}
+
+/* 第 51 章：Resources / Prompts 列表与日志分区 */
+.suna-mcp-listing{display:grid;gap:6px;border-top:1px solid var(--suna-line);padding-top:8px;margin-top:8px}
+.suna-mcp-listing strong{color:var(--suna-text);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-mcp-listing span{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:6px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale));flex-wrap:wrap}
+.suna-mcp-listing em{color:var(--suna-text-muted);font-style:normal;overflow-wrap:anywhere}
+.suna-mcp-logs{display:grid;gap:6px;border-top:1px solid var(--suna-line);padding-top:8px;margin-top:8px}
+.suna-mcp-logs strong{color:var(--suna-text);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-mcp-logs p{margin:0;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale));overflow-wrap:anywhere}

@@ -1,3 +1,5 @@
+pub mod bundled;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -776,6 +778,229 @@ fn truncate_text(value: &str, limit: usize) -> String {
         result.push('\u{2026}');
     }
     result
+}
+
+// ---------------------------------------------------------------------------
+// 页面内 Skill 管理（第 53 章）：创建 / 更新 / 复制 / 删除，写入用户目录。
+
+/// 页面编辑器的结构化输入；`tools` / `knowledge_base` 作为元数据写入
+/// frontmatter，正文 `body` 即 Agent 的工作流程提示。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillDraft {
+    pub name: String,
+    pub description: String,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub tools: Vec<String>,
+    #[serde(default)]
+    pub knowledge_base: Option<String>,
+    pub body: String,
+}
+
+const MAX_SKILL_BODY_CHARS: usize = 60_000;
+const MAX_SKILL_DESCRIPTION_CHARS: usize = 300;
+
+pub fn user_skills_root() -> Result<PathBuf, String> {
+    dirs::home_dir()
+        .map(|home| home.join(".suna").join("skills"))
+        .ok_or_else(|| "home directory is unavailable".to_string())
+}
+
+fn validate_draft(draft: &SkillDraft) -> Result<(), String> {
+    let name = draft.name.trim();
+    if !valid_name(name) {
+        return Err("Skill 名称只能包含字母、数字、点、横线或下划线（≤96 字符）".to_string());
+    }
+    let description = draft.description.trim();
+    if description.is_empty() || description.chars().count() > MAX_SKILL_DESCRIPTION_CHARS {
+        return Err("Skill 描述不能为空且不超过 300 字符".to_string());
+    }
+    if !draft.body.trim().is_empty() && draft.body.chars().count() > MAX_SKILL_BODY_CHARS {
+        return Err("Skill 正文过长".to_string());
+    }
+    if let Some(version) = &draft.version {
+        if !valid_version(version) {
+            return Err("Skill 版本必须是 major.minor.patch".to_string());
+        }
+    }
+    for tag in &draft.tags {
+        if !valid_name(tag) {
+            return Err(format!(
+                "Skill 标签 {tag} 只能使用字母、数字、点、横线或下划线"
+            ));
+        }
+    }
+    for tool in &draft.tools {
+        if !valid_name(tool) {
+            return Err(format!("工具标识 {tool} 无效"));
+        }
+    }
+    if let Some(kb) = &draft.knowledge_base {
+        if kb.trim().is_empty() {
+            return Err("knowledge_base 不能为空字符串".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn render_skill_markdown(name: &str, draft: &SkillDraft) -> String {
+    // 用 Unicode 转义表示换行，避免源码里的转义歧义。
+    const LF: char = '\u{0A}';
+    const CR: char = '\u{0D}';
+    let version = draft.version.clone().unwrap_or_else(|| "1.0.0".to_string());
+    let description = draft.description.trim().replace([CR, LF], " ");
+    let mut fields: Vec<String> = vec![
+        String::from("---"),
+        format!("name: {name}"),
+        format!("description: {description}"),
+        format!("version: {version}"),
+    ];
+    if !draft.tags.is_empty() {
+        fields.push(format!("tags: [{}]", draft.tags.join(", ")));
+    }
+    if !draft.tools.is_empty() {
+        fields.push(format!("tools: [{}]", draft.tools.join(", ")));
+    }
+    if let Some(kb) = draft
+        .knowledge_base
+        .as_deref()
+        .map(str::trim)
+        .filter(|kb| !kb.is_empty())
+    {
+        fields.push(format!("knowledge_base: {kb}"));
+    }
+    fields.push(String::new());
+    fields.push(draft.body.trim().to_string());
+    let mut markdown = fields.join(&LF.to_string());
+    markdown.push(LF);
+    markdown
+}
+
+fn write_user_skill(root: &Path, name: &str, markdown: &str) -> Result<(), String> {
+    let skill_dir = root.join(name);
+    if markdown.len() > MAX_SKILL_BYTES {
+        return Err("Skill 文件超过大小上限".to_string());
+    }
+    fs::create_dir_all(&skill_dir).map_err(|error| error.to_string())?;
+    fs::write(skill_dir.join("SKILL.md"), markdown).map_err(|error| error.to_string())
+}
+
+fn require_user_skill(report: &SkillDiscoveryReport, name: &str) -> Result<SkillRecord, String> {
+    report
+        .skills
+        .iter()
+        .find(|skill| skill.name == name)
+        .cloned()
+        .ok_or_else(|| "skill not found".to_string())
+}
+
+pub fn create_skill(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    draft: SkillDraft,
+    app_version: &str,
+) -> Result<SkillCatalog, String> {
+    validate_draft(&draft)?;
+    let name = draft.name.trim().to_string();
+    let root = user_skills_root()?;
+    let report = discover_skills(&default_skill_roots(), app_version);
+    if report.skills.iter().any(|skill| skill.name == name) {
+        return Err(format!("skill '{name}' already exists"));
+    }
+    write_user_skill(&root, &name, &render_skill_markdown(&name, &draft))?;
+    catalog(connection, workspace_id, app_version)
+}
+
+pub fn update_skill(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    name: &str,
+    draft: SkillDraft,
+    app_version: &str,
+) -> Result<SkillCatalog, String> {
+    validate_draft(&draft)?;
+    let name = name.trim();
+    if !valid_name(name) {
+        return Err("skill name is invalid".to_string());
+    }
+    let root = user_skills_root()?;
+    let report = discover_skills(&default_skill_roots(), app_version);
+    let record = require_user_skill(&report, name)?;
+    if record.source.scope != SkillScope::User {
+        return Err("只有用户目录中的 Skill 支持编辑".to_string());
+    }
+    write_user_skill(&root, name, &render_skill_markdown(name, &draft))?;
+    catalog(connection, workspace_id, app_version)
+}
+
+pub fn duplicate_skill(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    name: &str,
+    app_version: &str,
+) -> Result<SkillCatalog, String> {
+    let name = name.trim();
+    let root = user_skills_root()?;
+    let report = discover_skills(&default_skill_roots(), app_version);
+    let record = require_user_skill(&report, name)?;
+    let existing: BTreeSet<String> = report
+        .skills
+        .iter()
+        .map(|skill| skill.name.clone())
+        .collect();
+    let mut candidate = format!("{name}-copy");
+    let mut suffix = 2;
+    while existing.contains(&candidate) {
+        candidate = format!("{name}-copy{suffix}");
+        suffix += 1;
+    }
+    let draft = SkillDraft {
+        name: candidate.clone(),
+        description: record.description.clone(),
+        version: Some(record.version.clone()),
+        tags: record.tags.clone(),
+        tools: Vec::new(),
+        knowledge_base: None,
+        body: record.body.clone(),
+    };
+    write_user_skill(
+        &root,
+        &candidate,
+        &render_skill_markdown(&candidate, &draft),
+    )?;
+    catalog(connection, workspace_id, app_version)
+}
+
+pub fn delete_skill(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    name: &str,
+    app_version: &str,
+) -> Result<SkillCatalog, String> {
+    let name = name.trim();
+    if !valid_name(name) {
+        return Err("skill name is invalid".to_string());
+    }
+    let root = user_skills_root()?;
+    let report = discover_skills(&default_skill_roots(), app_version);
+    let record = require_user_skill(&report, name)?;
+    if record.source.scope != SkillScope::User {
+        return Err("只有用户目录中的 Skill 支持删除".to_string());
+    }
+    // 双重防护：目录名必须等于 Skill 名，且位于用户 Skill 根之下。
+    let skill_dir = root.join(name);
+    if !skill_dir.is_dir() || skill_dir.parent() != Some(root.as_path()) {
+        return Err("skill directory is outside the user skill root".to_string());
+    }
+    fs::remove_dir_all(&skill_dir).map_err(|error| error.to_string())?;
+    let mut names = load_enabled_names(connection, workspace_id)?;
+    names.remove(name);
+    save_enabled_names(connection, workspace_id, &names)?;
+    catalog(connection, workspace_id, app_version)
 }
 
 #[cfg(test)]
