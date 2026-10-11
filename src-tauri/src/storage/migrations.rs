@@ -150,6 +150,10 @@ const MIGRATIONS: &[Migration] = &[
         version: 34,
         sql: include_str!("migrations/0034_transformer_model_kind.sql"),
     },
+    Migration {
+        version: 35,
+        sql: include_str!("migrations/0035_reports.sql"),
+    },
 ];
 
 pub fn latest_version() -> u32 {
@@ -275,4 +279,78 @@ fn migration_error(version: u32, error: impl std::fmt::Display) -> StorageError 
         "migration_failed",
         format!("migration {version} failed: {error}"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 第 80 章列出的 14 个数据模型都必须有对应的表。
+    const DOCUMENTED_TABLES: [&str; 14] = [
+        "conversations",
+        "messages",
+        "agents",
+        "tools",
+        "skills",
+        "mcp_servers",
+        "knowledge_bases",
+        "knowledge_source_documents",
+        "steel_datasets",
+        "steel_models",
+        "prediction_tasks",
+        "optimization_tasks",
+        "experiments",
+        "reports",
+    ];
+
+    fn table_count(connection: &Connection, table: &str) -> i64 {
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+                [table],
+                |row| row.get(0),
+            )
+            .expect("query schema")
+    }
+
+    #[test]
+    fn every_documented_data_model_has_a_table() {
+        let mut connection = Connection::open_in_memory().expect("open database");
+        migrate(&mut connection).expect("migrate database");
+        for table in DOCUMENTED_TABLES {
+            assert_eq!(
+                table_count(&connection, table),
+                1,
+                "missing table for documented data model: {table}"
+            );
+        }
+    }
+
+    #[test]
+    fn reports_table_records_the_documented_columns() {
+        let mut connection = Connection::open_in_memory().expect("open database");
+        migrate(&mut connection).expect("migrate database");
+        let mut columns = connection
+            .prepare("SELECT name FROM pragma_table_info('reports')")
+            .expect("prepare")
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect");
+        columns.sort();
+        for required in [
+            "workspace_id",
+            "id",
+            "kind",
+            "title",
+            "format",
+            "content_markdown",
+            "created_at",
+        ] {
+            assert!(
+                columns.iter().any(|column| column == required),
+                "reports is missing {required}"
+            );
+        }
+    }
 }

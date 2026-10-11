@@ -21,10 +21,7 @@ import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useKnowledgeStore } from "../../stores/knowledgeStore";
 import { useModelStore } from "../../stores/modelStore";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
+import { errorMessage } from "../../utils/errorMessage";
 
 function conversationTitle(message: string, fallback: string) {
   const title = message.trim().slice(0, 28);

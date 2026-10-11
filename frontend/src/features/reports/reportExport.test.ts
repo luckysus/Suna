@@ -35,6 +35,12 @@ const readMagic = async (blob: Blob): Promise<Uint8Array> =>
     reader.readAsArrayBuffer(blob.slice(0, 2));
   });
 
+/** 1×1 透明 PNG，用于验证图表图片能进入 Word / PPT 包。 */
+const TINY_PNG = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
+  (char) => char.charCodeAt(0),
+);
+
 describe("parseReportSections", () => {
   it("splits headings, paragraphs, bullets and tables", () => {
     const blocks = parseReportSections(sample);
@@ -82,5 +88,21 @@ describe("report export artifacts", () => {
     expect(html).toContain("强度 &lt; 650 MPa");
     expect(html).toContain("报告 &lt;标题&gt;");
     expect(html).toContain("@page");
+  });
+
+  it("inlines dataset charts into the print HTML", () => {
+    const html = buildPrintHtml(sample, "标题", [
+      { id: "column-means", title: "字段均值", svg: '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>', width: 720, height: 320 },
+    ]);
+    expect(html).toContain("数据与图表");
+    expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg">');
+  });
+
+  it("embeds rasterized chart images into docx and pptx", async () => {
+    const chart = { title: "字段均值", png: TINY_PNG, width: 720, height: 320 };
+    const docx = await buildReportDocx(sample, "标题", [chart]);
+    expect([(await readMagic(docx))[0], (await readMagic(docx))[1]]).toEqual([0x50, 0x4b]);
+    const pptx = await buildReportPptx(sample, "标题", [chart]);
+    expect([(await readMagic(pptx))[0], (await readMagic(pptx))[1]]).toEqual([0x50, 0x4b]);
   });
 });

@@ -1,4 +1,5 @@
 import { desktop, isDesktopRuntime, type ProviderKind, type ProviderProfileResponse } from "../../bridge/desktop";
+import { errorMessage } from "../../utils/errorMessage";
 
 export type ProviderSlot = "chat" | "embedding" | "reranker" | "mineru";
 export type RetrievalPlan = "free" | "pro";
@@ -207,6 +208,4 @@ export function providerErrorMessage(
   }
 }
 
-export function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
+export { errorMessage } from "../../utils/errorMessage";

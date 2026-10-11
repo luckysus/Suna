@@ -1,6 +1,7 @@
 import { HardDrive, RotateCcw } from "lucide-react";
 import type { BackgroundTask } from "../../bridge/desktop";
 import { useLocale, type MessageKey } from "../../i18n/locale";
+import { Button } from "../../components/ui/button";
 
 const taskStateKeys: Record<BackgroundTask["state"], MessageKey> = {
   queued: "diagnosticsTaskQueued",
@@ -39,7 +40,7 @@ export default function DiagnosticsTaskList({ tasks, busyTask, onRetry }: Diagno
           {failedTasks.map((task) => (
             <div className="suna-diagnostics-task" key={task.id}>
               <div><strong>{taskLabel(task.kind, t)}</strong><span>{task.error_code ?? t(taskStateKeys[task.state])}</span></div>
-              <div className="suna-diagnostics-task-meta"><span>{t(taskStateKeys[task.state])}</span><button type="button" className="suna-action-secondary" onClick={() => onRetry(task)} disabled={!task.can_retry || busyTask === task.id}><RotateCcw size={15} aria-hidden="true" />{busyTask === task.id ? t("loading") : t("diagnosticsRetryTask")}</button></div>
+              <div className="suna-diagnostics-task-meta"><span>{t(taskStateKeys[task.state])}</span><Button variant="actionSecondary" type="button" onClick={() => onRetry(task)} disabled={!task.can_retry || busyTask === task.id}><RotateCcw size={15} aria-hidden="true" />{busyTask === task.id ? t("loading") : t("diagnosticsRetryTask")}</Button></div>
             </div>
           ))}
         </div>

@@ -46,6 +46,7 @@ import WebTurnNavigator from "./web/WebTurnNavigator";
 import { useAppearanceSettings } from "../../settings/appearance";
 import { desktop } from "../../bridge/desktop";
 import SunaLogo from "../../components/SunaLogo";
+import { Button } from "../../components/ui/button";
 
 function isAssistant(message: Message) {
   return message.role === "agent" || message.role === "assistant";
@@ -126,15 +127,15 @@ function NativePermissionPanel({
           <p>{permission.reason}</p>
           <div className="suna-chat-permission-actions">
             {actions.map(({ decision, label }) => (
-              <button
+              <Button
                 type="button"
-                className={decision === "deny" ? "suna-action-secondary" : "suna-action-primary"}
+                variant={decision === "deny" ? "actionSecondary" : "action"}
                 key={decision}
                 onClick={() => onResolve(permission.permissionId, decision)}
               >
                 {decision === "deny" ? <X size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -174,14 +175,14 @@ function NativeRunStatus({
         {run.toolCalls.length > 0 && <span>{t("agentToolCount", { count: run.toolCalls.length })}</span>}
         {run.taskProgress && <span>{run.taskProgress.kind} · {run.taskProgress.progress}%</span>}
         {canResume && (
-          <button type="button" className="suna-action-secondary" onClick={onResume}>
+          <Button variant="actionSecondary" type="button" onClick={onResume}>
             <Play size={13} aria-hidden="true" />{t("resumeAgentRun")}
-          </button>
+          </Button>
         )}
         {canRetry && (
-          <button type="button" className="suna-action-secondary" onClick={onRetry}>
+          <Button variant="actionSecondary" type="button" onClick={onRetry}>
             <RotateCcw size={13} aria-hidden="true" />{t("retryAgentRun")}
-          </button>
+          </Button>
         )}
       </div>
       {run.toolCalls.length > 0 && (
@@ -248,7 +249,7 @@ function NativeMessage({
           <strong>需要补充的信息</strong>
           <div className="suna-chat-permission-actions">
             {response.follow_up_questions.map((question) => (
-              <button type="button" className="suna-action-secondary" key={question} onClick={() => onFollowUp(question)}>{question}</button>
+              <Button variant="actionSecondary" type="button" key={question} onClick={() => onFollowUp(question)}>{question}</Button>
             ))}
           </div>
         </div>
@@ -523,8 +524,8 @@ export default function DesktopChatWorkspace({
             <span className="suna-chat-runtime"><span className="suna-state-dot" />{t("localAgent")}</span>
             {controller.selectedConversation && (
               <>
-                <button type="button" className="suna-icon-button" aria-label={t("chatExportMarkdown")} title={t("chatExportMarkdown")} onClick={() => controller.onExportConversation("markdown")}><Download size={16} /></button>
-                <button type="button" className="suna-icon-button" aria-label={t("chatExportJson")} title={t("chatExportJson")} onClick={() => controller.onExportConversation("json")}><FileJson size={16} /></button>
+                <Button size="icon" type="button" aria-label={t("chatExportMarkdown")} title={t("chatExportMarkdown")} onClick={() => controller.onExportConversation("markdown")}><Download size={16} /></Button>
+                <Button size="icon" type="button" aria-label={t("chatExportJson")} title={t("chatExportJson")} onClick={() => controller.onExportConversation("json")}><FileJson size={16} /></Button>
               </>
             )}
           </div>

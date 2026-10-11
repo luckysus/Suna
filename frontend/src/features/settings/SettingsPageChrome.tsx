@@ -2,6 +2,7 @@ import { Activity, AlertCircle, Check, MoreHorizontal, RefreshCw } from "lucide-
 import LanguageSelect from "../../components/common/LanguageSelect";
 import type { MessageKey } from "../../i18n/locale";
 import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
 
 interface Props {
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -42,8 +43,8 @@ export default function SettingsPageChrome({
       </div>
       {showUtilities && <div className="suna-settings-header-actions">
         <LanguageSelect />
-        {onOpenDiagnostics && <button type="button" className="suna-icon-button" onClick={onOpenDiagnostics} aria-label={t("settingsDiagnostics")} title={t("settingsDiagnostics")}><Activity size={17} aria-hidden="true" /></button>}
-        <button type="button" className="suna-icon-button" onClick={load} disabled={loading} aria-label={t("settingsRefresh")} title={t("settingsRefresh")}><RefreshCw size={17} aria-hidden="true" className={loading ? "suna-spin" : undefined} /></button>
+        {onOpenDiagnostics && <Button size="icon" type="button" onClick={onOpenDiagnostics} aria-label={t("settingsDiagnostics")} title={t("settingsDiagnostics")}><Activity size={17} aria-hidden="true" /></Button>}
+        <Button size="icon" type="button" onClick={load} disabled={loading} aria-label={t("settingsRefresh")} title={t("settingsRefresh")}><RefreshCw size={17} aria-hidden="true" className={loading ? "suna-spin" : undefined} /></Button>
         <details className="suna-settings-more">
           <summary aria-label={t("settingsMore")} title={t("settingsMore")}><MoreHorizontal size={18} aria-hidden="true" /></summary>
           <div className="suna-settings-more-menu">

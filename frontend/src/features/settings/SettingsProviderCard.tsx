@@ -10,6 +10,7 @@ import type { ProviderKind } from "../../bridge/desktop";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 interface SettingsProviderCardProps {
   editor: SettingsEditor;
@@ -93,9 +94,9 @@ export default function SettingsProviderCard({
       </div>
       <label className="suna-settings-enabled"><Checkbox aria-label={t("settingsEnabled")} checked={editor.enabled} onCheckedChange={(value) => update("enabled", value === true)} />{t("settingsEnabled")}</label>
       <div className="suna-settings-card-actions">
-        <button type="submit" className="suna-action-primary" disabled={busy}><Save size={16} aria-hidden="true" />{busy ? t("saving") : t("settingsSave")}</button>
-        <button type="button" className="suna-action-secondary" onClick={() => void onTest(editor)} disabled={testing || busy}><PlugZap size={16} aria-hidden="true" />{testing ? t("testing") : t("settingsTest")}</button>
-        {editor.id && <button type="button" className="suna-icon-button suna-settings-delete" onClick={() => void onDelete(editor)} disabled={busy} aria-label={`${t("settingsDelete")} ${editor.displayName}`} title={t("settingsDelete")}><Trash2 size={16} aria-hidden="true" /></button>}
+        <Button variant="action" type="submit" disabled={busy}><Save size={16} aria-hidden="true" />{busy ? t("saving") : t("settingsSave")}</Button>
+        <Button variant="actionSecondary" type="button" onClick={() => void onTest(editor)} disabled={testing || busy}><PlugZap size={16} aria-hidden="true" />{testing ? t("testing") : t("settingsTest")}</Button>
+        {editor.id && <Button size="icon" className="suna-settings-delete" type="button" onClick={() => void onDelete(editor)} disabled={busy} aria-label={`${t("settingsDelete")} ${editor.displayName}`} title={t("settingsDelete")}><Trash2 size={16} aria-hidden="true" /></Button>}
       </div>
     </form>
   );

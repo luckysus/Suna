@@ -212,6 +212,10 @@ macro_rules! handler {
             crate::app::experiment_commands::list_experiment_plans,
             crate::app::experiment_commands::set_experiment_plan_state,
             crate::app::experiment_commands::delete_experiment_plan,
+            crate::app::report_commands::save_report,
+            crate::app::report_commands::list_reports,
+            crate::app::report_commands::delete_report,
+            crate::app::compute_task_commands::list_compute_tasks,
         ]
     };
 }

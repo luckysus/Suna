@@ -166,6 +166,10 @@ fn seed_database_at_version(connection: &mut Connection, version: u32) {
             34,
             include_str!("../src/storage/migrations/0034_transformer_model_kind.sql"),
         ),
+        (
+            35,
+            include_str!("../src/storage/migrations/0035_reports.sql"),
+        ),
     ];
 
     for (migration_version, sql) in migrations.into_iter().take(version as usize) {
@@ -499,6 +503,7 @@ fn version_twelve_database_receives_summary_source_backfill() {
         DROP TABLE skills;
         DROP TABLE tools;
         DROP TABLE agents;
+        DROP TABLE reports;
         ALTER TABLE background_tasks DROP COLUMN lease_expires_at;
         ALTER TABLE background_tasks DROP COLUMN claim_token;
         ALTER TABLE background_tasks DROP COLUMN owner;

@@ -2,6 +2,7 @@ use crate::app::task_commands::tasks::{background_task_response, BackgroundTaskR
 use crate::db::{current_workspace_id, with_conn, with_conn_mut, DbState};
 use crate::permissions::path::authorize_existing_file_with_handle;
 use crate::steel::{hash_dataset_source, read_dataset_table, DatasetTable};
+use crate::storage::repositories::compute_tasks;
 use crate::storage::repositories::steel::{self as steel_repository, SteelDatasetColumnRecord};
 use crate::storage::repositories::steel_models::{
     self as model_repository, NewSteelModel, SteelModelRecord,
@@ -955,7 +956,7 @@ pub fn predict_steel_model_on_connection(
         }
         _ => return Err("unsupported training model artifact".to_string()),
     };
-    task_repository::create(
+    let task = task_repository::create(
         connection,
         NewTask {
             workspace_id: workspace_id.to_string(),
@@ -966,7 +967,26 @@ pub fn predict_steel_model_on_connection(
             progress: 0,
         },
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+    // 第 80 章：同步写入 `prediction_tasks` 语义记录（后台任务仍记录执行状态）。
+    let background_task_id = task.id.to_string();
+    let semantic_request = json!({
+        "dataset_id": request.dataset_id,
+        "training_task_id": request.training_task_id,
+        "feature_values": request.feature_values,
+    })
+    .to_string();
+    compute_tasks::create_prediction(
+        connection,
+        workspace_id,
+        compute_tasks::NewPredictionTask {
+            background_task_id: &background_task_id,
+            dataset_id: Some(request.dataset_id.as_str()),
+            model_id: Some(request.training_task_id.as_str()),
+            request_json: &semantic_request,
+        },
+    )?;
+    Ok(task)
 }
 
 pub(crate) fn get_compute_prediction_result(
@@ -981,16 +1001,28 @@ pub(crate) fn get_compute_prediction_result(
         if !crate::compute::handler::is_prediction_task_kind(&task.kind) {
             return Err("task is not a model prediction task".to_string());
         }
-        if task.state != crate::tasks::TaskState::Completed {
-            return Ok(None);
-        }
-        let checkpoint: Value = serde_json::from_str(
-            task.checkpoint_json
-                .as_deref()
-                .ok_or_else(|| "completed prediction task has no result".to_string())?,
-        )
-        .map_err(|error| format!("invalid prediction checkpoint: {error}"))?;
-        Ok(checkpoint.get("result").cloned())
+        let result = if task.state == crate::tasks::TaskState::Completed {
+            let checkpoint: Value = serde_json::from_str(
+                task.checkpoint_json
+                    .as_deref()
+                    .ok_or_else(|| "completed prediction task has no result".to_string())?,
+            )
+            .map_err(|error| format!("invalid prediction checkpoint: {error}"))?;
+            checkpoint.get("result").cloned()
+        } else {
+            None
+        };
+        // 第 80 章：把后台任务状态同步回 `prediction_tasks`。
+        let result_json = result.as_ref().map(Value::to_string);
+        compute_tasks::sync_state(
+            connection,
+            current_workspace_id(),
+            &task.id.to_string(),
+            compute_tasks::state_for(task.state.as_str()),
+            result_json.as_deref(),
+            task.error_code.as_deref(),
+        )?;
+        Ok(result)
     })
 }
 
@@ -1281,7 +1313,7 @@ pub fn submit_optimization_on_connection(
         request,
     )?;
     let task_payload = serialize_compute_task_payload(&payload)?;
-    task_repository::create(
+    let task = task_repository::create(
         connection,
         NewTask {
             workspace_id: workspace_id.to_string(),
@@ -1292,7 +1324,31 @@ pub fn submit_optimization_on_connection(
             progress: 0,
         },
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+    // 第 80 章：同步写入 `optimization_tasks` 语义记录。
+    let background_task_id = task.id.to_string();
+    let semantic_request = json!({
+        "dataset_id": request.dataset_id,
+        "training_task_id": request.training_task_id,
+        "objective_columns": request.objective_columns,
+        "trials": request.trials,
+        "algorithm": request.algorithm,
+    })
+    .to_string();
+    compute_tasks::create_optimization(
+        connection,
+        workspace_id,
+        compute_tasks::NewOptimizationTask {
+            background_task_id: &background_task_id,
+            dataset_id: Some(request.dataset_id.as_str()),
+            model_id: Some(request.training_task_id.as_str()),
+            direction: request.direction.as_str(),
+            method: request.algorithm.as_deref(),
+            trials_requested: i64::from(request.trials),
+            request_json: &semantic_request,
+        },
+    )?;
+    Ok(task)
 }
 
 pub fn optimization_task_status_on_connection(
@@ -1336,16 +1392,28 @@ pub(crate) fn get_compute_optimization_result(
         if task.kind != crate::compute::handler::COMPUTE_OPTIMIZE_CONSTRAINED_KIND {
             return Err("task is not a constrained optimization task".to_string());
         }
-        if task.state != crate::tasks::TaskState::Completed {
-            return Ok(None);
-        }
-        let checkpoint: Value = serde_json::from_str(
-            task.checkpoint_json
-                .as_deref()
-                .ok_or_else(|| "completed optimization task has no result".to_string())?,
-        )
-        .map_err(|error| format!("invalid optimization checkpoint: {error}"))?;
-        Ok(checkpoint.get("result").cloned())
+        let result = if task.state == crate::tasks::TaskState::Completed {
+            let checkpoint: Value = serde_json::from_str(
+                task.checkpoint_json
+                    .as_deref()
+                    .ok_or_else(|| "completed optimization task has no result".to_string())?,
+            )
+            .map_err(|error| format!("invalid optimization checkpoint: {error}"))?;
+            checkpoint.get("result").cloned()
+        } else {
+            None
+        };
+        // 第 80 章：把后台任务状态同步回 `optimization_tasks`。
+        let result_json = result.as_ref().map(Value::to_string);
+        compute_tasks::sync_state(
+            connection,
+            current_workspace_id(),
+            &task.id.to_string(),
+            compute_tasks::state_for(task.state.as_str()),
+            result_json.as_deref(),
+            task.error_code.as_deref(),
+        )?;
+        Ok(result)
     })
 }
 

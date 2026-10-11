@@ -1,0 +1,16 @@
+/* 第 63 章组件规范：Toast（通知） */
+
+.suna-toast-viewport{position:fixed;right:18px;bottom:18px;z-index:90;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 36px));pointer-events:none}
+.suna-toast{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised);color:var(--suna-text);box-shadow:0 6px 20px rgba(15,23,42,.12);font-size:calc(12px * var(--suna-ui-font-scale));pointer-events:auto;animation:suna-toast-in .18s ease-out}
+.suna-toast.is-success{border-color:var(--suna-green-soft);color:var(--suna-text)}
+.suna-toast.is-success>svg{color:var(--suna-green)}
+.suna-toast.is-error{border-color:var(--suna-red-soft)}
+.suna-toast.is-error>svg{color:var(--suna-red)}
+.suna-toast.is-info>svg{color:var(--suna-primary)}
+.suna-toast-copy{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.suna-toast-copy strong{font-size:calc(12px * var(--suna-ui-font-scale));font-weight:600}
+.suna-toast-copy small{color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale));line-height:1.5;word-break:break-word}
+.suna-toast-close{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:transparent;color:var(--suna-text-muted);cursor:pointer}
+.suna-toast-close:hover{background:var(--suna-bg-soft);color:var(--suna-text)}
+@keyframes suna-toast-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.suna-toast{animation:none}}

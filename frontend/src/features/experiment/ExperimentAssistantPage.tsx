@@ -3,6 +3,8 @@ import { CalendarPlus, CheckCircle2, FlaskConical, Trash2 } from "lucide-react";
 import { desktop, type ExperimentPlanRecord } from "../../bridge/desktop";
 import ExperimentDesignPanel from "./ExperimentDesignPanel";
 import "./experiment.css";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 
 /**
  * 第 44–46 章：实验助手。
@@ -77,7 +79,7 @@ export default function ExperimentAssistantPage() {
         <div className="suna-experiment-title"><CalendarPlus size={17} /><div><h2>实验计划</h2><span>来自工艺优化候选或实验设计组合</span></div></div>
         <div className="suna-plan-list">
           {plans.map((plan) => (
-            <article className="suna-plan-card" key={plan.id}>
+            <Card variant="plan" as="article" key={plan.id}>
               <div className="suna-plan-card-head">
                 <strong>{plan.title}</strong>
                 <small>{plan.recommendation_json ? "来自优化" : "手工"} · {new Date(plan.created_at).toLocaleString()}</small>
@@ -93,11 +95,11 @@ export default function ExperimentAssistantPage() {
                   {plan.state === "accepted" ? "已采纳" : plan.state === "proposed" ? "候选" : plan.state === "rejected" ? "已否决" : "草稿"}
                 </span>
                 {plan.state !== "accepted" && (
-                  <button className="suna-ghost-button" onClick={() => void markPlan(plan, "accepted")}><CheckCircle2 size={13} />标记完成</button>
+                  <Button variant="ghost" onClick={() => void markPlan(plan, "accepted")}><CheckCircle2 size={13} />标记完成</Button>
                 )}
-                <button className="suna-ghost-button" onClick={() => void removePlan(plan)}><Trash2 size={13} />删除</button>
+                <Button variant="ghost" onClick={() => void removePlan(plan)}><Trash2 size={13} />删除</Button>
               </div>
-            </article>
+            </Card>
           ))}
           {plans.length === 0 && <p className="suna-optimization-muted">暂无实验计划；在「工艺优化」把候选方案加入计划，或在上方把实验组合加入计划。</p>}
         </div>

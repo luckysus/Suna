@@ -3,6 +3,8 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Loader2, Play } from "lucide-react";
 import { desktop } from "../../bridge/desktop";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /**
  * 第 37 章 Partial Dependence。
@@ -58,7 +60,7 @@ export default function PredictionPdpPanel({
         setCurve([...points]);
       }
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "Partial Dependence 计算失败");
+      onError(errorMessage(reason, "Partial Dependence 计算失败"));
     } finally {
       setBusy(false);
     }
@@ -78,10 +80,10 @@ export default function PredictionPdpPanel({
               {featureNames.map((name, position) => <SelectItem value={String(position)} key={`${name}-${position}`}>{name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <button className="suna-ghost-button" onClick={() => void compute()} disabled={busy}>
+          <Button variant="ghost" onClick={() => void compute()} disabled={busy}>
             {busy ? <Loader2 className="suna-spin" size={14} /> : <Play size={14} />}
             {busy ? "计算中..." : "计算 PDP"}
-          </button>
+          </Button>
         </div>
       </div>
       {curve.length > 0 ? (

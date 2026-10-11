@@ -1,5 +1,6 @@
-import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import { Document, HeadingLevel, ImageRun, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import PptxGenJS from "pptxgenjs";
+import type { ReportChart } from "./reportCharts";
 
 /**
  * 第 56 章：科研报告导出。
@@ -9,7 +10,27 @@ import PptxGenJS from "pptxgenjs";
  * - PPT（.pptx）：`pptxgenjs` 生成演示文稿，标题页 + 每个二级标题一页要点；
  * - PDF：渲染打印样式 HTML 到隐藏 iframe 并调用系统打印（Windows 自带
  *   "Microsoft Print to PDF"），矢量文字、中文完美，无需内嵌字体。
+ *
+ * 第 56 章的「图表」环节：数据集图表以自包含 SVG 生成，
+ * PDF 内联 SVG、Word/PPT 嵌入栅格化后的 PNG。
  */
+
+/** 已栅格化的报告图表（Word / PPT 用）。 */
+export type ReportChartImage = {
+  title: string;
+  png: Uint8Array;
+  width: number;
+  height: number;
+};
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+  }
+  return btoa(binary);
+}
 
 export type ReportBlock =
   | { kind: "h1" | "h2" | "h3" | "paragraph"; text: string }
@@ -72,7 +93,7 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;");
 
 /** 生成打印样式 HTML（用于系统打印导出 PDF）。 */
-export function buildPrintHtml(markdown: string, title: string): string {
+export function buildPrintHtml(markdown: string, title: string, charts: ReportChart[] = []): string {
   const blocks = parseReportSections(markdown);
   const body = blocks
     .map((block) => {
@@ -94,6 +115,11 @@ export function buildPrintHtml(markdown: string, title: string): string {
       }
     })
     .join("\n");
+  const chartSection = charts.length
+    ? `<section class="charts"><h2>数据与图表</h2>${charts
+        .map((chart) => `<figure>${chart.svg}</figure>`)
+        .join("")}</section>`
+    : "";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
     @page { margin: 20mm 18mm; }
     body { font-family: "Noto Sans SC", "Microsoft YaHei", "SimSun", sans-serif; color: #111827; font-size: 12pt; line-height: 1.7; }
@@ -104,19 +130,21 @@ export function buildPrintHtml(markdown: string, title: string): string {
     th, td { border: 1px solid #9CA3AF; padding: 4pt 6pt; text-align: left; }
     th { background: #EFF6FF; }
     li { margin: 2pt 0; }
+    .charts figure { margin: 10pt 0; page-break-inside: avoid; }
+    .charts svg { max-width: 100%; height: auto; }
     footer { margin-top: 24pt; font-size: 9pt; color: #6B7280; border-top: 1px solid #E5E7EB; padding-top: 6pt; }
-  </style></head><body><h1>${escapeHtml(title)}</h1>${body}<footer>由 Suna 生成 · ${new Date().toLocaleString("zh-CN")}</footer></body></html>`;
+  </style></head><body><h1>${escapeHtml(title)}</h1>${body}${chartSection}<footer>由 Suna 生成 · ${new Date().toLocaleString("zh-CN")}</footer></body></html>`;
 }
 
 /** 调起系统打印（选择 "Microsoft Print to PDF" 即导出 PDF 文件）。 */
-export function printReport(markdown: string, title: string): void {
+export function printReport(markdown: string, title: string, charts: ReportChart[] = []): void {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.position = "fixed";
   frame.style.width = "0";
   frame.style.height = "0";
   frame.style.border = "0";
-  frame.srcdoc = buildPrintHtml(markdown, title);
+  frame.srcdoc = buildPrintHtml(markdown, title, charts);
   frame.onload = () => {
     frame.contentWindow?.focus();
     frame.contentWindow?.print();
@@ -126,9 +154,27 @@ export function printReport(markdown: string, title: string): void {
 }
 
 /** 生成 Word 文档（.docx）。 */
-export async function buildReportDocx(markdown: string, title: string): Promise<Blob> {
+export async function buildReportDocx(markdown: string, title: string, charts: ReportChartImage[] = []): Promise<Blob> {
   const blocks = parseReportSections(markdown);
   const children: Array<Paragraph | Table> = [new Paragraph({ text: title, heading: HeadingLevel.TITLE })];
+  if (charts.length > 0) {
+    children.push(new Paragraph({ text: "数据与图表", heading: HeadingLevel.HEADING_1 }));
+    const maxWidth = 600;
+    for (const chart of charts) {
+      const ratio = chart.height / chart.width;
+      children.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              type: "png",
+              data: chart.png,
+              transformation: { width: maxWidth, height: Math.round(maxWidth * ratio) },
+            }),
+          ],
+        }),
+      );
+    }
+  }
   let listBuffer: Paragraph[] = [];
   const flushList = () => {
     children.push(...listBuffer);
@@ -181,8 +227,8 @@ export async function buildReportDocx(markdown: string, title: string): Promise<
   return Packer.toBlob(document);
 }
 
-/** 生成 PPT 演示文稿（.pptx）：标题页 + 每个二级标题一页要点。 */
-export async function buildReportPptx(markdown: string, title: string): Promise<Blob> {
+/** 生成 PPT 演示文稿（.pptx）：标题页 + 图表页 + 每个二级标题一页要点。 */
+export async function buildReportPptx(markdown: string, title: string, charts: ReportChartImage[] = []): Promise<Blob> {
   const blocks = parseReportSections(markdown);
   const pptx = new PptxGenJS();
   pptx.title = title;
@@ -191,6 +237,14 @@ export async function buildReportPptx(markdown: string, title: string): Promise<
   const cover = pptx.addSlide();
   cover.addText(title, { x: 0.6, y: 2.0, w: 8.8, h: 1.2, fontSize: 32, bold: true, color: "1D4ED8" });
   cover.addText("Suna · AI for Steel Research", { x: 0.6, y: 3.3, w: 8.8, h: 0.5, fontSize: 14, color: "6B7280" });
+
+  for (const chart of charts) {
+    const slide = pptx.addSlide();
+    slide.addText(chart.title, { x: 0.6, y: 0.35, w: 8.8, h: 0.7, fontSize: 20, bold: true, color: "1D4ED8" });
+    const width = 8.8;
+    const height = Math.min(width * (chart.height / chart.width), 4.1);
+    slide.addImage({ data: `image/png;base64,${bytesToBase64(chart.png)}`, x: 0.6, y: 1.25, w: width, h: height });
+  }
 
   const sections = new Map<string, string[]>();
   let current = "摘要";

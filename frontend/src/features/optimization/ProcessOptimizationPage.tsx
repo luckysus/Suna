@@ -6,7 +6,11 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import OptimizationParetoChart from "./OptimizationParetoChart";
+import { OptimizationHistoryPanel } from "./OptimizationHistoryPanel";
+import { FileDropZone } from "../../components/common/FileDropZone";
 import "./optimization.css";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /** 第 38–43 章：工艺优化（算法可选、训练任务联动、Pareto 前沿、候选入库）。 */
 
@@ -45,7 +49,7 @@ export default function ProcessOptimizationPage() {
       setDatasets(items.filter((item) => item.mappingState === "ready"));
       if (!datasetId) setDatasetId(items.find((item) => item.mappingState === "ready")?.id ?? "");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "无法加载数据集");
+      setError(errorMessage(reason, "无法加载数据集"));
     } finally {
       setState("idle");
     }
@@ -67,7 +71,7 @@ export default function ProcessOptimizationPage() {
         setTrainingTasks(usable);
         setTrainingTaskId(usable[0]?.id ?? "");
       } catch (reason) {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "无法加载训练任务");
+        if (!cancelled) setError(errorMessage(reason, "无法加载训练任务"));
       }
     })();
     return () => { cancelled = true; };
@@ -116,7 +120,7 @@ export default function ProcessOptimizationPage() {
       setNotice(`优化完成：${completed.method} · ${completed.trials_completed} 次评估 · 前沿 ${completed.pareto_front.length} 个解`);
     } catch (reason) {
       setState("error");
-      setError(reason instanceof Error ? reason.message : "工艺优化失败");
+      setError(errorMessage(reason, "工艺优化失败"));
     } finally {
       setState("idle");
     }
@@ -125,12 +129,18 @@ export default function ProcessOptimizationPage() {
   const importDataset = async () => {
     const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "数据文件", extensions: ["csv", "xlsx", "xls", "json"] }] });
     if (typeof path !== "string") return;
+    await importPaths([path]);
+  };
+
+  // 第 68 章：拖拽与按钮走同一条导入链路。
+  const importPaths = async (paths: string[]) => {
+    if (paths.length === 0) return;
     try {
-      await desktop.saveSteelDataset({ sourcePath: path });
-      setNotice("数据集已保存，请在数据实验室完成列映射并激活");
+      for (const path of paths) await desktop.saveSteelDataset({ sourcePath: path });
+      setNotice(`已保存 ${paths.length} 个数据集，请在数据实验室完成列映射并激活`);
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "数据集导入失败");
+      setError(errorMessage(reason, "数据集导入失败"));
     }
   };
 
@@ -169,7 +179,7 @@ export default function ProcessOptimizationPage() {
       });
       setNotice("候选方案已加入实验计划，可在「实验助手」查看");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "无法加入实验计划");
+      setError(errorMessage(reason, "无法加入实验计划"));
     }
   };
 
@@ -182,12 +192,19 @@ export default function ProcessOptimizationPage() {
           <p>在数据和已训练模型约束下探索可行的工艺方案。</p>
         </div>
         <div className="suna-optimization-actions">
-          <button className="suna-ghost-button" onClick={() => void load()}><RefreshCw size={15} />刷新数据</button>
-          <button className="suna-ghost-button" onClick={() => void importDataset()}><Upload size={15} />导入数据</button>
+          <Button variant="ghost" onClick={() => void load()}><RefreshCw size={15} />刷新数据</Button>
+          <Button variant="ghost" onClick={() => void importDataset()}><Upload size={15} />导入数据</Button>
         </div>
       </header>
       {error && <div className="suna-optimization-alert"><AlertTriangle size={16} />{error}</div>}
       {notice && <div className="suna-optimization-notice"><CheckCircle2 size={16} />{notice}</div>}
+      <FileDropZone
+        extensions={["csv", "xlsx", "xls", "json"]}
+        onFiles={(paths) => importPaths(paths)}
+        onRejected={(reason) => setError(reason)}
+        label="松开即可导入数据集"
+        hint="支持 CSV / Excel / JSON"
+      >
       <div className="suna-optimization-layout">
         <section className="suna-optimization-config">
           <div className="suna-optimization-title"><Gauge size={17} /><div><h2>优化任务配置</h2><span>目标、变量和约束</span></div></div>
@@ -229,13 +246,13 @@ export default function ProcessOptimizationPage() {
             {columns.length === 0 && <span className="suna-optimization-muted">暂无可用数值列</span>}
           </fieldset>
           <label>搜索次数<Input type="number" min="10" max="500" step="10" value={trials} onChange={(event) => setTrials(Number(event.target.value))} /></label>
-          <button className="suna-primary-button suna-optimization-run" onClick={() => void run()} disabled={state === "running" || state === "loading"}>
+          <Button variant="primary" className="suna-optimization-run" onClick={() => void run()} disabled={state === "running" || state === "loading"}>
             {state === "running" ? <Loader2 className="suna-spin" size={16} /> : <Play size={16} />}{state === "running" ? "优化中..." : "开始优化"}
-          </button>
+          </Button>
         </section>
         <section className="suna-optimization-result">
           <div className="suna-optimization-title"><Gauge size={17} /><div><h2>候选方案</h2><span>{result ? `${result.method} · ${result.trials_completed} 次评估 · 前沿 ${result.pareto_front.length} 解` : "运行任务后显示 Pareto 候选方案"}</span></div>
-            {result && <button className="suna-ghost-button" onClick={() => void exportResult()}><Download size={14} />导出 JSON</button>}
+            {result && <Button variant="ghost" onClick={() => void exportResult()}><Download size={14} />导出 JSON</Button>}
           </div>
           {result && result.recommendations.length > 0 && (
             <OptimizationParetoChart front={result.pareto_front} recommendations={result.recommendations} objectives={result.objectives} />
@@ -249,7 +266,7 @@ export default function ProcessOptimizationPage() {
                   <span>{recommendation.prediction.toFixed(3)}</span>
                   <span>{recommendation.objectives.map((value) => value.toFixed(3)).join(" / ")}</span>
                   <span className="suna-optimization-values">{result.feature_names.map((name) => `${name}=${recommendation.values[name]?.toFixed(2) ?? "-"}`).join("，")}</span>
-                  <span className="suna-optimization-actions-cell"><button className="suna-ghost-button" onClick={() => void addToPlan(index)}><CalendarPlus size={13} />加入实验计划</button></span>
+                  <span className="suna-optimization-actions-cell"><Button variant="ghost" onClick={() => void addToPlan(index)}><CalendarPlus size={13} />加入实验计划</Button></span>
                 </div>
               ))}
             </div>
@@ -258,6 +275,8 @@ export default function ProcessOptimizationPage() {
           )}
         </section>
       </div>
+      <OptimizationHistoryPanel />
+      </FileDropZone>
     </section>
   );
 }

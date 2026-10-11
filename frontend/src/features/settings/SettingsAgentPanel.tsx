@@ -8,6 +8,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 type AgentSettings = {
   defaultAgent: string;
@@ -194,7 +195,7 @@ export default function SettingsAgentPanel() {
         <label className="suna-settings-field"><span>检查点恢复次数</span><Input type="number" min="0" max="10" value={value.recoveryRetries} onChange={(event) => update("recoveryRetries", Number(event.target.value))} /></label>
         <label className="suna-settings-field"><span>整次运行期限（秒）</span><Input type="number" min="30" max="86400" value={value.runTimeoutSeconds} onChange={(event) => update("runTimeoutSeconds", Number(event.target.value))} /></label>
       </div>
-      <label className="suna-settings-field suna-settings-textarea-field"><span>Agent 工作目录</span><Input aria-label="Agent 工作目录" value={value.workingDirectory} placeholder="留空使用应用的 Agent 工作目录" onChange={(event) => update("workingDirectory", event.target.value)} /><small>文件读写和 Shell 仅允许在此目录内执行。留空使用应用专用目录。</small><button type="button" className="suna-secondary-button" onClick={() => void desktop.openFileDialog({ directory: true, multiple: false }).then((path) => { if (typeof path === "string") update("workingDirectory", path); }).catch((cause) => setError(settingsErrorMessage(cause, "无法选择工作目录")))}>选择文件夹</button></label>
+      <label className="suna-settings-field suna-settings-textarea-field"><span>Agent 工作目录</span><Input aria-label="Agent 工作目录" value={value.workingDirectory} placeholder="留空使用应用的 Agent 工作目录" onChange={(event) => update("workingDirectory", event.target.value)} /><small>文件读写和 Shell 仅允许在此目录内执行。留空使用应用专用目录。</small><Button variant="secondary" type="button" onClick={() => void desktop.openFileDialog({ directory: true, multiple: false }).then((path) => { if (typeof path === "string") update("workingDirectory", path); }).catch((cause) => setError(settingsErrorMessage(cause, "无法选择工作目录")))}>选择文件夹</Button></label>
       <label className="suna-settings-field suna-settings-textarea-field"><span>System Prompt</span><Textarea rows={4} value={value.systemPrompt} onChange={(event) => update("systemPrompt", event.target.value)} /></label>
       <div className="suna-settings-subsection"><div className="suna-settings-subsection-heading"><ShieldCheck size={17} /><div><strong>运行策略</strong><small>这些开关会直接影响 Agent Loop 的规划、知识检索、工具调用和输出行为。</small></div></div><div className="suna-settings-toggle-list">
         <Toggle checked={value.autoSelectAgent} label="自动选择 Agent" copy="根据任务类型选择最合适的 Agent 配置。" onChange={(next) => update("autoSelectAgent", next)} />
@@ -213,7 +214,7 @@ export default function SettingsAgentPanel() {
         <Toggle checked={value.allowDatabase} label="数据库访问" copy="允许 Agent 查询已配置的生产数据和数据库连接。" onChange={(next) => update("allowDatabase", next)} />
         <Toggle checked={value.allowMcp} label="MCP 工具" copy="允许 Agent 使用已启用的 MCP Server 工具。" onChange={(next) => update("allowMcp", next)} />
       </div></div>
-      <footer className="suna-settings-form-actions"><button type="button" className="suna-secondary-button" onClick={reset}><RotateCcw size={15} />恢复默认 Agent 设置</button><span className={`suna-settings-inline-saved is-${saveState}`} role="status">{saveState === "saving" && <LoaderCircle size={14} className="suna-spin" />}{saveState === "saved" && <Check size={14} />}{saveState === "error" ? "保存失败，修改后重试" : saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "自动保存"}</span></footer>
+      <footer className="suna-settings-form-actions"><Button variant="secondary" type="button" onClick={reset}><RotateCcw size={15} />恢复默认 Agent 设置</Button><span className={`suna-settings-inline-saved is-${saveState}`} role="status">{saveState === "saving" && <LoaderCircle size={14} className="suna-spin" />}{saveState === "saved" && <Check size={14} />}{saveState === "error" ? "保存失败，修改后重试" : saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "自动保存"}</span></footer>
     </>}
   </section>;
 }

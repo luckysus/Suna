@@ -2,6 +2,7 @@ import { BookOpen, LoaderCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { desktop, type EvidenceItem, type ResolvedCitation } from "../../bridge/desktop";
 import { useLocale } from "../../i18n/locale";
+import { Button } from "../../components/ui/button";
 
 interface CitationPanelProps {
   auditId: string;
@@ -58,15 +59,9 @@ export default function CitationPanel({ auditId, evidence }: CitationPanelProps)
       <div className="suna-chat-citations-heading">
         <span><BookOpen size={14} aria-hidden="true" />{t("citationSection")}</span>
         {selectedNumber !== null && (
-          <button
-            type="button"
-            className="suna-icon-button"
-            onClick={() => setSelectedNumber(null)}
-            aria-label={t("closeCitationDetail")}
-            title={t("closeCitationDetail")}
-          >
+          <Button size="icon" type="button" onClick={() => setSelectedNumber(null)} aria-label={t("closeCitationDetail")} title={t("closeCitationDetail")} >
             <X size={14} aria-hidden="true" />
-          </button>
+          </Button>
         )}
       </div>
       <div className="suna-chat-citation-list">

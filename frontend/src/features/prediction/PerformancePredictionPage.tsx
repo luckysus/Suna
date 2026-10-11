@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BarChart3, CheckCircle2, Database, Loader2, Play, RefreshCw, Upload } from "lucide-react";
 import { desktop, type ComputePredictionResult, type ComputeTrainingResult, type ShapExplanation, type SteelDatasetRecord, type SteelTrainingAlgorithm } from "../../bridge/desktop";
 import "./prediction.css";
+import { FileDropZone } from "../../components/common/FileDropZone";
 import { TRAINING_ALGORITHMS, algorithmLabel, columnDisplayName, featureImportanceShares, formatMetricValue } from "./predictionModel";
 import ModelComparisonPanel from "./ModelComparisonPanel";
 import ModelRegistryPanel from "./ModelRegistryPanel";
@@ -11,6 +12,8 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import ShapBarChart from "../../components/charts/ShapBarChart";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 type RunState = "idle" | "loading" | "running" | "error";
 const numeric = (dataset: SteelDatasetRecord) => dataset.columns.filter((column) => column.inferredType === "number" && !column.duplicate);
@@ -49,7 +52,7 @@ export default function PerformancePredictionPage() {
       const items = await desktop.listSteelDatasets();
       setDatasets(items.filter((item) => item.mappingState === "ready"));
       if (!datasetId && items.some((item) => item.mappingState === "ready")) setDatasetId(items.find((item) => item.mappingState === "ready")!.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "无法加载数据集"); }
+    } catch (reason) { setError(errorMessage(reason, "无法加载数据集")); }
     finally { setTraining("idle"); }
   };
   useEffect(() => { void load(); }, []);
@@ -85,7 +88,7 @@ export default function PerformancePredictionPage() {
       } catch {
         setNotice("模型训练完成，但自动注册失败，可在运行记录中手动注册");
       }
-    } catch (reason) { setTraining("error"); setError(reason instanceof Error ? reason.message : "模型训练失败"); }
+    } catch (reason) { setTraining("error"); setError(errorMessage(reason, "模型训练失败")); }
   };
   const runPrediction = async () => {
     if (!dataset || !trainingResult) return;
@@ -100,7 +103,7 @@ export default function PerformancePredictionPage() {
         await new Promise((resolve) => window.setTimeout(resolve, 600));
       }
       throw new Error("预测任务超时，请在运行记录中查看状态");
-    } catch (reason) { setPrediction("error"); setError(reason instanceof Error ? reason.message : "预测失败"); }
+    } catch (reason) { setPrediction("error"); setError(errorMessage(reason, "预测失败")); }
   };
   const explain = async () => {
     if (!trainingResult) return;
@@ -112,15 +115,24 @@ export default function PerformancePredictionPage() {
       setExplanation(await desktop.explainSteelModel({ modelId: trainingResult.artifact.model_id, features: featureValues }));
     } catch (reason) {
       setExplanation(null);
-      setExplainError(reason instanceof Error ? reason.message : "无法解释该模型");
+      setExplainError(errorMessage(reason, "无法解释该模型"));
     } finally { setExplainBusy(false); }
   };
   const importDataset = async () => {
     const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "数据文件", extensions: ["csv", "xlsx", "xls", "json"] }] });
     if (typeof path !== "string") return;
-    try { await desktop.saveSteelDataset({ sourcePath: path }); setNotice("数据集已保存，请在数据实验室完成列映射并激活"); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "数据集导入失败"); }
+    await importDatasetPaths([path]);
   };
-  return <section className="suna-prediction-page"><header className="suna-prediction-header"><div><span className="suna-module-kicker">SUNA PERFORMANCE PREDICTION</span><h1><BarChart3 size={24} />性能预测</h1><p>基于机器学习模型，快速预测钢铁材料的力学性能。</p></div><div className="suna-prediction-actions"><button className="suna-ghost-button" onClick={importDataset}><Upload size={15} />导入数据</button><button className="suna-icon-button" onClick={() => void load()} aria-label="刷新数据集"><RefreshCw size={16} /></button></div></header><nav className="suna-prediction-tabs"><button className={tab === "single" ? "is-active" : ""} onClick={() => setTab("single")}>单点预测</button><button className={tab === "batch" ? "is-active" : ""} onClick={() => setTab("batch")}>批量预测</button><button className={tab === "models" ? "is-active" : ""} onClick={() => setTab("models")}>模型管理</button><button className={tab === "compare" ? "is-active" : ""} onClick={() => setTab("compare")}>模型比较</button></nav>{tab !== "single" && <div className="suna-prediction-notice">{tab === "batch" ? "批量预测将在选择数据集后提交整批记录。当前页面先完成模型训练与单点验证。" : tab === "compare" ? "模型比较会用同一组输入训练多个模型并对比预测值、误差与验证指标。" : "模型中心列出全部已注册模型版本，并支持自备 ONNX 模型预测。"}</div>}
+  const importDatasetPaths = async (paths: string[]) => {
+    setError("");
+    let saved = 0;
+    for (const path of paths) {
+      try { await desktop.saveSteelDataset({ sourcePath: path }); saved += 1; } catch (reason) { setError(errorMessage(reason, "数据集导入失败")); break; }
+    }
+    if (saved > 0) { setNotice(`已导入 ${saved} 个数据集，请在数据实验室完成列映射并激活`); await load(); }
+  };
+  return <FileDropZone extensions={["csv", "xlsx", "xls", "json"]} onFiles={(paths) => void importDatasetPaths(paths)} onRejected={(reason) => setNotice(reason)} label="松开即可导入数据集" hint="支持 CSV / Excel / JSON">
+    <section className="suna-prediction-page"><header className="suna-prediction-header"><div><span className="suna-module-kicker">SUNA PERFORMANCE PREDICTION</span><h1><BarChart3 size={24} />性能预测</h1><p>基于机器学习模型，快速预测钢铁材料的力学性能。</p></div><div className="suna-prediction-actions"><Button variant="ghost" onClick={importDataset}><Upload size={15} />导入数据</Button><Button size="icon" onClick={() => void load()} aria-label="刷新数据集"><RefreshCw size={16} /></Button></div></header><nav className="suna-prediction-tabs"><button className={tab === "single" ? "is-active" : ""} onClick={() => setTab("single")}>单点预测</button><button className={tab === "batch" ? "is-active" : ""} onClick={() => setTab("batch")}>批量预测</button><button className={tab === "models" ? "is-active" : ""} onClick={() => setTab("models")}>模型管理</button><button className={tab === "compare" ? "is-active" : ""} onClick={() => setTab("compare")}>模型比较</button></nav>{tab !== "single" && <div className="suna-prediction-notice">{tab === "batch" ? "批量预测将在选择数据集后提交整批记录。当前页面先完成模型训练与单点验证。" : tab === "compare" ? "模型比较会用同一组输入训练多个模型并对比预测值、误差与验证指标。" : "模型中心列出全部已注册模型版本，并支持自备 ONNX 模型预测。"}</div>}
     {error && <div className="suna-prediction-alert"><AlertTriangle size={16} />{error}</div>}{notice && <div className="suna-prediction-notice"><CheckCircle2 size={16} />{notice}</div>}
     {tab === "models" ? <div className="suna-prediction-modelcenter"><ModelRegistryPanel datasets={datasets} onNotice={setNotice} onError={setError} /><CustomOnnxPanel onNotice={setNotice} onError={setError} /></div> : tab === "compare" ? <ModelComparisonPanel datasetId={datasetId} targetColumn={target} featureColumns={featureColumns} featureValues={featureRecords.map((column) => Number(values[column.ordinal] ?? midpoint(column)))} onNotice={setNotice} onError={setError} /> : <div className="suna-prediction-layout"><section className="suna-prediction-config"><div className="suna-prediction-section-title"><Database size={17} /><div><h2>预测任务配置</h2><span>选择已激活的数据集和训练目标</span></div></div><label>数据集<Select value={datasetId} onValueChange={(value) => setDatasetId(value)}>
   <SelectTrigger aria-label="数据集"><SelectValue /></SelectTrigger>
@@ -134,7 +146,8 @@ export default function PerformancePredictionPage() {
   <SelectTrigger aria-label="预测目标"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="">选择目标列</SelectItem>{columns.map((column) => <SelectItem value={String(column.ordinal)} key={column.ordinal}>{columnDisplayName(column)}</SelectItem>)}
   </SelectContent>
-</Select></label><fieldset><legend>输入特征</legend>{columns.length === 0 && <span className="suna-prediction-muted">请先选择已激活的数据集</span>}{columns.map((column) => <label className="suna-prediction-check" key={column.ordinal}><Checkbox aria-label={column.originalName} checked={featureColumns.includes(column.ordinal)} disabled={column.ordinal === target} onCheckedChange={() => toggleFeature(column.ordinal)} />{columnDisplayName(column)}<small>{column.inferredType}</small></label>)}</fieldset><button className="suna-primary-button suna-prediction-train" onClick={() => void train()} disabled={training === "running" || training === "loading"}>{training === "running" ? <Loader2 className="suna-spin" size={16} /> : <Play size={16} />}{training === "running" ? "训练中..." : "训练模型"}</button></section>
-      <section className="suna-prediction-result"><div className="suna-prediction-section-title"><BarChart3 size={17} /><div><h2>预测结果</h2><span>{trainingResult ? `${algorithmLabel(trainingResult.artifact.model_type)} · 已完成` : "训练完成后显示结果"}</span></div></div>{trainingResult ? <><div className="suna-prediction-metrics">{metricCards.map((card) => <div key={card.key}><span>{card.label}</span><strong>{card.value}</strong></div>)}</div>{importance.length > 0 && <div className="suna-prediction-importance"><h3>特征重要性（Feature Importance）</h3>{importance.map((item) => <div key={item.name}><span>{item.name}</span><i><b style={{ width: `${Math.max(2, item.share * 100)}%` }} /></i><strong>{(item.share * 100).toFixed(1)}%</strong></div>)}</div>}<div className="suna-prediction-inputs"><h3>输入变量</h3>{featureRecords.map((column) => <label key={column.ordinal}>{columnDisplayName(column)}<Input type="number" value={values[column.ordinal] ?? ""} placeholder={`建议 ${midpoint(column).toFixed(3)}`} onChange={(event) => setValues((current) => ({ ...current, [column.ordinal]: event.target.value }))} /></label>)}<button className="suna-primary-button" onClick={() => void runPrediction()} disabled={prediction === "running"}>{prediction === "running" ? <Loader2 className="suna-spin" size={15} /> : <Play size={15} />}{prediction === "running" ? "预测中..." : "运行预测"}</button></div>{predictionResult && <div className="suna-prediction-output"><span>预测值</span><strong>{predictionResult.predictions.map((value) => Number(value).toFixed(3)).join(", ")}</strong>{predictionResult.prediction_interval?.[0] && <small>95% 预测区间 {predictionResult.prediction_interval[0].lower.toFixed(3)} ~ {predictionResult.prediction_interval[0].upper.toFixed(3)}（基于验证集残差）</small>}{predictionResult.confidence != null && <small>置信度 {predictionResult.confidence.toFixed(3)}</small>}{predictionResult.applicability_warnings.length > 0 && <div className="suna-prediction-warning"><AlertTriangle size={14} />输入超出模型适用范围，请谨慎解释结果。</div>}</div>}<div className="suna-prediction-explain"><div className="suna-prediction-section-title"><BarChart3 size={15} /><div><h3>模型解释（精确 SHAP）</h3><span>解释各输入变量对预测值的贡献</span></div><button className="suna-ghost-button" onClick={() => void explain()} disabled={explainBusy}>{explainBusy ? <Loader2 className="suna-spin" size={14} /> : <Play size={14} />}解释本次输入</button></div>{explainError && <div className="suna-prediction-warning"><AlertTriangle size={14} />{explainError}</div>}{explanation ? <ShapBarChart explanation={explanation} /> : <p className="suna-prediction-muted">填写输入变量后点击「解释本次输入」。仅线性模型支持精确 SHAP，其他模型族会明确提示不支持。</p>}</div><PredictionPdpPanel datasetId={datasetId} trainingTaskId={trainingResult.task_id} featureNames={featureRecords.map((column) => column.originalName)} featureValues={featureRecords.map((column) => Number(values[column.ordinal] ?? midpoint(column)))} ranges={trainingResult.artifact.applicability_range} onError={setError} /></> : <div className="suna-prediction-empty"><BarChart3 size={30} /><strong>尚未生成预测</strong><span>训练模型后，这里会显示指标和预测结果。</span></div>}</section></div>}
+</Select></label><fieldset><legend>输入特征</legend>{columns.length === 0 && <span className="suna-prediction-muted">请先选择已激活的数据集</span>}{columns.map((column) => <label className="suna-prediction-check" key={column.ordinal}><Checkbox aria-label={column.originalName} checked={featureColumns.includes(column.ordinal)} disabled={column.ordinal === target} onCheckedChange={() => toggleFeature(column.ordinal)} />{columnDisplayName(column)}<small>{column.inferredType}</small></label>)}</fieldset><Button variant="primary" className="suna-prediction-train" onClick={() => void train()} disabled={training === "running" || training === "loading"}>{training === "running" ? <Loader2 className="suna-spin" size={16} /> : <Play size={16} />}{training === "running" ? "训练中..." : "训练模型"}</Button></section>
+      <section className="suna-prediction-result"><div className="suna-prediction-section-title"><BarChart3 size={17} /><div><h2>预测结果</h2><span>{trainingResult ? `${algorithmLabel(trainingResult.artifact.model_type)} · 已完成` : "训练完成后显示结果"}</span></div></div>{trainingResult ? <><div className="suna-prediction-metrics">{metricCards.map((card) => <div key={card.key}><span>{card.label}</span><strong>{card.value}</strong></div>)}</div>{importance.length > 0 && <div className="suna-prediction-importance"><h3>特征重要性（Feature Importance）</h3>{importance.map((item) => <div key={item.name}><span>{item.name}</span><i><b style={{ width: `${Math.max(2, item.share * 100)}%` }} /></i><strong>{(item.share * 100).toFixed(1)}%</strong></div>)}</div>}<div className="suna-prediction-inputs"><h3>输入变量</h3>{featureRecords.map((column) => <label key={column.ordinal}>{columnDisplayName(column)}<Input type="number" value={values[column.ordinal] ?? ""} placeholder={`建议 ${midpoint(column).toFixed(3)}`} onChange={(event) => setValues((current) => ({ ...current, [column.ordinal]: event.target.value }))} /></label>)}<Button variant="primary" onClick={() => void runPrediction()} disabled={prediction === "running"}>{prediction === "running" ? <Loader2 className="suna-spin" size={15} /> : <Play size={15} />}{prediction === "running" ? "预测中..." : "运行预测"}</Button></div>{predictionResult && <div className="suna-prediction-output"><span>预测值</span><strong>{predictionResult.predictions.map((value) => Number(value).toFixed(3)).join(", ")}</strong>{predictionResult.prediction_interval?.[0] && <small>95% 预测区间 {predictionResult.prediction_interval[0].lower.toFixed(3)} ~ {predictionResult.prediction_interval[0].upper.toFixed(3)}（基于验证集残差）</small>}{predictionResult.confidence != null && <small>置信度 {predictionResult.confidence.toFixed(3)}</small>}{predictionResult.applicability_warnings.length > 0 && <div className="suna-prediction-warning"><AlertTriangle size={14} />输入超出模型适用范围，请谨慎解释结果。</div>}</div>}<div className="suna-prediction-explain"><div className="suna-prediction-section-title"><BarChart3 size={15} /><div><h3>模型解释（精确 SHAP）</h3><span>解释各输入变量对预测值的贡献</span></div><Button variant="ghost" onClick={() => void explain()} disabled={explainBusy}>{explainBusy ? <Loader2 className="suna-spin" size={14} /> : <Play size={14} />}解释本次输入</Button></div>{explainError && <div className="suna-prediction-warning"><AlertTriangle size={14} />{explainError}</div>}{explanation ? <ShapBarChart explanation={explanation} /> : <p className="suna-prediction-muted">填写输入变量后点击「解释本次输入」。仅线性模型支持精确 SHAP，其他模型族会明确提示不支持。</p>}</div><PredictionPdpPanel datasetId={datasetId} trainingTaskId={trainingResult.task_id} featureNames={featureRecords.map((column) => column.originalName)} featureValues={featureRecords.map((column) => Number(values[column.ordinal] ?? midpoint(column)))} ranges={trainingResult.artifact.applicability_range} onError={setError} /></> : <div className="suna-prediction-empty"><BarChart3 size={30} /><strong>尚未生成预测</strong><span>训练模型后，这里会显示指标和预测结果。</span></div>}</section></div>}
   </section>;
+  </FileDropZone>;
 }

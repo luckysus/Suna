@@ -1,5 +1,6 @@
 pub mod checkpoints;
 pub mod child_turns;
+pub mod compute_tasks;
 pub mod conversations;
 pub mod cron;
 pub mod database_connections;
@@ -12,6 +13,7 @@ pub mod mcp;
 pub mod memories;
 pub mod permissions;
 pub mod provider_profiles;
+pub mod reports;
 pub mod runs;
 pub mod settings;
 pub mod steel;

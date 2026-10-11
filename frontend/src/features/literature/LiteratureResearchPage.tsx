@@ -5,6 +5,10 @@ import AIAnswerRenderer from "../../components/answer/AnswerRenderer";
 import "./literature.css";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { FileDropZone } from "../../components/common/FileDropZone";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { Button } from "../../components/ui/button";
 
 type Status = "idle" | "loading" | "error";
 const settingKey = "suna.literature.favorites";
@@ -121,13 +125,13 @@ export default function LiteratureResearchPage() {
       const next = response.literature_results ?? response.results ?? [];
       setResults(next); setSelectedId(next[0]?.document_id ?? next[0]?.source_name ?? null); setStatus("idle");
       void loadDocumentMetadata(next);
-    } catch (reason) { setStatus("error"); setError(reason instanceof Error ? reason.message : "文献检索失败，请检查知识库连接后重试"); }
+    } catch (reason) { setStatus("error"); setError(errorMessage(reason, "文献检索失败，请检查知识库连接后重试")); }
   };
   const read = async (target = selected, part?: number) => {
     if (!target) return;
     setReadingStatus("loading"); setReading(null);
     try { setReading(await desktop.readLiteratureSection({ query: submittedQuery || titleOf(target), documentHint: target.source_name, chapterNumber: part })); setReadingStatus("idle"); }
-    catch (reason) { setReadingStatus("error"); setError(reason instanceof Error ? reason.message : "无法读取文献内容"); }
+    catch (reason) { setReadingStatus("error"); setError(errorMessage(reason, "无法读取文献内容")); }
   };
   const reviewPool = () => (compareItems.length >= 2 ? compareItems : visibleResults.slice(0, reviewCount));
   const generateReview = async () => {
@@ -138,7 +142,7 @@ export default function LiteratureResearchPage() {
       const evidence = pool.map((item, index) => `文献${index + 1}：${titleOf(item)}\n来源：${item.source_name}\n证据：${excerptOf(item)}`).join("\n\n");
       const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献生成结构化综述，依次输出：研究背景、研究现状、研究方法、研究结论、争议、研究空白、未来方向、参考文献。参考文献需列出这 ${pool.length} 篇文献的标题与来源。在段落末使用“文献1”等标记对应来源。不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
       setReview(response.answer); setReviewStatus("idle");
-    } catch (reason) { setReviewStatus("error"); setError(reason instanceof Error ? reason.message : "综述生成失败"); }
+    } catch (reason) { setReviewStatus("error"); setError(errorMessage(reason, "综述生成失败")); }
   };
   const generateTrends = async () => {
     const pool = visibleResults.slice(0, 50);
@@ -148,7 +152,7 @@ export default function LiteratureResearchPage() {
       const evidence = pool.map((item, index) => `文献${index + 1}：${titleOf(item)}\n来源：${item.source_name}\n年份：${yearOf(item, metadataOf(item))}\n证据：${excerptOf(item)}`).join("\n\n");
       const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献分析研究趋势，依次输出：热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。使用文献1、文献2标记来源，不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
       setTrends(response.answer); setTrendsStatus("idle");
-    } catch (reason) { setTrendsStatus("error"); setError(reason instanceof Error ? reason.message : "研究趋势分析失败"); }
+    } catch (reason) { setTrendsStatus("error"); setError(errorMessage(reason, "研究趋势分析失败")); }
   };
   const generateComparison = async () => {
     if (compareItems.length < 2) { setNotice("对比分析需要先选择至少 2 篇文献"); return; }
@@ -157,7 +161,7 @@ export default function LiteratureResearchPage() {
       const evidence = compareItems.map((item, index) => `文献${index + 1}：${titleOf(item)}\n${excerptOf(item)}`).join("\n\n");
       const response = await desktop.desktopAgentChat({ message: `请对比以下文献，并只输出一张 Markdown 表格，表头依次为：文献 | 研究材料 | 成分 | 工艺 | 组织 | 性能 | 研究结论 | 差异。每篇文献占一行；证据不足的单元格填写“未记录”。表格之后用一段话说明主要差异与证据不足的字段。\n\n${evidence}`, smartSearchEnabled: false });
       setCompareSummary(response.answer); setCompareStatus("idle");
-    } catch (reason) { setCompareStatus("error"); setError(reason instanceof Error ? reason.message : "文献对比失败"); }
+    } catch (reason) { setCompareStatus("error"); setError(errorMessage(reason, "文献对比失败")); }
   };
   const copyCitation = async (target: LiteratureSearchHit) => {
     const citation = `${authorsOf(target, metadataOf(target))}. ${titleOf(target)}. ${journalOf(target, metadataOf(target))}. ${yearOf(target, metadataOf(target))}.`;
@@ -169,12 +173,22 @@ export default function LiteratureResearchPage() {
     try {
       const response = await desktop.desktopAgentChat({ message: `请基于文献“${titleOf(target)}”的证据片段，输出研究目的、材料与工艺、组织与性能、结论、局限和可复现实验线索。只给出研究摘要，不展示思考过程。\n\n${excerptOf(target)}`, smartSearchEnabled: false });
       setSummary(response.answer); setSummaryStatus("idle");
-    } catch (reason) { setSummaryStatus("error"); setError(reason instanceof Error ? reason.message : "总结生成失败"); }
+    } catch (reason) { setSummaryStatus("error"); setError(errorMessage(reason, "总结生成失败")); }
   };
   const importDocument = async () => {
     const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "文献", extensions: ["pdf", "md", "txt", "docx"] }] });
     if (typeof path !== "string") return;
-    try { await desktop.processLiterature({ file_path: path }); setNotice("文献已提交知识库导入任务"); } catch (reason) { setError(reason instanceof Error ? reason.message : "文献入库失败"); }
+    await importPaths([path]);
+  };
+  // 第 68 章：拖拽与按钮走同一条入库链路。
+  const importPaths = async (paths: string[]) => {
+    if (paths.length === 0) return;
+    try {
+      for (const path of paths) await desktop.processLiterature({ file_path: path });
+      setNotice(paths.length === 1 ? "文献已提交知识库导入任务" : `已提交 ${paths.length} 篇文献的导入任务`);
+    } catch (reason) {
+      setError(errorMessage(reason, "文献入库失败"));
+    }
   };
   const openLibraryTarget = (hit: LiteratureSearchHit) => {
     if (!hit.document_id) { setNotice("该结果没有可移动的本地文档"); return; }
@@ -183,17 +197,23 @@ export default function LiteratureResearchPage() {
   const addToKnowledgeBase = async () => {
     if (!libraryTarget?.document_id || !libraryBaseId) return;
     try { await desktop.movePostgresDocument(libraryTarget.document_id, libraryBaseId); setNotice("已加入目标知识库"); setLibraryTarget(null); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "加入知识库失败"); }
+    catch (reason) { setError(errorMessage(reason, "加入知识库失败")); }
   };
   const toggleCompare = (hit: LiteratureSearchHit) => {
     const id = hit.document_id ?? hit.source_name;
     setCompareIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   };
   const poolSize = reviewPool().length;
-  return <section className="suna-literature-page">
-    <header className="suna-literature-header"><div><span className="suna-module-kicker">SUNA LITERATURE RESEARCH</span><h1><BookOpen size={25} />文献研究</h1><p>检索、阅读、比较和综述钢铁材料领域文献</p></div><div className="suna-literature-header-actions"><button className="suna-ghost-button" onClick={importDocument}><FilePlus2 size={16} />导入文献</button><button className="suna-primary-button" onClick={() => void generateReview()} disabled={reviewStatus === "loading"}><Sparkles size={16} />{reviewStatus === "loading" ? "生成中..." : "生成综述"}</button></div></header>
+  return <FileDropZone
+    extensions={["pdf", "md", "txt", "docx"]}
+    onFiles={(paths) => importPaths(paths)}
+    onRejected={(reason) => setError(reason)}
+    label="松开即可导入文献"
+    hint="支持 PDF / Word / Markdown / TXT"
+  ><section className="suna-literature-page">
+    <header className="suna-literature-header"><div><span className="suna-module-kicker">SUNA LITERATURE RESEARCH</span><h1><BookOpen size={25} />文献研究</h1><p>检索、阅读、比较和综述钢铁材料领域文献</p></div><div className="suna-literature-header-actions"><Button variant="ghost" onClick={importDocument}><FilePlus2 size={16} />导入文献</Button><Button variant="primary" onClick={() => void generateReview()} disabled={reviewStatus === "loading"}><Sparkles size={16} />{reviewStatus === "loading" ? "生成中..." : "生成综述"}</Button></div></header>
     <nav className="suna-literature-tabs" aria-label="文献研究视图">{([["search", "文献检索"], ["reading", "文献阅读"], ["library", "文献管理"], ["review", "文献综述"], ["trends", "研究趋势"]] as const).map(([value, label]) => <button key={value} className={activeTab === value ? "is-active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}</nav>
-    <form className="suna-literature-searchbar" onSubmit={search}><Search size={18} /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入材料、工艺、性能或研究问题，例如：耐磨钢 热处理 马氏体" /><button className="suna-primary-button" disabled={status === "loading"}>{status === "loading" ? <Loader2 className="suna-spin" size={16} /> : <Search size={16} />}检索</button></form>
+    <form className="suna-literature-searchbar" onSubmit={search}><Search size={18} /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入材料、工艺、性能或研究问题，例如：耐磨钢 热处理 马氏体" /><Button variant="primary" disabled={status === "loading"}>{status === "loading" ? <Loader2 className="suna-spin" size={16} /> : <Search size={16} />}检索</Button></form>
     <div className="suna-literature-toolbar"><label>年份<Select value={yearFilter} onValueChange={(value) => setYearFilter(value)}>
   <SelectTrigger aria-label="年份"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="all">近5年</SelectItem>{years.map((year) => <SelectItem value={year} key={year}>{year}</SelectItem>)}
@@ -220,15 +240,15 @@ export default function LiteratureResearchPage() {
       {status === "error" && <div className="suna-literature-error"><X size={16} /><span>{error}</span><button onClick={() => void search()}>重试</button></div>}
       {status === "idle" && results.length === 0 && <div className="suna-literature-empty"><BookOpen size={28} /><strong>从研究问题开始</strong><span>检索结果会显示标题、作者、期刊、年份、摘要与相关度。</span></div>}
       <div className="suna-literature-list">{visibleResults.map((hit, index) => { const id = hit.document_id ?? hit.source_name; const active = selectedId === id; const metadata = metadataOf(hit); return <article className={`suna-literature-result ${active ? "is-active" : ""}`} key={`${id}-${index}`} onClick={() => setSelectedId(id)}><div className="suna-literature-result-top"><span className="suna-literature-result-index">{index + 1}</span><div><h3>{titleOf(hit)}</h3><p>作者：{authorsOf(hit, metadata)} &nbsp;|&nbsp; 期刊：{journalOf(hit, metadata)} &nbsp;|&nbsp; 年份：{yearOf(hit, metadata)} &nbsp;|&nbsp; {typeOf(hit)}</p></div></div><p className="suna-literature-excerpt">{excerptOf(hit)}</p><div className="suna-literature-tags"><span>{hit.source_name.includes("钢") ? "钢铁材料" : "材料研究"}</span><span>检索证据</span><span>{hit.score != null ? `${Math.round(Math.max(0, Math.min(1, hit.score)) * 100)}% 相关` : "相关文献"}</span></div><div className="suna-literature-result-actions"><button onClick={(event) => { event.stopPropagation(); void read(hit); }}><BookOpen size={15} />阅读</button><button onClick={(event) => { event.stopPropagation(); toggleFavorite(hit); }}>{favoriteSet.has(id) ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}{favoriteSet.has(id) ? "已收藏" : "收藏"}</button><button onClick={(event) => { event.stopPropagation(); openLibraryTarget(hit); }}><Library size={15} />加入知识库</button><button onClick={(event) => { event.stopPropagation(); toggleCompare(hit); }}><Plus size={15} />{compareIds.includes(id) ? "已加入对比" : "加入对比"}</button></div></article>; })}</div></div>
-      <aside className="suna-literature-detail"><div className="suna-literature-detail-head"><div><span>文献详情</span><h2>{selected ? titleOf(selected) : "选择一篇文献"}</h2></div>{selected && <button className="suna-icon-button" onClick={() => toggleFavorite(selected)} aria-label="收藏文献">{favoriteSet.has(selected.document_id ?? selected.source_name) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button>}</div>{selected ? <><div className="suna-literature-meta"><span><Quote size={14} />{journalOf(selected, metadataOf(selected))}</span><span>作者：{authorsOf(selected, metadataOf(selected))}</span><span>年份：{yearOf(selected, metadataOf(selected))}</span><span>{sourceLocation(selected)}</span><span>相关度 {selected.score != null ? selected.score.toFixed(3) : "-"}</span></div><p className="suna-literature-detail-text">{excerptOf(selected)}</p><div className="suna-literature-detail-actions"><button className="suna-primary-button" onClick={() => void read()} disabled={readingStatus === "loading"}>{readingStatus === "loading" ? <Loader2 className="suna-spin" size={15} /> : <BookOpen size={15} />}阅读原文</button><button className="suna-ghost-button" onClick={() => void summarize()} disabled={summaryStatus === "loading"}>{summaryStatus === "loading" ? <Loader2 className="suna-spin" size={15} /> : <Sparkles size={15} />}生成总结</button><button className="suna-icon-button" onClick={() => void copyCitation(selected)} aria-label="复制引用"><Clipboard size={15} /></button></div>{reading && <div className="suna-literature-reading"><div><strong>{reading.section_title || reading.document || "文献正文"}</strong><span>{reading.part && reading.total_parts ? `第 ${reading.part}/${reading.total_parts} 部分` : ""}</span></div><p>{reading.content || reading.error || "没有可显示的正文"}</p>{reading.has_more && <button className="suna-ghost-button" onClick={() => void read(selected, (reading.part ?? 1) + 1)}>继续阅读</button>}</div>}{summary && <div className="suna-literature-summary"><strong>AI 摘要</strong><p>{summary}</p></div>}</> : <div className="suna-literature-detail-empty"><BookOpen size={24} /><span>选择检索结果查看证据和操作</span></div>}</aside></div>
+      <aside className="suna-literature-detail"><div className="suna-literature-detail-head"><div><span>文献详情</span><h2>{selected ? titleOf(selected) : "选择一篇文献"}</h2></div>{selected && <Button size="icon" onClick={() => toggleFavorite(selected)} aria-label="收藏文献">{favoriteSet.has(selected.document_id ?? selected.source_name) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</Button>}</div>{selected ? <><div className="suna-literature-meta"><span><Quote size={14} />{journalOf(selected, metadataOf(selected))}</span><span>作者：{authorsOf(selected, metadataOf(selected))}</span><span>年份：{yearOf(selected, metadataOf(selected))}</span><span>{sourceLocation(selected)}</span><span>相关度 {selected.score != null ? selected.score.toFixed(3) : "-"}</span></div><p className="suna-literature-detail-text">{excerptOf(selected)}</p><div className="suna-literature-detail-actions"><Button variant="primary" onClick={() => void read()} disabled={readingStatus === "loading"}>{readingStatus === "loading" ? <Loader2 className="suna-spin" size={15} /> : <BookOpen size={15} />}阅读原文</Button><Button variant="ghost" onClick={() => void summarize()} disabled={summaryStatus === "loading"}>{summaryStatus === "loading" ? <Loader2 className="suna-spin" size={15} /> : <Sparkles size={15} />}生成总结</Button><Button size="icon" onClick={() => void copyCitation(selected)} aria-label="复制引用"><Clipboard size={15} /></Button></div>{reading && <div className="suna-literature-reading"><div><strong>{reading.section_title || reading.document || "文献正文"}</strong><span>{reading.part && reading.total_parts ? `第 ${reading.part}/${reading.total_parts} 部分` : ""}</span></div><p>{reading.content || reading.error || "没有可显示的正文"}</p>{reading.has_more && <Button variant="ghost" onClick={() => void read(selected, (reading.part ?? 1) + 1)}>继续阅读</Button>}</div>}{summary && <div className="suna-literature-summary"><strong>AI 摘要</strong><p>{summary}</p></div>}</> : <div className="suna-literature-detail-empty"><BookOpen size={24} /><span>选择检索结果查看证据和操作</span></div>}</aside></div>
     {activeTab === "review" && <div className="suna-literature-review"><div><strong>文献综述</strong><span>当前将综述 {poolSize} 篇（对比选中优先，否则取前 {reviewCount} 篇）</span></div>{reviewStatus === "loading" ? <p>正在生成综述…</p> : review ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={review} literatureResults={[]} /></div> : <p>选择 10 / 20 / 50 篇后点击右上角“生成综述”。</p>}</div>}
-    {activeTab === "trends" && <div className="suna-literature-review"><div><strong>研究趋势</strong><span>基于当前 {Math.min(visibleResults.length, 50)} 篇检索结果</span><button className="suna-ghost-button" onClick={() => void generateTrends()} disabled={trendsStatus === "loading"}><TrendingUp size={15} />{trendsStatus === "loading" ? "分析中..." : "分析趋势"}</button></div>{trends ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={trends} literatureResults={[]} /></div> : <p>分析热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。</p>}</div>}
-    {compareItems.length > 0 && <div className="suna-literature-compare"><div className="suna-literature-compare-head"><div><strong>文献对比</strong><span>已选择 {compareItems.length} 篇</span></div><div className="suna-literature-compare-actions"><button className="suna-ghost-button" onClick={() => void generateComparison()} disabled={compareStatus === "loading"}>{compareStatus === "loading" ? "分析中..." : "生成差异分析"}</button><button onClick={() => setCompareIds([])} aria-label="清空对比"><X size={16} /></button></div></div><div className="suna-literature-compare-table"><div className="suna-literature-compare-row"><strong>研究对象</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{titleOf(item)}</span>)}</div><div className="suna-literature-compare-row"><strong>期刊</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{journalOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>年份</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{yearOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>证据位置</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{sourceLocation(item)}</span>)}</div></div>{compareSummary && <div className="suna-literature-ai-result"><strong>AI 差异分析</strong><AIAnswerRenderer answer={compareSummary} literatureResults={[]} /></div>}</div>}
-    {libraryTarget && <div className="suna-literature-library-dialog" role="dialog" aria-label="加入知识库"><label>目标知识库<Select value={libraryBaseId} onValueChange={(value) => setLibraryBaseId(value)}>
+    {activeTab === "trends" && <div className="suna-literature-review"><div><strong>研究趋势</strong><span>基于当前 {Math.min(visibleResults.length, 50)} 篇检索结果</span><Button variant="ghost" onClick={() => void generateTrends()} disabled={trendsStatus === "loading"}><TrendingUp size={15} />{trendsStatus === "loading" ? "分析中..." : "分析趋势"}</Button></div>{trends ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={trends} literatureResults={[]} /></div> : <p>分析热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。</p>}</div>}
+    {compareItems.length > 0 && <div className="suna-literature-compare"><div className="suna-literature-compare-head"><div><strong>文献对比</strong><span>已选择 {compareItems.length} 篇</span></div><div className="suna-literature-compare-actions"><Button variant="ghost" onClick={() => void generateComparison()} disabled={compareStatus === "loading"}>{compareStatus === "loading" ? "分析中..." : "生成差异分析"}</Button><button onClick={() => setCompareIds([])} aria-label="清空对比"><X size={16} /></button></div></div><div className="suna-literature-compare-table"><div className="suna-literature-compare-row"><strong>研究对象</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{titleOf(item)}</span>)}</div><div className="suna-literature-compare-row"><strong>期刊</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{journalOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>年份</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{yearOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>证据位置</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{sourceLocation(item)}</span>)}</div></div>{compareSummary && <div className="suna-literature-ai-result"><strong>AI 差异分析</strong><AIAnswerRenderer answer={compareSummary} literatureResults={[]} /></div>}</div>}
+    {libraryTarget && <Dialog open onOpenChange={(open) => { if (!open) setLibraryTarget(null); }}><DialogContent className="suna-literature-library-modal" aria-label="加入知识库"><DialogHeader><DialogTitle>加入知识库</DialogTitle></DialogHeader><label>目标知识库<Select value={libraryBaseId} onValueChange={(value) => setLibraryBaseId(value)}>
   <SelectTrigger aria-label="目标知识库"><SelectValue /></SelectTrigger>
   <SelectContent>{bases.filter((base) => base.id !== libraryTarget.knowledge_base_id).map((base) => <SelectItem value={base.id} key={base.id}>{base.name}</SelectItem>)}
   </SelectContent>
-</Select></label><button className="suna-primary-button" onClick={() => void addToKnowledgeBase()} disabled={!libraryBaseId}>确认加入</button><button className="suna-ghost-button" onClick={() => setLibraryTarget(null)}>取消</button></div>}
+</Select></label><DialogFooter><Button variant="primary" onClick={() => void addToKnowledgeBase()} disabled={!libraryBaseId}>确认加入</Button><Button variant="ghost" onClick={() => setLibraryTarget(null)}>取消</Button></DialogFooter></DialogContent></Dialog>}
     {notice && <button className="suna-literature-notice" onClick={() => setNotice("")}><Check size={15} />{notice}</button>}
-  </section>;
+  </section></FileDropZone>;
 }

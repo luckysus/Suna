@@ -2,6 +2,8 @@ import { Database, PackageCheck, SearchCheck, RotateCcw } from "lucide-react";
 import type { IndexHealthReport, StorageHealth } from "../../bridge/desktop";
 import { useLocale, type MessageKey } from "../../i18n/locale";
 import { formatBytes } from "./diagnosticsModel";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 
 interface SteelPackageHealth {
   status: "ready" | "error" | "unknown";
@@ -37,7 +39,7 @@ export default function DiagnosticsHealthGrid({
 
   return (
     <div className="suna-diagnostics-grid">
-      <article className="suna-diagnostics-card">
+      <Card variant="diagnostics" as="article" >
         <div className="suna-diagnostics-card-heading">
           <span className="suna-diagnostics-card-icon"><Database size={17} aria-hidden="true" /></span>
           <div><h2>{t("diagnosticsDatabase")}</h2></div>
@@ -51,9 +53,9 @@ export default function DiagnosticsHealthGrid({
           <div><dt>{t("diagnosticsReclaimable")}</dt><dd>{formatBytes(storage?.reclaimable_bytes)}</dd></div>
           <div><dt>{t("diagnosticsAvailableDisk")}</dt><dd>{formatBytes(storage?.available_disk_bytes)}</dd></div>
         </dl>
-      </article>
+      </Card>
 
-      <article className="suna-diagnostics-card">
+      <Card variant="diagnostics" as="article" >
         <div className="suna-diagnostics-card-heading">
           <span className="suna-diagnostics-card-icon"><SearchCheck size={17} aria-hidden="true" /></span>
           <div><h2>{t("diagnosticsIndex")}</h2></div>
@@ -67,9 +69,9 @@ export default function DiagnosticsHealthGrid({
           <div><dt>{t("diagnosticsRebuildSpace")}</dt><dd>{formatBytes(index?.required_rebuild_bytes)}</dd></div>
           <div><dt>{t("diagnosticsStaleTemporary")}</dt><dd>{index?.stale_temporary_count ?? "--"}</dd></div>
         </dl>
-      </article>
+      </Card>
 
-      <article className="suna-diagnostics-card">
+      <Card variant="diagnostics" as="article" >
         <div className="suna-diagnostics-card-heading">
           <span className="suna-diagnostics-card-icon"><PackageCheck size={17} aria-hidden="true" /></span>
           <div><h2>{t("diagnosticsSteelPackage")}</h2></div>
@@ -81,10 +83,10 @@ export default function DiagnosticsHealthGrid({
           <div><dt>{t("diagnosticsSteelPackageBundled")}</dt><dd>{steelPackageHealthy ? t("diagnosticsSteelPackageHealthy") : "--"}</dd></div>
           {steelPackage.error && <div><dt>{t("diagnosticsSteelPackageError")}</dt><dd>{steelPackage.error}</dd></div>}
         </dl>
-        {!steelPackageHealthy && <button type="button" className="suna-action-secondary" onClick={onRetrySteelPackage} disabled={busySteelPackage}>
+        {!steelPackageHealthy && <Button variant="actionSecondary" type="button" onClick={onRetrySteelPackage} disabled={busySteelPackage}>
           <RotateCcw size={15} aria-hidden="true" />{busySteelPackage ? t("loading") : t("diagnosticsRetrySteelPackage")}
-        </button>}
-      </article>
+        </Button>}
+      </Card>
     </div>
   );
 }

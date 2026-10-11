@@ -14,3 +14,7 @@
 .suna-plan-values{display:flex;flex-wrap:wrap;gap:6px}
 .suna-plan-values span{padding:2px 8px;border-radius:6px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}
 .suna-plan-actions{display:flex;gap:8px;align-items:center}
+
+/* 第 80 章：历史优化任务（optimization_tasks 表） */
+.suna-optimization-history{margin-top:18px;padding:16px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
+.suna-optimization-history h2{display:flex;align-items:center;gap:7px;margin:0 0 12px;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}

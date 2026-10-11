@@ -5,7 +5,9 @@
 - ``doe``：全因子设计（2–5 水平，组合数上限 512）；
 - ``orthogonal``：正交表——2 水平用 Sylvester Hadamard 构造的 L4/L8/L16/L32
   （程序化生成，任意两列水平组合均衡），3 水平 L9 与 5 水平 L25 用
-  L_{p²}(p^{p+1}) 循环构造（与标准 Taguchi 表逐行一致）；
+  L_{p²}(p^{p+1}) 循环构造（与标准 Taguchi 表逐行一致），3 水平 5–7 因素
+  用 L18（Taguchi L18(2¹·3⁷) 去掉二水平列后的七列三水平部分，按
+  Kacker 1991 的差阵 D6(3) Kronecker 和构造）；
 - ``ccd``：中心复合响应面设计（可旋转 α，给定范围作为轴点边界）；
 - ``bayesian``：高斯过程代理 + 期望改进（EI），基于已有实验推荐下一组
   最有价值的实验（第 46 章）；
@@ -236,13 +238,40 @@ def _prime_square_table(p: int) -> list[list[int]]:
     ]
 
 
+# Taguchi 差阵 D6(3)（Kacker, J. Res. NIST 96(5), 1991, Table 12）。
+_L18_DIFFERENCE_MATRIX = (
+    (0, 0, 0, 0, 0, 0),
+    (0, 0, 1, 1, 2, 2),
+    (0, 1, 0, 2, 1, 2),
+    (0, 2, 2, 1, 1, 0),
+    (0, 1, 2, 0, 2, 1),
+    (0, 2, 1, 2, 0, 1),
+)
+
+
+def _l18_three_level() -> list[list[int]]:
+    """L18 的七列三水平部分（OA(18, 7, 3, 2)）。
+
+    由 D6(3) 与列向量 (0,1,2) 的 Kronecker 和给出前六列，第七列取
+    六元有序对 (0,0..1,2) 的第二坐标——即 Taguchi L18(2¹·3⁷) 去掉
+    二水平列后的部分，可容纳 5–7 个三水平因素、18 次试验。
+    """
+    table: list[list[int]] = []
+    for d, diff_row in enumerate(_L18_DIFFERENCE_MATRIX):
+        for v in range(3):
+            row = [(entry + v) % 3 for entry in diff_row]
+            row.append(d % 3)
+            table.append(row)
+    return table
+
+
 # 正交表族：(水平数, 每张表 (试验次数, 表))。2 水平用 Hadamard（L4..L32），
-# 3/5 水平用 L_{p²}(p^{p+1}) 循环构造；模块导入时构建一次。
+# 3/5 水平用 L_{p²}(p^{p+1}) 循环构造；L18 补齐 3 水平 5–7 因素；模块导入时构建一次。
 def _orthogonal_families() -> dict[int, list[tuple[int, list[list[int]]]]]:
     return {
         2: [(4, _hadamard_two_level(2)), (8, _hadamard_two_level(3)),
             (16, _hadamard_two_level(4)), (32, _hadamard_two_level(5))],
-        3: [(9, _prime_square_table(3))],
+        3: [(9, _prime_square_table(3)), (18, _l18_three_level())],
         5: [(25, _prime_square_table(5))],
     }
 

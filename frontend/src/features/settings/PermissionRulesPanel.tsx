@@ -1,6 +1,7 @@
 import { LoaderCircle, ShieldCheck, Trash2 } from "lucide-react";
 import type { PermissionRuleRecord } from "../../bridge/desktop";
 import { useLocale } from "../../i18n/locale";
+import { Button } from "../../components/ui/button";
 
 interface PermissionRulesPanelProps {
   rules: PermissionRuleRecord[];
@@ -48,18 +49,9 @@ export default function PermissionRulesPanel({ rules, busyId, onRevoke }: Permis
                 <span>{t("permissionRuleSource")}: {sourceLabel(rule)}</span>
                 <code>{t("permissionRuleScope")}: {scopeLabel(rule)}</code>
               </div>
-              <button
-                type="button"
-                className="suna-icon-button suna-settings-permission-revoke"
-                aria-label={`${t("permissionRevoke")} ${rule.tool_id}`}
-                title={t("permissionRevoke")}
-                disabled={busyId === rule.id}
-                onClick={() => {
-                  if (window.confirm(t("permissionRuleRevokeConfirm"))) onRevoke(rule);
-                }}
-              >
+              <Button size="icon" className="suna-settings-permission-revoke" type="button" aria-label={`${t("permissionRevoke")} ${rule.tool_id}`} title={t("permissionRevoke")} disabled={busyId === rule.id} onClick={() => { if (window.confirm(t("permissionRuleRevokeConfirm"))) onRevoke(rule); }} >
                 {busyId === rule.id ? <LoaderCircle size={16} className="suna-spin" /> : <Trash2 size={16} aria-hidden="true" />}
-              </button>
+              </Button>
             </article>
           ))}
         </div>

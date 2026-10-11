@@ -6,3 +6,21 @@
 .suna-reports-export-actions .suna-ghost-button{padding:5px 10px;font-size:calc(11px * var(--suna-ui-font-scale))}
 .suna-reports-alert{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--suna-red-line,#f0caca);border-radius:8px;background:var(--suna-red-soft,#fff7f7);color:var(--suna-red,#b44747);font-size:calc(12px * var(--suna-ui-font-scale))}
 .suna-reports-notice{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--suna-line);border-radius:8px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(12px * var(--suna-ui-font-scale))}
+
+/* 第 56 章：报告图表区（数据 → 分析 → 图表） */
+.suna-reports-charts{margin:0 0 16px;padding:14px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
+.suna-reports-charts h3{display:flex;align-items:center;gap:7px;margin:0 0 10px;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
+.suna-reports-charts figure{margin:0 0 12px;overflow:auto;border:1px solid var(--suna-line);border-radius:8px;background:#fff}
+.suna-reports-charts figure:last-child{margin-bottom:0}
+.suna-reports-charts svg{display:block;width:100%;height:auto}
+
+/* 第 80 章：已保存报告列表（落库在 reports 表） */
+.suna-reports-saved{margin-top:14px;padding-top:12px;border-top:1px solid var(--suna-line)}
+.suna-reports-saved h3{margin:0 0 8px;color:var(--suna-text);font-size:calc(12px * var(--suna-ui-font-scale))}
+.suna-reports-saved-empty{margin:0;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-reports-saved-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;max-height:260px;overflow:auto}
+.suna-reports-saved-list li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--suna-line);border-radius:7px;background:var(--suna-bg-raised)}
+.suna-reports-saved-list li>span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.suna-reports-saved-list strong{color:var(--suna-text);font-size:calc(11.5px * var(--suna-ui-font-scale));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.suna-reports-saved-list small{color:var(--suna-text-muted);font-size:calc(10px * var(--suna-ui-font-scale))}
+.suna-reports-saved-list .suna-ghost-button{padding:3px 8px;font-size:calc(10.5px * var(--suna-ui-font-scale))}

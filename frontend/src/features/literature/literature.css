@@ -13,3 +13,7 @@
 .suna-literature-review>div>button{flex:0 0 auto}
 .suna-literature-library-dialog{display:flex;align-items:flex-end;gap:10px;margin:14px 0;padding:14px;border:1px solid #d7e6fa;border-radius:7px;background:#f8fbff}
 .suna-literature-library-dialog label{display:flex;flex-direction:column;gap:6px;color:#5f789b;font-size:calc(11px * var(--suna-ui-font-scale))}
+
+/* 第 88 章：加入知识库改为共享 Dialog 组件后的内容排版 */
+.suna-literature-library-modal{max-width:440px;display:flex;flex-direction:column;gap:12px}
+.suna-literature-library-modal label{display:flex;flex-direction:column;gap:6px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}

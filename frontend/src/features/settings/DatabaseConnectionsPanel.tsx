@@ -21,6 +21,7 @@ import {
 import { useLocale } from "../../i18n/locale";
 import { settingsErrorMessage } from "./settingsError";
 import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
 
 type Draft = {
   id: string | null;
@@ -223,7 +224,7 @@ export default function DatabaseConnectionsPanel() {
           <label><span>{t("settingsDatabaseTimeout")}</span><Input type="number" min="1000" max="60000" step="500" aria-label={t("settingsDatabaseTimeout")} value={draft.timeout_ms} onChange={(event) => setDraft({ ...draft, timeout_ms: event.target.value })} required /></label>
         </div>
         {duplicate && <p className="suna-settings-alert" role="status">{t("settingsDatabaseDuplicate")}</p>}
-        <div className="suna-mcp-form-actions"><button type="submit" className="suna-secondary-button" disabled={busy === "save"}><Save size={15} aria-hidden="true" />{busy === "save" ? t("settingsDatabaseSaving") : t("settingsDatabaseSave")}</button>{draft.id && <button type="button" className="suna-icon-button" onClick={() => setDraft(emptyDraft())} aria-label={t("settingsDatabaseCancelEdit")} title={t("settingsDatabaseCancelEdit")}><CircleX size={17} aria-hidden="true" /></button>}</div>
+        <div className="suna-mcp-form-actions"><Button variant="secondary" type="submit" disabled={busy === "save"}><Save size={15} aria-hidden="true" />{busy === "save" ? t("settingsDatabaseSaving") : t("settingsDatabaseSave")}</Button>{draft.id && <Button size="icon" type="button" onClick={() => setDraft(emptyDraft())} aria-label={t("settingsDatabaseCancelEdit")} title={t("settingsDatabaseCancelEdit")}><CircleX size={17} aria-hidden="true" /></Button>}</div>
       </form>
 
       {loading ? <div className="suna-settings-loading" role="status"><Database size={18} aria-hidden="true" />{t("loading")}</div> : connections.length === 0 ? <div className="suna-extensions-empty"><Database size={18} aria-hidden="true" /><span>{t("settingsDatabaseEmpty")}</span></div> : <div className="suna-mcp-list">
@@ -245,11 +246,11 @@ export default function DatabaseConnectionsPanel() {
               {connectionTables.length > 0 && <details className="suna-mcp-tools"><summary>{t("settingsDatabaseTables")} ({connectionTables.length})</summary>{connectionTables.map((name) => <div key={name}><code>{name}</code></div>)}</details>}
             </div>
             <div className="suna-mcp-actions">
-              <button type="button" role="switch" aria-checked={connection.enabled} className="suna-icon-button" onClick={() => void saveExisting(connection, !connection.enabled)} disabled={busy !== null} aria-label={t("settingsDatabaseEnabled")} title={t("settingsDatabaseEnabled")}>{connection.enabled ? <ToggleRight size={16} aria-hidden="true" /> : <ToggleLeft size={16} aria-hidden="true" />}</button>
-              <button type="button" className="suna-icon-button" onClick={() => void test(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseTest")} title={t("settingsDatabaseTest")}><PlugZap size={16} aria-hidden="true" /></button>
-              <button type="button" className="suna-icon-button" onClick={() => void listTables(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseTables")} title={t("settingsDatabaseTables")}><Table2 size={16} aria-hidden="true" /></button>
-              <button type="button" className="suna-icon-button" onClick={() => edit(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseEdit")} title={t("settingsDatabaseEdit")}><Pencil size={16} aria-hidden="true" /></button>
-              <button type="button" className="suna-icon-button" onClick={() => void remove(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseDelete")} title={t("settingsDatabaseDelete")}><Trash2 size={16} aria-hidden="true" /></button>
+              <Button size="icon" type="button" role="switch" aria-checked={connection.enabled} onClick={() => void saveExisting(connection, !connection.enabled)} disabled={busy !== null} aria-label={t("settingsDatabaseEnabled")} title={t("settingsDatabaseEnabled")}>{connection.enabled ? <ToggleRight size={16} aria-hidden="true" /> : <ToggleLeft size={16} aria-hidden="true" />}</Button>
+              <Button size="icon" type="button" onClick={() => void test(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseTest")} title={t("settingsDatabaseTest")}><PlugZap size={16} aria-hidden="true" /></Button>
+              <Button size="icon" type="button" onClick={() => void listTables(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseTables")} title={t("settingsDatabaseTables")}><Table2 size={16} aria-hidden="true" /></Button>
+              <Button size="icon" type="button" onClick={() => edit(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseEdit")} title={t("settingsDatabaseEdit")}><Pencil size={16} aria-hidden="true" /></Button>
+              <Button size="icon" type="button" onClick={() => void remove(connection)} disabled={busy !== null} aria-label={t("settingsDatabaseDelete")} title={t("settingsDatabaseDelete")}><Trash2 size={16} aria-hidden="true" /></Button>
             </div>
           </article>;
         })}

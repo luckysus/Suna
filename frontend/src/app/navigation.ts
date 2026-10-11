@@ -1,8 +1,9 @@
 import { BookOpen, BrainCircuit, ChartNoAxesCombined, FileChartColumn, FlaskConical, Gauge, Library, MessageSquareText, Network, Settings2, Sparkles, Table2, Wrench, Cpu, CircleHelp, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { NavigationGroup, SectionId } from "../types/navigation";
 
-export type SectionId = "chat" | "knowledge" | "literature" | "data" | "prediction" | "optimization" | "experiment" | "agents" | "tools" | "mcp" | "skills" | "models" | "reports" | "settings" | "account" | "about" | "diagnostics";
-export interface NavigationSection { id: SectionId; label: string; description: string; icon: LucideIcon; group: "research" | "manage"; }
+export type { NavigationGroup, SectionId } from "../types/navigation";
+export interface NavigationSection { id: SectionId; label: string; description: string; icon: LucideIcon; group: NavigationGroup; }
 export const primaryNavigationSections: readonly NavigationSection[] = [
   { id: "chat", label: "智能问答", description: "与 Suna 协作完成材料研发任务", icon: MessageSquareText, group: "research" },
   { id: "knowledge", label: "知识中心", description: "管理知识库、文档和 Wiki", icon: Library, group: "research" },

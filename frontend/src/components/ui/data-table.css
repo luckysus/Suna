@@ -1,0 +1,25 @@
+/* 第 67 章：科研数据表格（排序 / 筛选 / 分页 / 复制 / 导出） */
+
+.suna-data-table{display:flex;flex-direction:column;gap:10px}
+.suna-data-table-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.suna-data-table-toolbar>strong{color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
+.suna-data-table-search{display:inline-flex;align-items:center;gap:6px;flex:1;min-width:180px;color:var(--suna-text-muted)}
+.suna-data-table-count{color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale));white-space:nowrap}
+.suna-data-table-actions{display:inline-flex;gap:8px;margin-left:auto}
+.suna-data-table-actions .suna-ghost-button{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-data-table-scroll{overflow:auto;border:1px solid var(--suna-line);border-radius:8px;background:var(--suna-bg-raised)}
+.suna-data-table-scroll table{width:100%;border-collapse:collapse;font-size:calc(12px * var(--suna-ui-font-scale))}
+.suna-data-table-scroll th,.suna-data-table-scroll td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--suna-line);white-space:nowrap}
+.suna-data-table-scroll th{position:sticky;top:0;background:var(--suna-bg-soft);color:var(--suna-text);font-weight:600;z-index:1}
+.suna-data-table-scroll th button{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer;padding:0}
+.suna-data-table-scroll th button[aria-pressed="true"]{color:var(--suna-primary)}
+.suna-data-table-scroll td{color:var(--suna-text-soft)}
+.suna-data-table-scroll th.is-right,.suna-data-table-scroll td.is-right{text-align:right}
+.suna-data-table-scroll tr.is-clickable{cursor:pointer}
+.suna-data-table-scroll tr.is-clickable:hover td{background:var(--suna-bg-soft)}
+.suna-data-table-empty{margin:0;padding:18px;text-align:center;color:var(--suna-text-muted);font-size:calc(12px * var(--suna-ui-font-scale))}
+.suna-data-table-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-data-table-footer label{display:inline-flex;align-items:center;gap:6px}
+.suna-data-table-footer select{padding:3px 6px;border:1px solid var(--suna-line);border-radius:6px;background:var(--suna-bg-raised);color:var(--suna-text)}
+.suna-data-table-pager{display:inline-flex;align-items:center;gap:10px}
+.suna-data-table-pager .suna-ghost-button{padding:4px 10px;font-size:calc(11px * var(--suna-ui-font-scale))}

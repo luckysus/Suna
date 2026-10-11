@@ -4,6 +4,8 @@ import { desktop, type SteelCleaningPlan, type SteelCleaningSummary } from "../.
 import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /** 第 31 章数据清洗：重复行、缺失值、异常值处理，结果落盘为新数据集。 */
 export default function DataLabCleaningPanel({
@@ -44,7 +46,7 @@ export default function DataLabCleaningPanel({
       setCleanedName(result.dataset.sourceName);
       onCleaned(`已生成清洗后的数据集：${result.dataset.sourceName}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "数据清洗失败");
+      setError(errorMessage(reason, "数据清洗失败"));
     } finally {
       setBusy(false);
     }
@@ -88,10 +90,10 @@ export default function DataLabCleaningPanel({
           IQR 倍数
           <Input aria-label="IQR 倍数" type="number" min="0" step="0.5" value={multiplier} onChange={(event) => setMultiplier(event.target.value)} />
         </label>
-        <button className="suna-primary-button" onClick={() => void run()} disabled={busy}>
+        <Button variant="primary" onClick={() => void run()} disabled={busy}>
           {busy ? <Loader2 className="suna-spin" size={15} /> : <Eraser size={15} />}
           {busy ? "清洗中..." : "执行清洗"}
-        </button>
+        </Button>
       </div>
       {error && <p className="suna-data-cleaning-error" role="alert">{error}</p>}
       {summary && (

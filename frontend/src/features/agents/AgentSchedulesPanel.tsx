@@ -6,6 +6,8 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 type Props = { agentId?: string; conversationId?: string };
 
@@ -14,7 +16,7 @@ function newSchedule(agentId: string, conversationId = ""): SaveAgentScheduleReq
 }
 
 function errorText(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return errorMessage(error, String(error));
 }
 
 const runStates: Record<string, string> = {
@@ -64,7 +66,7 @@ export default function AgentSchedulesPanel({ agentId, conversationId }: Props) 
   return <section className="suna-agent-schedules" aria-label="Agent 定时计划">
     <header>
       <div><h3><CalendarClock size={16} />定时计划</h3><p>按指定时区执行，并把结果保存到所选会话。客户端运行期间生效；重新打开会继续处理待执行计划。</p></div>
-      <button type="button" className="suna-button is-soft" disabled={busy || loading} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={14} />刷新</button>
+      <Button variant="soft" type="button" disabled={busy || loading} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={14} />刷新</Button>
     </header>
     {error && <p className="suna-schedule-error" role="alert">{error}</p>}
     {!agentId ? <p className="suna-schedule-empty">先保存或选择一个 Agent，再创建定时计划。</p> : <>
@@ -80,8 +82,8 @@ export default function AgentSchedulesPanel({ agentId, conversationId }: Props) 
         </div>
         <div className="suna-schedule-actions">
           <label><Checkbox aria-label="启用" checked={job.enabled} disabled={busy} onCheckedChange={(checked) => void change(() => desktop.setAgentScheduleEnabled(job.id, checked === true))} />启用</label>
-          <button type="button" className="suna-icon-button" aria-label="编辑计划" disabled={busy} onClick={() => edit(job)}><Pencil size={14} /></button>
-          <button type="button" className="suna-icon-button" aria-label="删除计划" disabled={busy} onClick={() => void change(() => desktop.deleteAgentSchedule(job.id))}><Trash2 size={14} /></button>
+          <Button size="icon" type="button" aria-label="编辑计划" disabled={busy} onClick={() => edit(job)}><Pencil size={14} /></Button>
+          <Button size="icon" type="button" aria-label="删除计划" disabled={busy} onClick={() => void change(() => desktop.deleteAgentSchedule(job.id))}><Trash2 size={14} /></Button>
         </div>
       </article>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); void change(() => desktop.saveAgentSchedule(draft)); }}>
@@ -105,8 +107,8 @@ export default function AgentSchedulesPanel({ agentId, conversationId }: Props) 
           <label className="suna-schedule-prompt">执行指令<Textarea required maxLength={16000} rows={3} value={draft.prompt} placeholder="例如：总结本会话已有研究记录，并列出下一步实验建议。" onChange={(event) => setDraft({ ...draft, prompt: event.target.value })} /></label>
           <footer>
             <label><Checkbox aria-label="保存后启用" checked={draft.enabled} onCheckedChange={(checked) => setDraft({ ...draft, enabled: checked === true })} />保存后启用</label>
-            <div>{draft.id && <button type="button" className="suna-button is-soft" onClick={() => setDraft(newSchedule(agentId, conversationId || conversations[0]?.id))}>取消编辑</button>}
-              <button type="submit" className="suna-button" disabled={!draft.conversationId || !draft.prompt.trim()}>{busy ? <LoaderCircle size={14} /> : <Plus size={14} />}{draft.id ? "保存计划" : "创建计划"}</button></div>
+            <div>{draft.id && <Button variant="soft" type="button" onClick={() => setDraft(newSchedule(agentId, conversationId || conversations[0]?.id))}>取消编辑</Button>}
+              <Button variant="plain" type="submit" disabled={!draft.conversationId || !draft.prompt.trim()}>{busy ? <LoaderCircle size={14} /> : <Plus size={14} />}{draft.id ? "保存计划" : "创建计划"}</Button></div>
           </footer>
         </fieldset>
       </form>

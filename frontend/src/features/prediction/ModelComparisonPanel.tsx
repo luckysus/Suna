@@ -4,6 +4,8 @@ import { desktop, type ComputeModelMetrics, type SteelTrainingAlgorithm } from "
 import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { TRAINING_ALGORITHMS, algorithmLabel } from "./predictionModel";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /** 第 36 章：多个模型同时训练并预测，用表格对比预测值、误差与指标。 */
 
@@ -92,7 +94,7 @@ export default function ModelComparisonPanel({
       }
       onNotice(`已完成 ${next.length} 个模型的对比`);
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "模型比较失败");
+      onError(errorMessage(reason, "模型比较失败"));
     } finally {
       setBusy(false);
     }
@@ -142,10 +144,10 @@ export default function ModelComparisonPanel({
             onChange={(event) => setActual(event.target.value)}
           />
         </label>
-        <button className="suna-primary-button" onClick={() => void compare()} disabled={busy}>
+        <Button variant="primary" onClick={() => void compare()} disabled={busy}>
           {busy ? <Loader2 className="suna-spin" size={16} /> : <Play size={16} />}
           {busy ? "训练并比较中..." : "训练并比较"}
-        </button>
+        </Button>
       </div>
       {rows.length === 0 ? (
         <p className="suna-prediction-muted">选择模型后点击「训练并比较」，结果会显示预测值、实测值、误差、R²、MAE 与 RMSE。</p>

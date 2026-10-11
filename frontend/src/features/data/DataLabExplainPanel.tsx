@@ -4,6 +4,8 @@ import { desktop, type ShapExplanation, type SteelDatasetRecord } from "../../br
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import ShapBarChart from "../../components/charts/ShapBarChart";
 import { featureImportanceShares } from "../prediction/predictionModel";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /**
  * 第 31 章「特征重要性 / SHAP」。
@@ -58,7 +60,7 @@ export default function DataLabExplainPanel({
       setExplanation(await desktop.explainSteelModel({ modelId: trained.artifact.model_id, features: midpoints }));
       onMessage("已生成特征重要性与 SHAP 解释");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "特征重要性计算失败");
+      setError(errorMessage(reason, "特征重要性计算失败"));
     } finally {
       setBusy(false);
     }
@@ -77,10 +79,10 @@ export default function DataLabExplainPanel({
             </SelectContent>
           </Select>
         </label>
-        <button className="suna-primary-button" onClick={() => void run()} disabled={busy}>
+        <Button variant="primary" onClick={() => void run()} disabled={busy}>
           {busy ? <Loader2 className="suna-spin" size={15} /> : <Play size={15} />}
           {busy ? "计算中..." : "计算重要性"}
-        </button>
+        </Button>
       </div>
       {error && <p className="suna-data-cleaning-error" role="alert">{error}</p>}
       {importance.length > 0 && (

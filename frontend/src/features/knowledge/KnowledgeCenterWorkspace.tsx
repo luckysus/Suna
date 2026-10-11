@@ -4,6 +4,10 @@ import { Textarea } from "../../components/ui/textarea";
 import { ArrowRight, BookOpen, ChevronDown, Clock3, Copy, Database, ExternalLink, FileText, History, Info, MessageSquarePlus, Network, Pencil, Plus, Search, SlidersHorizontal, Upload, X } from "lucide-react";
 import { desktop, type EvidencePack, type KnowledgeBaseMetrics, type KnowledgeBaseRecord, type KnowledgeHealth, type PostgresIngestionJob, type PostgresKnowledgeChunk, type PostgresKnowledgeEdge, type PostgresKnowledgeSearchHit, type PostgresWikiPage, type PostgresWikiRevision, type ProviderProfileResponse, type SourceDocumentRecord } from "../../bridge/desktop";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { DataTable, type DataTableColumn } from "../../components/ui/data-table";
+import { Button } from "../../components/ui/button";
 
 type Tab = "documents" | "chunks" | "search" | "wiki" | "graph" | "settings";
 type LibraryTab = "mine" | "public" | "manage";
@@ -88,7 +92,7 @@ export default function KnowledgeCenterWorkspace() {
   const [tab, setTab] = useState<Tab>("documents");
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim().toLocaleLowerCase(), 180);
   const [typeFilter, setTypeFilter] = useState("全部类型");
   const [sortMode, setSortMode] = useState("最近更新");
   const [doc, setDoc] = useState<SourceDocumentRecord | null>(null);
@@ -141,11 +145,6 @@ export default function KnowledgeCenterWorkspace() {
   }, []);
   const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query.trim().toLocaleLowerCase()), 180);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
   const loadBase = async (id: string | null) => {
     if (!id) return;
     const results = await Promise.all([
@@ -175,7 +174,7 @@ export default function KnowledgeCenterWorkspace() {
       setMessage(null);
     } catch (reason) {
       setLoadFailed(true);
-      setMessage(reason instanceof Error ? reason.message : "知识中心加载失败");
+      setMessage(errorMessage(reason, "知识中心加载失败"));
       throw reason;
     } finally { setLoading(false); }
   };
@@ -207,7 +206,7 @@ export default function KnowledgeCenterWorkspace() {
       setCreateOpen(false); setCreateName(""); setCreateDescription(""); setCreateTags(""); setCreateEmbedding("");
       setMessage("知识库已创建");
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "创建知识库失败");
+      setMessage(errorMessage(reason, "创建知识库失败"));
     } finally {
       setBusy(false);
     }
@@ -232,7 +231,7 @@ export default function KnowledgeCenterWorkspace() {
         updateImportQueueItem(path, { state: "submitted" });
         submitted += 1;
       } catch (reason) {
-        updateImportQueueItem(path, { state: "failed", error: reason instanceof Error ? reason.message : "提交失败" });
+        updateImportQueueItem(path, { state: "failed", error: errorMessage(reason, "提交失败") });
         failed += 1;
       }
     });
@@ -266,7 +265,7 @@ export default function KnowledgeCenterWorkspace() {
     if (!directory) return;
     setBusy(true);
     try { const result = await desktop.importPostgresDirectory(selectedId, directory); await reload(selectedId); setMessage("已提交 " + result.length + " 个文档处理任务"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "文件夹导入失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "文件夹导入失败")); }
     finally { setBusy(false); }
   };
   const openDocument = async (item: SourceDocumentRecord, sourceLocation?: Record<string, unknown>) => {
@@ -286,7 +285,7 @@ export default function KnowledgeCenterWorkspace() {
       setPreview((current) => current ? { ...current, metadata } : current);
       setDocuments((items) => items.map((item) => item.id === doc.id ? { ...item, metadata } : item));
       setMessage("文档元数据已保存");
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "保存文档元数据失败"); }
+    } catch (reason) { setMessage(errorMessage(reason, "保存文档元数据失败")); }
   };
   const copyPreview = async () => {
     if (!preview?.content) return;
@@ -304,30 +303,30 @@ export default function KnowledgeCenterWorkspace() {
       if (!destination) return;
       await desktop.exportPostgresDocument(item.id, destination);
       setMessage("原始文档已导出");
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "下载失败"); }
+    } catch (reason) { setMessage(errorMessage(reason, "下载失败")); }
   };
   const reparseDocument = async (item: SourceDocumentRecord) => {
     setBusy(true);
     try { await desktop.reparsePostgresDocument(item.id); await reload(selectedId || undefined); setMessage("已重新提交文档解析"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "重新解析失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "重新解析失败")); }
     finally { setBusy(false); }
   };
   const moveDocument = async () => {
     if (!moveTarget || !moveBaseId || moveBaseId === moveTarget.knowledge_base_id) return;
     try { await desktop.movePostgresDocument(moveTarget.id, moveBaseId); await reload(selectedId || undefined); setMessage("文档已移动"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "移动文档失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "移动文档失败")); }
     finally { setMoveTarget(null); }
   };
   const openEmbed = async (item: SourceDocumentRecord) => {
     if (!item.active_version_id) { setMessage("文档还没有可向量化的激活版本"); return; }
     try { const profiles = await desktop.listProviderProfiles(); setEmbedProfiles(profiles.filter((profile) => profile.enabled)); setEmbedProfileId(profiles.find((profile) => profile.enabled)?.id || ""); setEmbedTarget(item); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "读取 Embedding 配置失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "读取 Embedding 配置失败")); }
   };
   const embedDocument = async () => {
     if (!embedTarget?.active_version_id || !embedProfileId) return;
     setBusy(true);
     try { await desktop.embedPostgresDocument({ version_id: embedTarget.active_version_id, embedding_profile_id: embedProfileId }); await reload(selectedId || undefined); setMessage("已重新生成 Embedding"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "重新 Embedding 失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "重新 Embedding 失败")); }
     finally { setBusy(false); setEmbedTarget(null); }
   };
   const renameDocument = async (item: SourceDocumentRecord) => {
@@ -341,13 +340,13 @@ export default function KnowledgeCenterWorkspace() {
     const value = renameValue.trim();
     if (!value || value === renameTarget.display_name) { setRenameTarget(null); return; }
     try { await desktop.renameKnowledgeDocument(renameTarget.id, value); await reload(selectedId || undefined); setMessage("文档已重命名"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "重命名失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "重命名失败")); }
     finally { setRenameTarget(null); }
   };
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try { await desktop.deleteKnowledgeDocument(deleteTarget.id); await reload(selectedId || undefined); setMessage("文档已删除"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "删除失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "删除失败")); }
     finally { setDeleteTarget(null); }
   };
   const createPage = async () => {
@@ -415,7 +414,7 @@ export default function KnowledgeCenterWorkspace() {
         citation_number: item.citation_number,
       })));
     }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "知识检索失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "知识检索失败")); }
     finally { setSearchBusy(false); }
   };
   const openSearchHit = async (hit: PostgresKnowledgeSearchHit) => {
@@ -450,25 +449,25 @@ export default function KnowledgeCenterWorkspace() {
       }
       await navigator.clipboard.writeText(`来源：${citation.hit.document_name}，${formatSourceLocation(citation.hit.source_location)}\n${citation.hit.text}`);
       setMessage("已复制可验证引用");
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "读取引用失败"); }
+    } catch (reason) { setMessage(errorMessage(reason, "读取引用失败")); }
   };
   const retryJob = async (job: PostgresIngestionJob) => {
     setBusy(true); setMessage(null);
     try { await desktop.retryPostgresIngestionJob(job.id); await reload(selectedId || undefined); setMessage("已重新提交处理任务"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "任务重试失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "任务重试失败")); }
     finally { setBusy(false); }
   };
   const cancelJob = async (job: PostgresIngestionJob) => {
     setBusy(true); setMessage(null);
     try { await desktop.cancelPostgresIngestionJob(job.id); await reload(selectedId || undefined); setMessage("已取消处理任务"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "任务取消失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "任务取消失败")); }
     finally { setBusy(false); }
   };
   const selected = bases.find((item) => item.id === selectedId);
   const saveSettings = async (input: { description: string; library_type: string; tags: string[]; visibility: string; embedding_model: string; chunk_strategy: string }) => {
     if (!selected) return;
     try { const updated = await desktop.updateKnowledgeBaseSettings(selected.id, { name: selected.name, ...input }); setBases((items) => items.map((item) => item.id === updated.id ? updated : item)); setMessage("知识库设置已保存"); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : "保存知识库设置失败"); }
+    catch (reason) { setMessage(errorMessage(reason, "保存知识库设置失败")); }
   };
   const filtered = documents
     .filter((item) => !debouncedQuery || [item.display_name, item.source_kind, categoryOf(item)].some((value) => value.toLocaleLowerCase().includes(debouncedQuery)))
@@ -478,6 +477,31 @@ export default function KnowledgeCenterWorkspace() {
     ...documents.map((item) => item.source_kind),
     ...DOCUMENT_CATEGORIES.filter((category) => documents.some((item) => categoryOf(item) === category)),
   ]));
+  const documentColumns: DataTableColumn<SourceDocumentRecord>[] = [
+    {
+      id: "name",
+      header: "文档名称",
+      value: (item) => item.display_name,
+      render: (item) => <><span className={"suna-file-type suna-file-type-" + extension(item.display_name).toLowerCase()}>{extension(item.display_name).slice(0, 3)}</span>{item.display_name}</>,
+    },
+    { id: "type", header: "类型", value: (item) => categoryOf(item) },
+    { id: "base", header: "所属知识库", value: (item) => bases.find((base) => base.id === item.knowledge_base_id)?.name || "当前知识库" },
+    { id: "updated", header: "更新时间", value: (item) => item.updated_at, render: (item) => formatDate(item.updated_at) },
+    { id: "size", header: "大小", value: (item) => item.file_size ?? null, render: (item) => formatSize(item.file_size), align: "right" },
+    {
+      id: "state",
+      header: "状态",
+      value: (item) => (item.active_version_id ? "已索引" : "处理中"),
+      render: (item) => <span className={item.active_version_id ? "suna-doc-state is-ready" : "suna-doc-state"}>{item.active_version_id ? "已索引" : "处理中"}</span>,
+    },
+    {
+      id: "actions",
+      header: "",
+      value: () => null,
+      sortable: false,
+      render: (item) => <><Button variant="none" onClick={(event) => { event.stopPropagation(); void renameDocument(item); }} aria-label="重命名"><Pencil size={14} /></Button><Button variant="none" onClick={(event) => { event.stopPropagation(); deleteDocument(item); }} aria-label="删除">×</Button></>,
+    },
+  ];
   const cardStyles = [["#e6f1ff", "#146bff"], ["#e4faf7", "#08a69d"], ["#f1eaff", "#7237dd"], ["#fff0df", "#f07814"], ["#e1faef", "#0ba66f"], ["#e6f1ff", "#146bff"]] as const;
   const displayBases = bases
     .filter((base) => !debouncedQuery || [base.name, base.description || "", ...(base.tags || [])].some((value) => value.toLocaleLowerCase().includes(debouncedQuery)))
@@ -503,9 +527,9 @@ export default function KnowledgeCenterWorkspace() {
   return <section className="suna-knowledge-center">
     <header className="suna-knowledge-center-header"><div><span className="suna-module-kicker">SUNA RESEARCH PLATFORM</span><h1><BookOpen size={23} />知识中心</h1><p>管理钢铁材料研发知识</p></div></header>
     {health && <div className="suna-knowledge-health-strip" aria-label="知识中心统计"><span><strong>{health.knowledge_base_count}</strong>知识库</span><span><strong>{health.document_count}</strong>文档</span><span><strong>{health.chunk_count}</strong>片段</span><span><strong>{health.indexed_chunk_count}</strong>已向量化</span><span><strong>{health.retrieval_count ?? 0}</strong>次检索</span><span><strong>{health.average_retrieval_duration_ms == null ? "—" : `${Math.round(health.average_retrieval_duration_ms)} ms`}</strong>平均检索</span></div>}
-    {message && <div className="suna-knowledge-center-alert">{message}{loadFailed && <button className="suna-ghost-button" onClick={() => void reload().catch(() => undefined)}>重新加载</button>}<button onClick={() => setMessage(null)} aria-label="关闭"><X size={14} /></button></div>}
+    {message && <div className="suna-knowledge-center-alert">{message}{loadFailed && <Button variant="ghost" onClick={() => void reload().catch(() => undefined)}>重新加载</Button>}<button onClick={() => setMessage(null)} aria-label="关闭"><X size={14} /></button></div>}
     <main className="suna-knowledge-main"><div className="suna-knowledge-library-tabs"><button className={libraryTab === "mine" ? "is-active" : ""} onClick={() => switchLibraryTab("mine")}>我的知识库</button><button className={libraryTab === "public" ? "is-active" : ""} onClick={() => switchLibraryTab("public")}>公共知识库</button><button className={libraryTab === "manage" ? "is-active" : ""} onClick={() => switchLibraryTab("manage")}>知识库管理</button></div>
-      <div className="suna-knowledge-tools"><button className="suna-ghost-button" onClick={() => setTab("chunks")}><Database size={15} />知识片段</button><button className="suna-ghost-button" onClick={() => setTab("search")}><Search size={15} />知识检索</button><button className="suna-ghost-button" onClick={() => setTab("graph")}><Network size={15} />知识图谱</button><button className="suna-ghost-button" onClick={() => setTab("wiki")}><BookOpen size={15} />Wiki</button><button className="suna-ghost-button" onClick={() => setTab("settings")} disabled={!selected}>设置</button></div>{libraryTab === "manage" && <KnowledgeBaseManagement bases={bases} onRefresh={() => void reload(selectedId || undefined)} />}
+      <div className="suna-knowledge-tools"><Button variant="ghost" onClick={() => setTab("chunks")}><Database size={15} />知识片段</Button><Button variant="ghost" onClick={() => setTab("search")}><Search size={15} />知识检索</Button><Button variant="ghost" onClick={() => setTab("graph")}><Network size={15} />知识图谱</Button><Button variant="ghost" onClick={() => setTab("wiki")}><BookOpen size={15} />Wiki</Button><Button variant="ghost" onClick={() => setTab("settings")} disabled={!selected}>设置</Button></div>{libraryTab === "manage" && <KnowledgeBaseManagement bases={bases} onRefresh={() => void reload(selectedId || undefined)} />}
       {tab === "documents" && libraryTab !== "manage" && <><div className="suna-knowledge-toolbar"><label className="suna-knowledge-search"><Search size={18} /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索知识库、文档、标签..." /></label><label className="suna-knowledge-filter"><SlidersHorizontal size={16} /><Select value={typeFilter} onValueChange={(value) => setTypeFilter(value)}>
   <SelectTrigger aria-label="文档类型"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="全部类型">全部类型</SelectItem>{typeOptions.map((kind) => <SelectItem key={kind} value={kind}>{kind}</SelectItem>)}
@@ -514,7 +538,7 @@ export default function KnowledgeCenterWorkspace() {
   <SelectTrigger aria-label="排序方式"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="最近更新">最近更新</SelectItem><SelectItem value="名称">名称</SelectItem>
   </SelectContent>
-</Select><ChevronDown size={14} /></label><button className="suna-ghost-button" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</button><button className="suna-ghost-button" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</button><button className="suna-primary-button" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</button></div><div className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <button key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => setSelectedId(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />最近文档</h2><button onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={15} /></button></div>{filtered.length ? <div className="suna-knowledge-table-wrap"><table><thead><tr><th>文档名称</th><th>类型</th><th>所属知识库</th><th>更新时间</th><th>大小</th><th>状态</th><th /></tr></thead><tbody>{filtered.slice(0, 6).map((item) => <tr key={item.id} onClick={() => void openDocument(item)}><td><span className={"suna-file-type suna-file-type-" + extension(item.display_name).toLowerCase()}>{extension(item.display_name).slice(0, 3)}</span>{item.display_name}</td><td>{categoryOf(item)}</td><td>{bases.find((base) => base.id === item.knowledge_base_id)?.name || "当前知识库"}</td><td>{formatDate(item.updated_at)}</td><td>{formatSize(item.file_size)}</td><td><span className={item.active_version_id ? "suna-doc-state is-ready" : "suna-doc-state"}>{item.active_version_id ? "已索引" : "处理中"}</span></td><td><button onClick={(event) => { event.stopPropagation(); void renameDocument(item); }} aria-label="重命名"><Pencil size={14} /></button><button onClick={(event) => { event.stopPropagation(); deleteDocument(item); }} aria-label="删除">×</button></td></tr>)}</tbody></table></div> : <Empty onImport={() => void importFiles()} />}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
+</Select><ChevronDown size={14} /></label><Button variant="ghost" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</Button><Button variant="ghost" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</Button><Button variant="primary" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</Button></div><div className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <Button variant="none" key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => setSelectedId(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></Button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />最近文档</h2><button onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={15} /></button></div>{filtered.length ? <DataTable columns={documentColumns} rows={filtered} rowKey={(item) => item.id} searchable={false} pageSizeOptions={[10, 20, 50]} exportName="knowledge-documents" emptyText="该知识库没有可展示的文档" onRowClick={(item) => void openDocument(item)} /> : <Empty onImport={() => void importFiles()} />}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
       {tab === "search" && <KnowledgeSearchPanel query={searchQuery} filters={searchFilters} documentTypes={Array.from(new Set([...documents.map((item) => item.source_kind), ...DOCUMENT_CATEGORIES]))} results={searchResults} favoriteChunkIds={favoriteChunkIds} busy={searchBusy} hasKnowledgeBase={Boolean(selectedId)} embeddingDegradation={searchEmbeddingDegradation} rerankDegradation={searchRerankDegradation} onQueryChange={setSearchQuery} onFiltersChange={setSearchFilters} onSearch={() => void runSearch()} onOpen={openSearchHit} onCopy={copySearchHit} onAddToChat={addSearchHitToChat} onToggleFavorite={toggleSearchFavorite} onCite={citeSearchHit} />}
       {tab === "chunks" && <ChunkPanel chunks={chunks} />}
       {tab === "wiki" && <WikiPanel pages={pages} page={page} revisions={revisions} documents={documents} tags={wikiTags} availableTags={availableWikiTags} sourceDocumentId={wikiSourceDocumentId} onTagsChange={setWikiTags} onSourceDocumentChange={setWikiSourceDocumentId} onCreate={() => void createPage()} onSelect={(item) => void selectPage(item)} onChange={setPage} onSave={() => void savePage()} onRestore={(revision) => void restore(revision)} />}
@@ -529,21 +553,21 @@ export default function KnowledgeCenterWorkspace() {
   <SelectTrigger aria-label="Chunk 策略"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="semantic">语义切分</SelectItem><SelectItem value="fixed">固定长度</SelectItem><SelectItem value="heading">按标题</SelectItem>
   </SelectContent>
-</Select></label></div><footer><button type="button" className="suna-ghost-button" onClick={() => setCreateOpen(false)}>取消</button><button type="submit" className="suna-primary-button"><Plus size={15} />创建知识库</button></footer></form></div>}
-    {renameTarget && <KnowledgeActionModal title="重命名文档" onClose={() => setRenameTarget(null)}><label>文档名称<Input autoFocus value={renameValue} onChange={(event) => setRenameValue(event.target.value)} /></label><footer><button className="suna-ghost-button" onClick={() => setRenameTarget(null)}>取消</button><button className="suna-primary-button" onClick={() => void confirmRename()}>保存</button></footer></KnowledgeActionModal>}
-    {wikiCreateOpen && <KnowledgeActionModal title="新建 Wiki 页面" onClose={() => setWikiCreateOpen(false)}><label>页面标题<Input autoFocus value={wikiTitle} onChange={(event) => setWikiTitle(event.target.value)} /></label><footer><button className="suna-ghost-button" onClick={() => setWikiCreateOpen(false)}>取消</button><button className="suna-primary-button" onClick={() => void confirmCreatePage()}>创建</button></footer></KnowledgeActionModal>}
-    {deleteTarget && <KnowledgeActionModal title="删除文档" onClose={() => setDeleteTarget(null)}><p>确认删除“{deleteTarget.display_name}”？历史版本将保留。</p><footer><button className="suna-ghost-button" onClick={() => setDeleteTarget(null)}>取消</button><button className="suna-danger-button" onClick={() => void confirmDelete()}>确认删除</button></footer></KnowledgeActionModal>}
-    {doc && <div className="suna-knowledge-drawer-overlay" onClick={() => { setDoc(null); setPreviewPage(null); }}><aside className="suna-knowledge-drawer" onClick={(event) => event.stopPropagation()}><header><strong>{doc.display_name}</strong><div><button className="suna-ghost-button" onClick={() => void reparseDocument(doc)} disabled={busy}>重新解析</button><button className="suna-ghost-button" onClick={() => void openEmbed(doc)} disabled={!doc.active_version_id}>重新 Embedding</button><button className="suna-ghost-button" onClick={() => { setMoveTarget(doc); setMoveBaseId(bases.find((base) => base.id !== doc.knowledge_base_id)?.id || ""); }}>移动</button><button className="suna-ghost-button" onClick={() => void downloadDocument(doc)}>下载</button><button onClick={() => { setDoc(null); setPreviewPage(null); }} aria-label="关闭"><X size={17} /></button></div></header><div className="suna-knowledge-drawer-body"><div className="suna-document-preview-toolbar"><div><h3>文档预览</h3><small>{preview?.mime_type || extension(doc.display_name)} · {preview?.updated_at ? formatDate(preview.updated_at) : "未处理"}</small></div><div><button className="suna-ghost-button" onClick={() => void copyPreview()} disabled={!preview?.content}><Copy size={14} />复制</button><button className="suna-ghost-button" onClick={() => void addPreviewToChat()} disabled={!preview?.content}><MessageSquarePlus size={14} />加入对话</button></div></div>{preview?.processed ? <>{preview.raw_sheets?.length ? <SheetPreview sheets={preview.raw_sheets} /> : preview.mime_type?.includes("wordprocessingml") && preview.structured_blocks?.length ? <StructuredDocumentPreview blocks={preview.structured_blocks} /> : preview.blocks?.length ? <div className="suna-document-preview-blocks">{preview.blocks.map((block) => <article key={block.ordinal ?? block.content.slice(0, 24)}><p>{block.content}</p>{block.source_location && <small>来源位置：{JSON.stringify(block.source_location)}</small>}</article>)}</div> : <pre>{preview.content || "暂无文本预览"}</pre>}</> : <div className="suna-knowledge-document-empty"><Info size={24} /><h3>{preview?.content || "文档尚未完成处理"}</h3></div>}<DocumentPagesPanel pages={preview?.pages} initialPage={previewPage} /><DocumentMetadataPanel sourcePath={preview?.source_path} metadata={preview?.metadata} readOnly={libraryTab === "public"} onSave={(metadata) => void saveDocumentMetadata(metadata)} /><div className="suna-document-version-list"><strong>版本历史</strong>{documentVersions.length ? documentVersions.map((version) => <span key={version.id}>v{version.created_at} · {version.expected_chunk_count} 个片段{version.activated_at ? " · 当前激活" : ""}</span>) : <small>暂无版本记录</small>}</div></div></aside></div>}
+</Select></label></div><footer><Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>取消</Button><Button variant="primary" type="submit" ><Plus size={15} />创建知识库</Button></footer></form></div>}
+    {renameTarget && <KnowledgeActionModal title="重命名文档" onClose={() => setRenameTarget(null)}><label>文档名称<Input autoFocus value={renameValue} onChange={(event) => setRenameValue(event.target.value)} /></label><footer><Button variant="ghost" onClick={() => setRenameTarget(null)}>取消</Button><Button variant="primary" onClick={() => void confirmRename()}>保存</Button></footer></KnowledgeActionModal>}
+    {wikiCreateOpen && <KnowledgeActionModal title="新建 Wiki 页面" onClose={() => setWikiCreateOpen(false)}><label>页面标题<Input autoFocus value={wikiTitle} onChange={(event) => setWikiTitle(event.target.value)} /></label><footer><Button variant="ghost" onClick={() => setWikiCreateOpen(false)}>取消</Button><Button variant="primary" onClick={() => void confirmCreatePage()}>创建</Button></footer></KnowledgeActionModal>}
+    {deleteTarget && <KnowledgeActionModal title="删除文档" onClose={() => setDeleteTarget(null)}><p>确认删除“{deleteTarget.display_name}”？历史版本将保留。</p><footer><Button variant="ghost" onClick={() => setDeleteTarget(null)}>取消</Button><Button variant="danger" onClick={() => void confirmDelete()}>确认删除</Button></footer></KnowledgeActionModal>}
+    {doc && <div className="suna-knowledge-drawer-overlay" onClick={() => { setDoc(null); setPreviewPage(null); }}><aside className="suna-knowledge-drawer" onClick={(event) => event.stopPropagation()}><header><strong>{doc.display_name}</strong><div><Button variant="ghost" onClick={() => void reparseDocument(doc)} disabled={busy}>重新解析</Button><Button variant="ghost" onClick={() => void openEmbed(doc)} disabled={!doc.active_version_id}>重新 Embedding</Button><Button variant="ghost" onClick={() => { setMoveTarget(doc); setMoveBaseId(bases.find((base) => base.id !== doc.knowledge_base_id)?.id || ""); }}>移动</Button><Button variant="ghost" onClick={() => void downloadDocument(doc)}>下载</Button><button onClick={() => { setDoc(null); setPreviewPage(null); }} aria-label="关闭"><X size={17} /></button></div></header><div className="suna-knowledge-drawer-body"><div className="suna-document-preview-toolbar"><div><h3>文档预览</h3><small>{preview?.mime_type || extension(doc.display_name)} · {preview?.updated_at ? formatDate(preview.updated_at) : "未处理"}</small></div><div><Button variant="ghost" onClick={() => void copyPreview()} disabled={!preview?.content}><Copy size={14} />复制</Button><Button variant="ghost" onClick={() => void addPreviewToChat()} disabled={!preview?.content}><MessageSquarePlus size={14} />加入对话</Button></div></div>{preview?.processed ? <>{preview.raw_sheets?.length ? <SheetPreview sheets={preview.raw_sheets} /> : preview.mime_type?.includes("wordprocessingml") && preview.structured_blocks?.length ? <StructuredDocumentPreview blocks={preview.structured_blocks} /> : preview.blocks?.length ? <div className="suna-document-preview-blocks">{preview.blocks.map((block) => <article key={block.ordinal ?? block.content.slice(0, 24)}><p>{block.content}</p>{block.source_location && <small>来源位置：{JSON.stringify(block.source_location)}</small>}</article>)}</div> : <pre>{preview.content || "暂无文本预览"}</pre>}</> : <div className="suna-knowledge-document-empty"><Info size={24} /><h3>{preview?.content || "文档尚未完成处理"}</h3></div>}<DocumentPagesPanel pages={preview?.pages} initialPage={previewPage} /><DocumentMetadataPanel sourcePath={preview?.source_path} metadata={preview?.metadata} readOnly={libraryTab === "public"} onSave={(metadata) => void saveDocumentMetadata(metadata)} /><div className="suna-document-version-list"><strong>版本历史</strong>{documentVersions.length ? documentVersions.map((version) => <span key={version.id}>v{version.created_at} · {version.expected_chunk_count} 个片段{version.activated_at ? " · 当前激活" : ""}</span>) : <small>暂无版本记录</small>}</div></div></aside></div>}
     {moveTarget && <KnowledgeActionModal title="移动文档" onClose={() => setMoveTarget(null)}><label>目标知识库<Select value={moveBaseId} onValueChange={(value) => setMoveBaseId(value)}>
   <SelectTrigger aria-label="目标知识库"><SelectValue /></SelectTrigger>
   <SelectContent>{bases.filter((base) => base.id !== moveTarget.knowledge_base_id).map((base) => <SelectItem key={base.id} value={base.id}>{base.name}</SelectItem>)}
   </SelectContent>
-</Select></label><footer><button className="suna-ghost-button" onClick={() => setMoveTarget(null)}>取消</button><button className="suna-primary-button" onClick={() => void moveDocument()} disabled={!moveBaseId}>移动</button></footer></KnowledgeActionModal>}
+</Select></label><footer><Button variant="ghost" onClick={() => setMoveTarget(null)}>取消</Button><Button variant="primary" onClick={() => void moveDocument()} disabled={!moveBaseId}>移动</Button></footer></KnowledgeActionModal>}
     {embedTarget && <KnowledgeActionModal title="重新 Embedding" onClose={() => setEmbedTarget(null)}><label>Embedding Provider<Select value={embedProfileId} onValueChange={(value) => setEmbedProfileId(value)}>
   <SelectTrigger aria-label="Embedding Provider"><SelectValue /></SelectTrigger>
   <SelectContent>{embedProfiles.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.display_name}{profile.model_id ? " · " + profile.model_id : ""}</SelectItem>)}
   </SelectContent>
-</Select></label><footer><button className="suna-ghost-button" onClick={() => setEmbedTarget(null)}>取消</button><button className="suna-primary-button" onClick={() => void embedDocument()} disabled={!embedProfileId || busy}>开始</button></footer></KnowledgeActionModal>}
+</Select></label><footer><Button variant="ghost" onClick={() => setEmbedTarget(null)}>取消</Button><Button variant="primary" onClick={() => void embedDocument()} disabled={!embedProfileId || busy}>开始</Button></footer></KnowledgeActionModal>}
   </section>;
 }
 function SheetPreview({ sheets }: { sheets: import("../../bridge/desktop").KnowledgePreviewSheet[] }) {
@@ -613,15 +637,15 @@ function DocumentMetadataPanel({ sourcePath, metadata, readOnly, onSave }: { sou
   <SelectTrigger aria-label="文档类型"><SelectValue /></SelectTrigger>
   <SelectContent>{[DOCUMENT_CATEGORY_UNSET, ...DOCUMENT_CATEGORIES].map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}
   </SelectContent>
-</Select></label><Textarea aria-label="文档元数据 JSON" value={value} onChange={(event) => setValue(event.target.value)} readOnly={readOnly} rows={5} /><button className="suna-ghost-button" onClick={save} disabled={readOnly}>保存元数据</button></section>;
+</Select></label><Textarea aria-label="文档元数据 JSON" value={value} onChange={(event) => setValue(event.target.value)} readOnly={readOnly} rows={5} /><Button variant="ghost" onClick={save} disabled={readOnly}>保存元数据</Button></section>;
 }
-function Empty({ onImport }: { onImport: () => void }) { return <div className="suna-knowledge-document-empty"><FileText size={27} /><h3>这个知识库还没有文档</h3><p>导入文档后，Suna 会解析、切块并建立检索索引。</p><button className="suna-primary-button" onClick={onImport}><Upload size={15} />导入文档</button></div>; }
+function Empty({ onImport }: { onImport: () => void }) { return <div className="suna-knowledge-document-empty"><FileText size={27} /><h3>这个知识库还没有文档</h3><p>导入文档后，Suna 会解析、切块并建立检索索引。</p><Button variant="primary" onClick={onImport}><Upload size={15} />导入文档</Button></div>; }
 function ImportQueuePanel({ items, busy, onClear }: { items: ImportQueueItem[]; busy: boolean; onClear: () => void }) {
   const completed = items.filter((item) => item.state === "submitted").length;
   const failed = items.filter((item) => item.state === "failed").length;
-  return <section className="suna-knowledge-import-queue" aria-label="导入队列"><header><div><strong>导入队列</strong><span>{completed}/{items.length} 个文件已提交{failed ? `，${failed} 个失败` : ""}</span></div><button className="suna-ghost-button" onClick={onClear} disabled={busy}>清空</button></header><div className="suna-knowledge-import-list">{items.map((item) => <div key={item.path}><FileText size={15} /><span title={item.path}>{item.name}</span><small className={`is-${item.state}`}>{item.state === "pending" ? "等待中" : item.state === "submitting" ? "提交中" : item.state === "submitted" ? "已提交" : item.error || "失败"}</small></div>)}</div></section>;
+  return <section className="suna-knowledge-import-queue" aria-label="导入队列"><header><div><strong>导入队列</strong><span>{completed}/{items.length} 个文件已提交{failed ? `，${failed} 个失败` : ""}</span></div><Button variant="ghost" onClick={onClear} disabled={busy}>清空</Button></header><div className="suna-knowledge-import-list">{items.map((item) => <div key={item.path}><FileText size={15} /><span title={item.path}>{item.name}</span><small className={`is-${item.state}`}>{item.state === "pending" ? "等待中" : item.state === "submitting" ? "提交中" : item.state === "submitted" ? "已提交" : item.error || "失败"}</small></div>)}</div></section>;
 }
-function KnowledgeBaseEmpty({ publicTab, onCreate }: { publicTab: boolean; onCreate: () => void }) { return <div className="suna-knowledge-base-empty"><Database size={30} /><h3>{publicTab ? "还没有公共知识库" : "还没有知识库"}</h3><p>{publicTab ? "单用户客户端不提供共享知识库。" : "创建第一个知识库，开始管理钢铁材料研发资料。"}</p>{!publicTab && <button className="suna-primary-button" onClick={onCreate}><Plus size={15} />创建第一个知识库</button>}</div>; }
+function KnowledgeBaseEmpty({ publicTab, onCreate }: { publicTab: boolean; onCreate: () => void }) { return <div className="suna-knowledge-base-empty"><Database size={30} /><h3>{publicTab ? "还没有公共知识库" : "还没有知识库"}</h3><p>{publicTab ? "单用户客户端不提供共享知识库。" : "创建第一个知识库，开始管理钢铁材料研发资料。"}</p>{!publicTab && <Button variant="primary" onClick={onCreate}><Plus size={15} />创建第一个知识库</Button>}</div>; }
 function WikiPanel({ pages, page, revisions, documents, tags, availableTags, sourceDocumentId, onTagsChange, onSourceDocumentChange, onCreate, onSelect, onChange, onSave, onRestore }: { pages: PostgresWikiPage[]; page: PostgresWikiPage | null; revisions: PostgresWikiRevision[]; documents: SourceDocumentRecord[]; tags: string[]; availableTags: string[]; sourceDocumentId: string | null; onTagsChange: (tags: string[]) => void; onSourceDocumentChange: (id: string | null) => void; onCreate: () => void; onSelect: (page: PostgresWikiPage) => void; onChange: (page: PostgresWikiPage) => void; onSave: () => void; onRestore: (revision: number) => void }) {
   const [tagInput, setTagInput] = useState("");
   const addTag = () => {
@@ -629,11 +653,11 @@ function WikiPanel({ pages, page, revisions, documents, tags, availableTags, sou
     if (next && !tags.includes(next)) onTagsChange([...tags, next]);
     setTagInput("");
   };
-  return <div className="suna-wiki-workspace"><div className="suna-wiki-list"><div className="suna-knowledge-doc-head"><div><h2>Wiki 页面</h2><span>{pages.length} 个页面</span></div><button className="suna-primary-button" onClick={onCreate}><Plus size={14} />新建</button></div>{pages.map((item) => <button key={item.id} className={page?.id === item.id ? "is-active" : ""} onClick={() => onSelect(item)}><BookOpen size={15} /><span>{item.title}</span><small>v{item.revision}</small></button>)}</div><div className="suna-wiki-editor">{page ? <><div className="suna-wiki-editor-head"><Input value={page.title} onChange={(event) => onChange({ ...page, title: event.target.value })} /><button className="suna-primary-button" onClick={onSave}><Pencil size={14} />保存</button></div><div className="suna-wiki-editor-meta"><label>来源文档<Select value={sourceDocumentId || ""} onValueChange={(value) => onSourceDocumentChange(value || null)}>
+  return <div className="suna-wiki-workspace"><div className="suna-wiki-list"><div className="suna-knowledge-doc-head"><div><h2>Wiki 页面</h2><span>{pages.length} 个页面</span></div><Button variant="primary" onClick={onCreate}><Plus size={14} />新建</Button></div>{pages.map((item) => <button key={item.id} className={page?.id === item.id ? "is-active" : ""} onClick={() => onSelect(item)}><BookOpen size={15} /><span>{item.title}</span><small>v{item.revision}</small></button>)}</div><div className="suna-wiki-editor">{page ? <><div className="suna-wiki-editor-head"><Input value={page.title} onChange={(event) => onChange({ ...page, title: event.target.value })} /><Button variant="primary" onClick={onSave}><Pencil size={14} />保存</Button></div><div className="suna-wiki-editor-meta"><label>来源文档<Select value={sourceDocumentId || ""} onValueChange={(value) => onSourceDocumentChange(value || null)}>
   <SelectTrigger aria-label="Wiki 来源文档"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="">不关联来源文档</SelectItem>{documents.map((document) => <SelectItem key={document.id} value={document.id}>{document.display_name}</SelectItem>)}
   </SelectContent>
-</Select></label><label>标签<div className="suna-wiki-tag-editor"><Input aria-label="Wiki 标签" value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} placeholder="输入标签后回车" /><button className="suna-ghost-button" onClick={addTag}>添加</button></div><div className="suna-wiki-tags">{tags.map((tag) => <button type="button" key={tag} onClick={() => onTagsChange(tags.filter((item) => item !== tag))}>{tag} ×</button>)}{availableTags.filter((tag) => !tags.includes(tag)).slice(0, 5).map((tag) => <button type="button" key={tag} onClick={() => onTagsChange([...tags, tag])}>+ {tag}</button>)}</div></label></div><Textarea value={page.body_markdown} onChange={(event) => onChange({ ...page, body_markdown: event.target.value })} /><div className="suna-wiki-history"><History size={14} /><strong>版本历史</strong>{revisions.map((item) => <button key={item.id} onClick={() => onRestore(item.revision)}>v{item.revision} · {new Date(item.created_at).toLocaleString()}</button>)}</div></> : <div className="suna-knowledge-document-empty"><BookOpen size={25} /><h3>选择一个 Wiki 页面</h3></div>}</div></div>;
+</Select></label><label>标签<div className="suna-wiki-tag-editor"><Input aria-label="Wiki 标签" value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} placeholder="输入标签后回车" /><Button variant="ghost" onClick={addTag}>添加</Button></div><div className="suna-wiki-tags">{tags.map((tag) => <button type="button" key={tag} onClick={() => onTagsChange(tags.filter((item) => item !== tag))}>{tag} ×</button>)}{availableTags.filter((tag) => !tags.includes(tag)).slice(0, 5).map((tag) => <button type="button" key={tag} onClick={() => onTagsChange([...tags, tag])}>+ {tag}</button>)}</div></label></div><Textarea value={page.body_markdown} onChange={(event) => onChange({ ...page, body_markdown: event.target.value })} /><div className="suna-wiki-history"><History size={14} /><strong>版本历史</strong>{revisions.map((item) => <button key={item.id} onClick={() => onRestore(item.revision)}>v{item.revision} · {new Date(item.created_at).toLocaleString()}</button>)}</div></> : <div className="suna-knowledge-document-empty"><BookOpen size={25} /><h3>选择一个 Wiki 页面</h3></div>}</div></div>;
 }
 function GraphPanel({ knowledgeBaseId, edges, pages, readOnly, onChanged, onMessage }: { knowledgeBaseId: string | null; edges: PostgresKnowledgeEdge[]; pages: PostgresWikiPage[]; readOnly: boolean; onChanged: () => void; onMessage: (message: string) => void }) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -657,14 +681,14 @@ function GraphPanel({ knowledgeBaseId, edges, pages, readOnly, onChanged, onMess
     try {
       await desktop.createPostgresKnowledgeEdge({ knowledge_base_id: knowledgeBaseId, source_page_id: source, target_page_id: target, relation: relation.trim(), metadata: { source: "manual" } });
       setSource(""); setTarget(""); setRelation("关联"); setSelectedEdge(null); onChanged(); onMessage("知识边已创建");
-    } catch (reason) { onMessage(reason instanceof Error ? reason.message : "创建知识边失败"); }
+    } catch (reason) { onMessage(errorMessage(reason, "创建知识边失败")); }
     finally { setSaving(false); }
   };
   const removeEdge = async (edge: PostgresKnowledgeEdge) => {
     if (readOnly) return;
     setSaving(true);
     try { await desktop.deletePostgresKnowledgeEdge(edge.id); setSelectedEdge(null); onChanged(); onMessage("知识边已软删除"); }
-    catch (reason) { onMessage(reason instanceof Error ? reason.message : "删除知识边失败"); }
+    catch (reason) { onMessage(errorMessage(reason, "删除知识边失败")); }
     finally { setSaving(false); }
   };
   const selected = selectedEdge ? edges.find((edge) => edge.id === selectedEdge) : null;
@@ -679,10 +703,10 @@ function GraphPanel({ knowledgeBaseId, edges, pages, readOnly, onChanged, onMess
   <SelectTrigger aria-label="关系目标页面"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="">选择目标页面</SelectItem>{pages.map((page) => <SelectItem key={page.id} value={page.id}>{page.title}</SelectItem>)}
   </SelectContent>
-</Select><button className="suna-primary-button" onClick={() => void createEdge()} disabled={saving || !knowledgeBaseId}><Plus size={14} />添加关系</button></div>}
+</Select><Button variant="primary" onClick={() => void createEdge()} disabled={saving || !knowledgeBaseId}><Plus size={14} />添加关系</Button></div>}
     <div className="suna-graph-layout"><div className="suna-graph-canvas" aria-label="知识关系图谱画布">
       {positions.length ? <><svg className="suna-graph-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{edges.map((edge) => { const from = edge.source_page_id ? point.get(edge.source_page_id) : undefined; const to = edge.target_page_id ? point.get(edge.target_page_id) : undefined; if (!from || !to) return null; return <line key={edge.id} x1={from.left} y1={from.top} x2={to.left} y2={to.top} className={selectedEdge === edge.id ? "is-selected" : ""} onClick={() => { setSelectedEdge(edge.id); setSelectedNode(null); }} />; })}</svg>{positions.map(({ node, left, top }) => <button key={node.id} className={`suna-graph-node${selectedNode === node.id ? " is-selected" : ""}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => { setSelectedNode(node.id); setSelectedEdge(null); }}><BookOpen size={14} /><span>{node.title}</span></button>)}{edges.length > 0 && <div className="suna-graph-edge-labels" aria-label="关系列表">{edges.map((edge) => <button key={edge.id} className={selectedEdge === edge.id ? "is-selected" : ""} onClick={() => { setSelectedEdge(edge.id); setSelectedNode(null); }}><span>{labels.get(edge.source_page_id || "") || "来源"}</span><b>{edge.relation}</b><span>{labels.get(edge.target_page_id || "") || "目标"}</span></button>)}</div>}</> : <div className="suna-graph-empty"><Network size={32} /><strong>还没有可展示的知识关系</strong><span>先创建 Wiki 页面，再通过 Markdown 链接或上方表单建立关系。</span></div>}
-    </div><aside className="suna-graph-inspector">{selected ? <><h3>关系详情</h3><dl><dt>源页面</dt><dd>{labels.get(selected.source_page_id || "") || "未命名页面"}</dd><dt>关系类型</dt><dd>{selected.relation}</dd><dt>目标页面</dt><dd>{labels.get(selected.target_page_id || "") || "未命名页面"}</dd><dt>来源</dt><dd>{selected.metadata?.source === "manual" ? "手工创建" : "Wiki 链接"}</dd></dl>{!readOnly && <button className="suna-danger-button" onClick={() => void removeEdge(selected)} disabled={saving}>删除这条关系</button>}</> : selectedPage ? <><h3>节点详情</h3><dl><dt>页面标题</dt><dd>{selectedPage.title}</dd><dt>版本</dt><dd>v{selectedPage.revision}</dd><dt>更新时间</dt><dd>{new Date(selectedPage.updated_at).toLocaleString("zh-CN")}</dd></dl></> : <div className="suna-graph-inspector-empty"><Info size={20} /><span>选择节点或关系查看详情</span></div>}</aside></div>
+    </div><aside className="suna-graph-inspector">{selected ? <><h3>关系详情</h3><dl><dt>源页面</dt><dd>{labels.get(selected.source_page_id || "") || "未命名页面"}</dd><dt>关系类型</dt><dd>{selected.relation}</dd><dt>目标页面</dt><dd>{labels.get(selected.target_page_id || "") || "未命名页面"}</dd><dt>来源</dt><dd>{selected.metadata?.source === "manual" ? "手工创建" : "Wiki 链接"}</dd></dl>{!readOnly && <Button variant="danger" onClick={() => void removeEdge(selected)} disabled={saving}>删除这条关系</Button>}</> : selectedPage ? <><h3>节点详情</h3><dl><dt>页面标题</dt><dd>{selectedPage.title}</dd><dt>版本</dt><dd>v{selectedPage.revision}</dd><dt>更新时间</dt><dd>{new Date(selectedPage.updated_at).toLocaleString("zh-CN")}</dd></dl></> : <div className="suna-graph-inspector-empty"><Info size={20} /><span>选择节点或关系查看详情</span></div>}</aside></div>
   </section>;
 }
 
@@ -692,7 +716,7 @@ function KnowledgeSettingsPanel({ base, onSave }: { base: KnowledgeBaseRecord; o
   const [tags, setTags] = useState((base.tags || []).join(", "));
   const [embedding, setEmbedding] = useState(base.embedding_model || "");
   const [chunkStrategy, setChunkStrategy] = useState(base.chunk_strategy || "semantic");
-  return <section className="suna-knowledge-settings"><div className="suna-knowledge-recent-head"><div><h2>知识库设置</h2><span>{base.name} · 本机个人知识库</span></div><button className="suna-primary-button" onClick={() => onSave({ description, library_type: libraryType, visibility: "private", tags: tags.split(",").map((item) => item.trim()).filter(Boolean), embedding_model: embedding, chunk_strategy: chunkStrategy })}>保存设置</button></div><div className="suna-knowledge-settings-grid"><label>描述<Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>类型<Select value={libraryType} onValueChange={(value) => setLibraryType(value)}>
+  return <section className="suna-knowledge-settings"><div className="suna-knowledge-recent-head"><div><h2>知识库设置</h2><span>{base.name} · 本机个人知识库</span></div><Button variant="primary" onClick={() => onSave({ description, library_type: libraryType, visibility: "private", tags: tags.split(",").map((item) => item.trim()).filter(Boolean), embedding_model: embedding, chunk_strategy: chunkStrategy })}>保存设置</Button></div><div className="suna-knowledge-settings-grid"><label>描述<Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>类型<Select value={libraryType} onValueChange={(value) => setLibraryType(value)}>
   <SelectTrigger aria-label="类型"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="research">研究资料</SelectItem><SelectItem value="standard">标准规范</SelectItem><SelectItem value="experiment">实验记录</SelectItem><SelectItem value="other">其他</SelectItem>
   </SelectContent>
@@ -718,7 +742,7 @@ function KnowledgeBaseManagement({ bases, onRefresh }: { bases: KnowledgeBaseRec
       const impact = await desktop.previewDeleteKnowledgeBase(base.id);
       setDeleteTarget({ base, documentCount: impact.document_count, versionCount: impact.version_count, chunkCount: impact.chunk_count, assetCount: impact.asset_count, activeTaskCount: impact.active_task_count });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "读取删除影响失败");
+      setError(errorMessage(reason, "读取删除影响失败"));
     }
   };
   const remove = async () => {
@@ -730,22 +754,22 @@ function KnowledgeBaseManagement({ bases, onRefresh }: { bases: KnowledgeBaseRec
       setDeleteTarget(null);
       onRefresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "删除知识库失败");
+      setError(errorMessage(reason, "删除知识库失败"));
     } finally {
       setBusy(false);
     }
   };
-  return <><section className="suna-knowledge-management"><div className="suna-knowledge-recent-head"><div><h2>知识库管理</h2><span>管理本机知识库和数据生命周期</span></div></div>{error && <p role="alert" className="suna-knowledge-error">{error}</p>}{bases.length ? <div className="suna-knowledge-management-list">{bases.map((base) => <article key={base.id}><div><strong>{base.name}</strong><small>本机个人知识库 · {base.library_type || "research"} · {base.description || "暂无描述"}</small></div><button className="suna-danger-button" onClick={() => void preview(base)} disabled={busy}>删除</button></article>)}</div> : <div className="suna-knowledge-base-empty">暂无知识库</div>}</section>{deleteTarget && <KnowledgeActionModal title="删除知识库" onClose={() => { if (!busy) setDeleteTarget(null); }}><p>确认删除“{deleteTarget.base.name}”？将处理 {deleteTarget.documentCount} 个文档、{deleteTarget.versionCount} 个版本、{deleteTarget.chunkCount} 个片段和 {deleteTarget.assetCount} 个解析资产，历史数据会保留为软删除。</p>{deleteTarget.activeTaskCount > 0 && <p role="alert" className="suna-knowledge-error">当前有 {deleteTarget.activeTaskCount} 个活动任务，需先完成、取消或隔离后才能删除。</p>}{error && <p role="alert" className="suna-knowledge-error">{error}</p>}<footer><button className="suna-ghost-button" onClick={() => setDeleteTarget(null)} disabled={busy}>取消</button><button className="suna-danger-button" onClick={() => void remove()} disabled={busy || deleteTarget.activeTaskCount > 0}>{busy ? "处理中..." : "确认删除"}</button></footer></KnowledgeActionModal>}</>;
+  return <><section className="suna-knowledge-management"><div className="suna-knowledge-recent-head"><div><h2>知识库管理</h2><span>管理本机知识库和数据生命周期</span></div></div>{error && <p role="alert" className="suna-knowledge-error">{error}</p>}{bases.length ? <div className="suna-knowledge-management-list">{bases.map((base) => <article key={base.id}><div><strong>{base.name}</strong><small>本机个人知识库 · {base.library_type || "research"} · {base.description || "暂无描述"}</small></div><Button variant="danger" onClick={() => void preview(base)} disabled={busy}>删除</Button></article>)}</div> : <div className="suna-knowledge-base-empty">暂无知识库</div>}</section>{deleteTarget && <KnowledgeActionModal title="删除知识库" onClose={() => { if (!busy) setDeleteTarget(null); }}><p>确认删除“{deleteTarget.base.name}”？将处理 {deleteTarget.documentCount} 个文档、{deleteTarget.versionCount} 个版本、{deleteTarget.chunkCount} 个片段和 {deleteTarget.assetCount} 个解析资产，历史数据会保留为软删除。</p>{deleteTarget.activeTaskCount > 0 && <p role="alert" className="suna-knowledge-error">当前有 {deleteTarget.activeTaskCount} 个活动任务，需先完成、取消或隔离后才能删除。</p>}{error && <p role="alert" className="suna-knowledge-error">{error}</p>}<footer><Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={busy}>取消</Button><Button variant="danger" onClick={() => void remove()} disabled={busy || deleteTarget.activeTaskCount > 0}>{busy ? "处理中..." : "确认删除"}</Button></footer></KnowledgeActionModal>}</>;
 }
 
 function KnowledgeSearchPanel({ query, filters, documentTypes, results, favoriteChunkIds, busy, hasKnowledgeBase, embeddingDegradation, rerankDegradation, onQueryChange, onFiltersChange, onSearch, onOpen, onCopy, onAddToChat, onToggleFavorite, onCite }: { query: string; filters: KnowledgeSearchFilterState; documentTypes: string[]; results: PostgresKnowledgeSearchHit[]; favoriteChunkIds: string[]; busy: boolean; hasKnowledgeBase: boolean; embeddingDegradation: string | null; rerankDegradation: string | null; onQueryChange: (value: string) => void; onFiltersChange: (value: KnowledgeSearchFilterState) => void; onSearch: () => void; onOpen: (hit: PostgresKnowledgeSearchHit) => void; onCopy: (hit: PostgresKnowledgeSearchHit) => void; onAddToChat: (hit: PostgresKnowledgeSearchHit) => void; onToggleFavorite: (hit: PostgresKnowledgeSearchHit) => void; onCite: (hit: PostgresKnowledgeSearchHit) => void }) {
   const setFilter = (key: keyof typeof filters, value: string) => onFiltersChange({ ...filters, [key]: value });
   const degradation = embeddingDegradation || rerankDegradation;
-  return <section className="suna-knowledge-search-panel"><div className="suna-knowledge-search-row"><label className="suna-knowledge-search"><Search size={18} /><Input value={query} onChange={(event) => onQueryChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onSearch(); }} placeholder="搜索材料、工艺、性能和文档内容..." /></label><button className="suna-primary-button" onClick={onSearch} disabled={busy || !hasKnowledgeBase}>{busy ? "检索中..." : "开始检索"}</button></div>{degradation && <div className="suna-knowledge-search-degraded" role="status">当前使用降级检索：{embeddingDegradation ? `Embedding ${degradationLabel(embeddingDegradation)}` : `Reranker ${degradationLabel(rerankDegradation || "")}`}，仍会返回可引用的全文结果。</div>}<div className="suna-knowledge-search-filters"><Select value={filters.document_type} onValueChange={(value) => setFilter("document_type", value)}>
+  return <section className="suna-knowledge-search-panel"><div className="suna-knowledge-search-row"><label className="suna-knowledge-search"><Search size={18} /><Input value={query} onChange={(event) => onQueryChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onSearch(); }} placeholder="搜索材料、工艺、性能和文档内容..." /></label><Button variant="primary" onClick={onSearch} disabled={busy || !hasKnowledgeBase}>{busy ? "检索中..." : "开始检索"}</Button></div>{degradation && <div className="suna-knowledge-search-degraded" role="status">当前使用降级检索：{embeddingDegradation ? `Embedding ${degradationLabel(embeddingDegradation)}` : `Reranker ${degradationLabel(rerankDegradation || "")}`}，仍会返回可引用的全文结果。</div>}<div className="suna-knowledge-search-filters"><Select value={filters.document_type} onValueChange={(value) => setFilter("document_type", value)}>
   <SelectTrigger aria-label="文档类型筛选"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="">全部文档类型</SelectItem>{documentTypes.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
   </SelectContent>
-</Select><Input aria-label="材料筛选" value={filters.material} onChange={(event) => setFilter("material", event.target.value)} placeholder="材料" /><Input aria-label="工艺筛选" value={filters.process} onChange={(event) => setFilter("process", event.target.value)} placeholder="工艺" /><Input aria-label="性能筛选" value={filters.property} onChange={(event) => setFilter("property", event.target.value)} placeholder="性能" /><Input aria-label="年份筛选" inputMode="numeric" value={filters.year} onChange={(event) => setFilter("year", event.target.value.replace(/[^0-9]/g, ""))} placeholder="年份" /><Input aria-label="标签筛选" value={filters.tag} onChange={(event) => setFilter("tag", event.target.value)} placeholder="标签" /><Input aria-label="来源筛选" value={filters.source ?? ""} onChange={(event) => setFilter("source", event.target.value)} placeholder="来源" /><button className="suna-ghost-button" onClick={() => onFiltersChange({ document_type: "", material: "", process: "", property: "", year: "", tag: "", source: "" })}>清除筛选</button></div>{results.length ? <div className="suna-knowledge-search-results">{results.map((hit) => <article key={hit.chunk_id} className="suna-knowledge-result"><div><strong>{hit.document_name}</strong><span>相关度 {hit.rank.toFixed(3)}</span></div><p>{hit.text}</p><small>来源位置：{formatSourceLocation(hit.source_location)}</small><footer><button className="suna-ghost-button" onClick={() => onOpen(hit)}><ExternalLink size={14} />打开原文</button><button className="suna-ghost-button" onClick={() => onCopy(hit)}><Copy size={14} />复制片段</button><button className="suna-ghost-button" onClick={() => onAddToChat(hit)}><MessageSquarePlus size={14} />加入对话</button><button className="suna-ghost-button" aria-pressed={favoriteChunkIds.includes(hit.chunk_id)} onClick={() => onToggleFavorite(hit)}>{favoriteChunkIds.includes(hit.chunk_id) ? "已收藏" : "收藏"}</button><button className="suna-ghost-button" onClick={() => onCite(hit)}>引用</button></footer></article>)}</div> : <div className="suna-knowledge-search-empty"><Search size={28} /><strong>{query ? "未找到匹配的知识库或文档" : "输入问题开始检索"}</strong><span>结果将显示文档名称、片段、来源位置和相关度。</span></div>}</section>;
+</Select><Input aria-label="材料筛选" value={filters.material} onChange={(event) => setFilter("material", event.target.value)} placeholder="材料" /><Input aria-label="工艺筛选" value={filters.process} onChange={(event) => setFilter("process", event.target.value)} placeholder="工艺" /><Input aria-label="性能筛选" value={filters.property} onChange={(event) => setFilter("property", event.target.value)} placeholder="性能" /><Input aria-label="年份筛选" inputMode="numeric" value={filters.year} onChange={(event) => setFilter("year", event.target.value.replace(/[^0-9]/g, ""))} placeholder="年份" /><Input aria-label="标签筛选" value={filters.tag} onChange={(event) => setFilter("tag", event.target.value)} placeholder="标签" /><Input aria-label="来源筛选" value={filters.source ?? ""} onChange={(event) => setFilter("source", event.target.value)} placeholder="来源" /><Button variant="ghost" onClick={() => onFiltersChange({ document_type: "", material: "", process: "", property: "", year: "", tag: "", source: "" })}>清除筛选</Button></div>{results.length ? <div className="suna-knowledge-search-results">{results.map((hit) => <article key={hit.chunk_id} className="suna-knowledge-result"><div><strong>{hit.document_name}</strong><span>相关度 {hit.rank.toFixed(3)}</span></div><p>{hit.text}</p><small>来源位置：{formatSourceLocation(hit.source_location)}</small><footer><Button variant="ghost" onClick={() => onOpen(hit)}><ExternalLink size={14} />打开原文</Button><Button variant="ghost" onClick={() => onCopy(hit)}><Copy size={14} />复制片段</Button><Button variant="ghost" onClick={() => onAddToChat(hit)}><MessageSquarePlus size={14} />加入对话</Button><Button variant="ghost" aria-pressed={favoriteChunkIds.includes(hit.chunk_id)} onClick={() => onToggleFavorite(hit)}>{favoriteChunkIds.includes(hit.chunk_id) ? "已收藏" : "收藏"}</Button><Button variant="ghost" onClick={() => onCite(hit)}>引用</Button></footer></article>)}</div> : <div className="suna-knowledge-search-empty"><Search size={28} /><strong>{query ? "未找到匹配的知识库或文档" : "输入问题开始检索"}</strong><span>结果将显示文档名称、片段、来源位置和相关度。</span></div>}</section>;
 }
 function ChunkPanel({ chunks }: { chunks: PostgresKnowledgeChunk[] }) {
   return <section className="suna-knowledge-chunks"><div className="suna-knowledge-recent-head"><div><h2>知识片段</h2><span>{chunks.length} 个已索引片段</span></div></div>{chunks.length ? <div className="suna-knowledge-chunk-list">{chunks.map((chunk) => <article key={chunk.id}><header><strong>{chunk.document_name}</strong><span>#{chunk.ordinal + 1}</span></header>{chunk.title_path && <small>{chunk.title_path}</small>}<p>{chunk.text}</p><footer>来源位置：{JSON.stringify(chunk.source_location)}</footer></article>)}</div> : <div className="suna-knowledge-document-empty"><Database size={25} /><h3>当前知识库还没有知识片段</h3><p>导入并完成文档处理后，片段会显示在这里。</p></div>}</section>;
@@ -754,7 +778,7 @@ function KnowledgeActionModal({ title, onClose, children }: { title: string; onC
 
 function IngestionJobs({ jobs, documents, busy, onRetry, onCancel }: { jobs: PostgresIngestionJob[]; documents: SourceDocumentRecord[]; busy: boolean; onRetry: (job: PostgresIngestionJob) => void; onCancel: (job: PostgresIngestionJob) => void }) {
   const labels: Record<string, string> = { queued: "排队中", pending: "等待处理", uploading: "上传中", parsing: "解析中", chunking: "切分中", embedding: "Embedding 中", indexing: "索引中", running: "处理中", retrying: "重试中", completed: "处理完成", failed: "处理失败", quarantined: "已隔离", cancelled: "已取消" };
-  return <section className="suna-knowledge-jobs"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />处理任务</h2><span>{jobs.length} 条</span></div>{jobs.length ? <div className="suna-knowledge-jobs-list">{jobs.slice(0, 8).map((job) => { const progress = Math.max(0, Math.min(100, job.progress ?? 0)); return <article key={job.id} className="suna-knowledge-job"><div><strong>{job.source_document_id ? (documents.find((item) => item.id === job.source_document_id)?.display_name || "文档任务") : "文档任务"}</strong><span className={"suna-job-state is-" + job.state}>{labels[job.state] || job.state}</span></div><div className="suna-knowledge-job-progress" aria-label={`${labels[job.state] || job.state} ${progress}%`}><span style={{ width: `${progress}%` }} /></div><small>{progress}% · 尝试 {job.attempts} 次 · {job.updated_at}</small>{job.error_message && <p>{job.error_message}</p>}<div className="suna-knowledge-job-actions">{["failed", "quarantined"].includes(job.state) && <button className="suna-ghost-button" onClick={() => onRetry(job)} disabled={busy}>重试任务</button>}{["pending", "queued", "uploading", "parsing", "chunking", "embedding", "indexing", "running", "retrying"].includes(job.state) && <button className="suna-ghost-button" onClick={() => onCancel(job)} disabled={busy}>取消任务</button>}</div></article>; })}</div> : <div className="suna-knowledge-jobs-empty">暂无导入任务。导入文档后，解析、切块、Embedding 和索引状态会显示在这里。</div>}</section>;
+  return <section className="suna-knowledge-jobs"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />处理任务</h2><span>{jobs.length} 条</span></div>{jobs.length ? <div className="suna-knowledge-jobs-list">{jobs.slice(0, 8).map((job) => { const progress = Math.max(0, Math.min(100, job.progress ?? 0)); return <article key={job.id} className="suna-knowledge-job"><div><strong>{job.source_document_id ? (documents.find((item) => item.id === job.source_document_id)?.display_name || "文档任务") : "文档任务"}</strong><span className={"suna-job-state is-" + job.state}>{labels[job.state] || job.state}</span></div><div className="suna-knowledge-job-progress" aria-label={`${labels[job.state] || job.state} ${progress}%`}><span style={{ width: `${progress}%` }} /></div><small>{progress}% · 尝试 {job.attempts} 次 · {job.updated_at}</small>{job.error_message && <p>{job.error_message}</p>}<div className="suna-knowledge-job-actions">{["failed", "quarantined"].includes(job.state) && <Button variant="ghost" onClick={() => onRetry(job)} disabled={busy}>重试任务</Button>}{["pending", "queued", "uploading", "parsing", "chunking", "embedding", "indexing", "running", "retrying"].includes(job.state) && <Button variant="ghost" onClick={() => onCancel(job)} disabled={busy}>取消任务</Button>}</div></article>; })}</div> : <div className="suna-knowledge-jobs-empty">暂无导入任务。导入文档后，解析、切块、Embedding 和索引状态会显示在这里。</div>}</section>;
 }
 
 

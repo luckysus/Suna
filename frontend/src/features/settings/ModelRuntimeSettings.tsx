@@ -4,6 +4,7 @@ import { useLocale } from "../../i18n/locale";
 import { settingsErrorMessage } from "./settingsError";
 import { Input } from "../../components/ui/input";
 import { loadModelRuntime, modelRuntimeDefaults, normalizeModelRuntime, saveModelRuntime, type ModelRuntimePreferences } from "./modelPreferences";
+import { Button } from "../../components/ui/button";
 
 const defaults = modelRuntimeDefaults;
 
@@ -60,7 +61,7 @@ export default function ModelRuntimeSettings() {
         <label className="suna-settings-field"><span>Context Length</span><Input disabled={loading} type="number" min="1024" max="1048576" step="1024" value={value.contextLength} onChange={(event) => void update({ contextLength: Number(event.target.value) })} /></label>
         <label className="suna-settings-field"><span>单次模型请求超时（秒）</span><Input disabled={loading} type="number" min="5" max="1800" step="5" value={value.timeoutSeconds} onChange={(event) => void update({ timeoutSeconds: Number(event.target.value) })} /></label>
       </div>
-      <footer className="suna-settings-form-actions"><button type="button" className="suna-secondary-button" onClick={reset} disabled={loading || state === "saving"}><RotateCcw size={15} />恢复运行参数默认值</button></footer>
+      <footer className="suna-settings-form-actions"><Button variant="secondary" type="button" onClick={reset} disabled={loading || state === "saving"}><RotateCcw size={15} />恢复运行参数默认值</Button></footer>
     </section>
   );
 }

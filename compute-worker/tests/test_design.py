@@ -7,6 +7,7 @@ from suna_worker.design import (
     DesignError,
     _design_ccd,
     _hadamard_two_level,
+    _l18_three_level,
     _prime_square_table,
     _table_is_orthogonal,
     design_experiments,
@@ -94,6 +95,13 @@ def test_prime_square_tables_match_standard_taguchi_arrays():
     assert _table_is_orthogonal(_prime_square_table(5), 5)
 
 
+def test_l18_table_is_strength_two_orthogonal():
+    table = _l18_three_level()
+    assert len(table) == 18
+    assert all(len(row) == 7 for row in table)
+    assert _table_is_orthogonal(table, 3)
+
+
 def test_orthogonal_selects_the_smallest_covering_table():
     result = design_experiments(
         {
@@ -121,13 +129,31 @@ def test_orthogonal_maps_levels_across_the_variable_range():
 def test_orthogonal_reports_missing_tables_honestly():
     payload = {
         "method": "orthogonal",
-        "variables": variables(*[(f"x{i}", 0.0, 1.0) for i in range(5)]),
+        "variables": variables(*[(f"x{i}", 0.0, 1.0) for i in range(8)]),
         "levels": 3,
     }
     with pytest.raises(DesignError) as excinfo:
         design_experiments(payload)
     assert excinfo.value.code == "no_orthogonal_table"
     assert "L9" in str(excinfo.value) or "built-in coverage" in str(excinfo.value)
+
+
+def test_orthogonal_uses_l18_for_five_factors_at_three_levels():
+    result = design_experiments(
+        {
+            "method": "orthogonal",
+            "variables": variables(*[(f"x{i}", 0.0, 9.0) for i in range(5)]),
+            "levels": 3,
+        }
+    )
+    assert len(result["points"]) == 18
+    assert "L18" in result["notes"][0]
+    # 每个变量在 18 组中三水平各出现 6 次。
+    for index in range(5):
+        counts = [0, 0, 0]
+        for point in result["points"]:
+            counts[int(round(point["values"][f"x{index}"] / 4.5))] += 1
+        assert counts == [6, 6, 6]
 
 
 # ---------------------------------------------------------------------------

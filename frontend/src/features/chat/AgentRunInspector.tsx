@@ -16,6 +16,7 @@ import type { PermissionDecision } from "../../bridge/generated/protocol";
 import type { RecoveredRun } from "../../bridge/desktop";
 import type { AgentPermissionView, AgentRunView, AgentToolView } from "./agentEvents";
 import ChildAgentPanel from "./ChildAgentPanel";
+import { Button } from "../../components/ui/button";
 
 interface AgentRunInspectorProps {
   run: AgentRunView | null;
@@ -79,16 +80,17 @@ function PermissionActions({
   return (
     <div className="suna-chat-permission-actions">
       {actions.map(({ decision, label, danger }) => (
-        <button
+        <Button
           type="button"
-          className={danger ? "suna-action-secondary is-danger" : "suna-action-secondary"}
+          variant="actionSecondary"
+          className={danger ? "is-danger" : undefined}
           aria-label={`Agent Workspace permission ${decision}`}
           key={decision}
           onClick={() => onResolve(permission.permissionId, decision)}
         >
           {danger ? <X size={12} aria-hidden="true" /> : <Check size={12} aria-hidden="true" />}
           {label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -212,8 +214,8 @@ export default function AgentRunInspector({
           {run.recovery && <small>{run.recovery.phase === "started" ? "正在恢复" : "恢复已完成"} · 尝试 {run.recovery.recoveryAttempt}</small>}
           {(canResume || canRetry) && (
             <div className="suna-chat-permission-actions">
-              {canResume && <button type="button" className="suna-action-secondary" aria-label="Agent Workspace resume" onClick={onResume}>恢复运行</button>}
-              {canRetry && <button type="button" className="suna-action-secondary" aria-label="Agent Workspace retry" onClick={onRetry}>重试</button>}
+              {canResume && <Button variant="actionSecondary" type="button" aria-label="Agent Workspace resume" onClick={onResume}>恢复运行</Button>}
+              {canRetry && <Button variant="actionSecondary" type="button" aria-label="Agent Workspace retry" onClick={onRetry}>重试</Button>}
             </div>
           )}
         </section>

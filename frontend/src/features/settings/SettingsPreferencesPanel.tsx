@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { desktop, isDesktopRuntime, type UpdateCheckResult } from "../../bridge/desktop";
 import { useLocale, type LanguagePreference } from "../../i18n/locale";
 import { useTheme, type ThemePreference } from "../../theme/theme";
-import { useAppearanceSettings, type AppearancePreferences, type DensityPreference, type FontSizePreference, type StartupPagePreference } from "../../settings/appearance";
+import { useAppearanceSettings, type AppearancePreferences, type DensityPreference, type FontSizePreference, type SidebarWidthPreference, type StartupPagePreference } from "../../settings/appearance";
 import { settingsErrorMessage } from "./settingsError";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 const themeOptions: Array<{ value: ThemePreference; labelKey: "themeSystem" | "themeLight" | "themeDark"; descriptionKey: "settingsThemeLightCopy" | "settingsThemeDarkCopy" | "settingsThemeSystemCopy"; Icon: typeof Monitor }> = [
   { value: "light", labelKey: "themeLight", descriptionKey: "settingsThemeLightCopy", Icon: Sun },
@@ -24,6 +25,12 @@ const densityOptions: Array<{ value: DensityPreference; labelKey: "settingsDensi
   { value: "compact", labelKey: "settingsDensityCompact" },
   { value: "comfortable", labelKey: "settingsDensityComfortable" },
   { value: "spacious", labelKey: "settingsDensitySpacious" },
+];
+
+const sidebarWidthOptions: Array<{ value: SidebarWidthPreference; labelKey: "settingsSidebarNarrow" | "settingsSidebarStandard" | "settingsSidebarWide" }> = [
+  { value: "narrow", labelKey: "settingsSidebarNarrow" },
+  { value: "standard", labelKey: "settingsSidebarStandard" },
+  { value: "wide", labelKey: "settingsSidebarWide" },
 ];
 
 function SaveState({ state, onRetry }: { state: ReturnType<typeof useAppearanceSettings>["saveState"]; onRetry: () => void }) {
@@ -86,7 +93,7 @@ function AppearanceSettings() {
   <SelectTrigger aria-label={t("languageLabel")}><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="zh-CN">简体中文</SelectItem><SelectItem value="en-US">English</SelectItem><SelectItem value="system">{t("languageSystem")}</SelectItem>
   </SelectContent>
-</Select></label><div className="suna-settings-control-row"><span><strong>{t("settingsFontSize")}</strong></span><SegmentedControl value={preferences.fontSize} options={fontOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsFontSize")} onChange={(fontSize) => update({ fontSize })} /></div><div className="suna-settings-control-row"><span><strong>{t("settingsDensity")}</strong></span><SegmentedControl value={preferences.density} options={densityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsDensity")} onChange={(density) => update({ density })} /></div></div>
+</Select></label><div className="suna-settings-control-row"><span><strong>{t("settingsFontSize")}</strong></span><SegmentedControl value={preferences.fontSize} options={fontOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsFontSize")} onChange={(fontSize) => update({ fontSize })} /></div><div className="suna-settings-control-row"><span><strong>{t("settingsDensity")}</strong></span><SegmentedControl value={preferences.density} options={densityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsDensity")} onChange={(density) => update({ density })} /></div><div className="suna-settings-control-row"><span><strong>{t("settingsSidebarWidth")}</strong></span><SegmentedControl value={preferences.sidebarWidth} options={sidebarWidthOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsSidebarWidth")} onChange={(sidebarWidth) => update({ sidebarWidth })} /></div></div>
     <div className="suna-appearance-section suna-settings-toggle-list"><ToggleRow checked={preferences.enableAnimations} label={t("settingsAnimations")} description={t("settingsAnimationsCopy")} onChange={(enableAnimations) => update({ enableAnimations })} /><ToggleRow checked={preferences.showAgentPanel} label={t("settingsAgentPanel")} description={t("settingsAgentPanelCopy")} onChange={(showAgentPanel) => update({ showAgentPanel })} /></div>
   </section>;
 }
@@ -125,7 +132,7 @@ function GeneralSettings() {
   <SelectTrigger aria-label="settingsDefaultPage"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="chat">{t("settingsDefaultPageChat")}</SelectItem><SelectItem value="knowledge">{t("settingsDefaultPageKnowledge")}</SelectItem><SelectItem value="literature">{t("settingsDefaultPageLiterature")}</SelectItem><SelectItem value="data">{t("settingsDefaultPageData")}</SelectItem>
   </SelectContent>
-</Select></label></div><div className="suna-settings-toggle-list">{toggle("restoreSession", "settingsRestoreSession", "settingsRestoreSessionCopy")}{toggle("saveDrafts", "settingsSaveDrafts", "settingsSaveDraftsCopy")}{toggle("autoUpdate", "settingsAutoUpdate", "settingsAutoUpdateCopy")}{toggle("notifications", "settingsNotifications", "settingsNotificationsCopy")}{toggle("showToolDetails", "settingsShowToolDetails", "settingsShowToolDetailsCopy")}{toggle("confirmDangerous", "settingsConfirmDangerous", "settingsConfirmDangerousCopy")}</div><section className="suna-settings-update" aria-labelledby="settings-update-heading"><div className="suna-settings-update-heading"><div><span className="suna-settings-kicker">UPDATES</span><h3 id="settings-update-heading">软件更新</h3><p>只检查公开稳定版本，下载和安装由你明确决定。</p></div><button type="button" className="suna-secondary-button" onClick={() => void checkForUpdates()} disabled={updateState === "checking"}>{updateState === "checking" ? <LoaderCircle size={15} className="suna-spin" /> : <ExternalLink size={15} />}检查更新</button></div>{updateState === "ready" && <p className="suna-settings-update-message is-success"><Check size={14} />当前已是最新版本（{update?.current_version}）</p>}{updateState === "available" && update?.release_url && <div className="suna-settings-update-available"><p>发现新版本 {update.latest_version}。</p><a className="suna-secondary-button" href={update.release_url} target="_blank" rel="noreferrer">打开发布页<ExternalLink size={14} /></a></div>}{updateState === "error" && <p className="suna-settings-update-message is-error">{updateError || "更新检查失败"}</p>}</section></section>;
+</Select></label></div><div className="suna-settings-toggle-list">{toggle("restoreSession", "settingsRestoreSession", "settingsRestoreSessionCopy")}{toggle("saveDrafts", "settingsSaveDrafts", "settingsSaveDraftsCopy")}{toggle("autoUpdate", "settingsAutoUpdate", "settingsAutoUpdateCopy")}{toggle("notifications", "settingsNotifications", "settingsNotificationsCopy")}{toggle("showToolDetails", "settingsShowToolDetails", "settingsShowToolDetailsCopy")}{toggle("confirmDangerous", "settingsConfirmDangerous", "settingsConfirmDangerousCopy")}</div><section className="suna-settings-update" aria-labelledby="settings-update-heading"><div className="suna-settings-update-heading"><div><span className="suna-settings-kicker">UPDATES</span><h3 id="settings-update-heading">软件更新</h3><p>只检查公开稳定版本，下载和安装由你明确决定。</p></div><Button variant="secondary" type="button" onClick={() => void checkForUpdates()} disabled={updateState === "checking"}>{updateState === "checking" ? <LoaderCircle size={15} className="suna-spin" /> : <ExternalLink size={15} />}检查更新</Button></div>{updateState === "ready" && <p className="suna-settings-update-message is-success"><Check size={14} />当前已是最新版本（{update?.current_version}）</p>}{updateState === "available" && update?.release_url && <div className="suna-settings-update-available"><p>发现新版本 {update.latest_version}。</p><a className="suna-secondary-button" href={update.release_url} target="_blank" rel="noreferrer">打开发布页<ExternalLink size={14} /></a></div>}{updateState === "error" && <p className="suna-settings-update-message is-error">{updateError || "更新检查失败"}</p>}</section></section>;
 }
 
 export default function SettingsPreferencesPanel({ mode }: { mode: "general" | "appearance" }) {

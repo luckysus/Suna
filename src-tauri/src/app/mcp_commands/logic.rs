@@ -168,7 +168,7 @@ pub(super) async fn inspect(
         .list_tools()
         .await
         .map_err(|error| error.to_string())?;
-    let (resources, resource_count) = if capabilities.resources {
+    let (resources, _resource_count) = if capabilities.resources {
         let resources = client
             .list_resources()
             .await
@@ -178,7 +178,7 @@ pub(super) async fn inspect(
     } else {
         (Vec::new(), 0)
     };
-    let (prompts, prompt_count) = if capabilities.prompts {
+    let (prompts, _prompt_count) = if capabilities.prompts {
         let prompts = client
             .list_prompts()
             .await

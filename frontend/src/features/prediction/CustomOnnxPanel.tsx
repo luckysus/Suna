@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Box, Loader2, Play } from "lucide-react";
 import { desktop, type ComputeOnnxPredictionResult } from "../../bridge/desktop";
+import { FileDropZone } from "../../components/common/FileDropZone";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /**
  * 第 35 章「自定义模型」：用自备的 ONNX 回归模型做预测。
@@ -77,6 +80,17 @@ export default function CustomOnnxPanel({
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ComputeOnnxPredictionResult | null>(null);
 
+  const applyModelPath = async (path: string) => {
+    onError("");
+    setModelPath(path);
+    setModelSha256("");
+    try {
+      setModelSha256(await desktop.hashOnnxModelFile(path));
+    } catch (reason) {
+      onError(errorMessage(reason, "无法读取所选模型文件"));
+    }
+  };
+
   const pickModel = async () => {
     const path = await desktop.openFileDialog({
       multiple: false,
@@ -84,14 +98,7 @@ export default function CustomOnnxPanel({
       filters: [{ name: "ONNX 模型", extensions: ["onnx"] }],
     });
     if (typeof path !== "string") return;
-    onError("");
-    setModelPath(path);
-    setModelSha256("");
-    try {
-      setModelSha256(await desktop.hashOnnxModelFile(path));
-    } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "无法读取所选模型文件");
-    }
+    await applyModelPath(path);
   };
 
   const run = async () => {
@@ -139,7 +146,7 @@ export default function CustomOnnxPanel({
       setResult(completed);
       onNotice("自定义 ONNX 模型预测完成");
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "ONNX 预测失败");
+      onError(errorMessage(reason, "ONNX 预测失败"));
     } finally {
       setRunning(false);
     }
@@ -152,6 +159,13 @@ export default function CustomOnnxPanel({
     : [];
 
   return (
+    <FileDropZone
+      extensions={["onnx"]}
+      onFiles={(paths) => void applyModelPath(paths[0])}
+      onRejected={(reason) => onError(reason)}
+      label="松开即可加载 ONNX 模型"
+      hint="支持 .onnx 模型文件"
+    >
     <section className="suna-onnx-panel">
       <div className="suna-prediction-section-title">
         <Box size={17} />
@@ -164,9 +178,9 @@ export default function CustomOnnxPanel({
         <label className="suna-onnx-file">
           模型文件
           <span>
-            <button type="button" className="suna-ghost-button" onClick={() => void pickModel()}>
+            <Button variant="ghost" type="button" onClick={() => void pickModel()}>
               选择 .onnx 文件
-            </button>
+            </Button>
             <small>{modelPath ? modelPath.split(/[\\/]/).pop() : "未选择"}</small>
             {modelSha256 && <small>sha256 {modelSha256.slice(0, 12)}…</small>}
           </span>
@@ -183,10 +197,10 @@ export default function CustomOnnxPanel({
         </span></label>
         <label>manifest JSON（可选，覆盖上方表单）<Textarea value={manifestText} onChange={(event) => setManifestText(event.target.value)} rows={4} placeholder='{"model_id": "...", "inputs": [...]}' /></label>
         <label>输入特征（每行一组，逗号分隔）<Textarea value={featureValues} onChange={(event) => setFeatureValues(event.target.value)} rows={3} placeholder="0.12, 1.35, 880" /></label>
-        <button className="suna-primary-button" onClick={() => void run()} disabled={running}>
+        <Button variant="primary" onClick={() => void run()} disabled={running}>
           {running ? <Loader2 className="suna-spin" size={15} /> : <Play size={15} />}
           {running ? "预测中..." : "运行预测"}
-        </button>
+        </Button>
       </div>
       {result && (
         <div className="suna-onnx-result">
@@ -210,5 +224,6 @@ export default function CustomOnnxPanel({
         </div>
       )}
     </section>
+    </FileDropZone>
   );
 }

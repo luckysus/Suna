@@ -1,0 +1,7 @@
+/* 第 68 章：通用拖拽上传区域 */
+
+.suna-drop-zone{position:relative}
+.suna-drop-zone-overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--suna-primary);border-radius:12px;background:color-mix(in srgb, var(--suna-bg-raised) 88%, transparent);color:var(--suna-text);text-align:center;padding:18px}
+.suna-drop-zone-overlay strong{font-size:calc(13px * var(--suna-ui-font-scale))}
+.suna-drop-zone-overlay small{color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-drop-zone.is-disabled .suna-drop-zone-overlay{display:none}

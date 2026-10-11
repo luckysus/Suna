@@ -9,6 +9,8 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 const permissionLabels: Array<[keyof AgentPermissionRestrictions, string]> = [
   ["allowFileAccess", "文件读写"], ["allowShell", "Shell 执行"], ["allowNetwork", "网络访问"],
@@ -25,7 +27,7 @@ const limitFields = [
 ] as const;
 
 function reasonMessage(reason: unknown, fallback: string) {
-  return reason instanceof Error ? reason.message : typeof reason === "string" ? reason : fallback;
+  return errorMessage(reason, typeof reason === "string" ? reason : fallback);
 }
 
 function copyProfile(profile: AgentProfileSummary): AgentProfileSummary {
@@ -131,7 +133,7 @@ export default function AgentManagementPage() {
   const availableTools = [...knownTools, ...(draft?.toolIds ?? []).filter((id) => !knownTools.some((tool) => tool.id === id)).map((id) => ({ id, name: id, description: "当前未接入；运行时仅允许父任务已有工具", enabled: false, source: "saved" }))];
 
   return <section className="suna-management-page">
-    <header className="suna-management-header"><div><span className="suna-module-kicker">SUNA AGENT CENTER</span><h1><Bot size={24} />Agent 管理</h1><p>为主 Agent 和专业专家配置独立职责、模型、工具与执行边界。</p></div><button type="button" className="suna-action-secondary" disabled={loading || busy} onClick={() => setLoadNonce((value) => value + 1)}><RefreshCw size={14} />刷新</button></header>
+    <header className="suna-management-header"><div><span className="suna-module-kicker">SUNA AGENT CENTER</span><h1><Bot size={24} />Agent 管理</h1><p>为主 Agent 和专业专家配置独立职责、模型、工具与执行边界。</p></div><Button variant="actionSecondary" type="button" disabled={loading || busy} onClick={() => setLoadNonce((value) => value + 1)}><RefreshCw size={14} />刷新</Button></header>
     {error && <div className="suna-management-alert" role="alert"><CircleAlert size={15} />{error}</div>}
     {loading ? <p className="suna-agents-loading" role="status"><LoaderCircle size={16} className="suna-spin" />加载 Agent 配置...</p> : <div className="suna-agents-layout">
       <aside className="suna-agents-sidebar" aria-label="专家 Agent 列表">
@@ -139,7 +141,7 @@ export default function AgentManagementPage() {
   <SelectTrigger aria-label="预设模板"><SelectValue /></SelectTrigger>
   <SelectContent>{presets.map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.name}</SelectItem>)}
   </SelectContent>
-</Select></label><button type="button" className="suna-action-secondary" disabled={busy || presets.length === 0} onClick={create}><Copy size={14} />创建自定义 Agent</button></div>
+</Select></label><Button variant="actionSecondary" type="button" disabled={busy || presets.length === 0} onClick={create}><Copy size={14} />创建自定义 Agent</Button></div>
         {agents.map((agent) => <button type="button" className={`suna-agent-select ${draft?.id === agent.id ? "is-active" : ""}`} key={agent.id} disabled={busy} onClick={() => { setDraft(copyProfile(agent)); setSaved(false); setError(""); }} aria-pressed={draft?.id === agent.id}><span><Bot size={16} /><strong>{agent.name}</strong></span><small>{agent.description}</small><span className={`suna-management-badge ${agent.enabled ? "" : "is-muted"}`}>{agent.enabled ? <><Check size={12} />已启用</> : "已停用"} · {agent.preset ? "预设" : "自定义"}</span></button>)}
       </aside>
       {draft ? <div className="suna-agent-main"><form className="suna-agent-editor" onSubmit={(event) => { event.preventDefault(); void save(); }}>
@@ -152,11 +154,11 @@ export default function AgentManagementPage() {
 </Select></label></div>
           <label className="suna-agent-field"><span>职责说明</span><Textarea rows={2} maxLength={2000} value={draft.description} onChange={(event) => update({ description: event.target.value })} /></label>
           <label className="suna-agent-field"><span>独立 System Prompt</span><Textarea aria-label="独立 System Prompt" required rows={6} maxLength={16000} value={draft.systemPrompt} onChange={(event) => update({ systemPrompt: event.target.value })} /><small>与运行上下文一起应用于此专家；请明确证据标准、交付内容和职责边界。</small></label>
-          <section className="suna-agent-section"><h3><Shield size={15} />工具白名单</h3><p>只允许调用选中的具体工具；实际工具还受父任务与全局配置限制。全部取消即禁用工具。</p><div className="suna-agent-tool-actions"><button type="button" className="suna-action-secondary" onClick={() => update({ toolIds: knownTools.filter((tool) => tool.enabled).map((tool) => tool.id) })}>选择已接入工具</button><button type="button" className="suna-action-secondary" onClick={() => update({ toolIds: [] })}>全部取消</button><small>{draft.toolIds.length} 项已选择</small></div><div className="suna-agent-tools">{availableTools.map((tool) => <label key={tool.id}><Checkbox aria-label={tool.name} checked={draft.toolIds.includes(tool.id)} onCheckedChange={(checked) => update({ toolIds: checked === true ? [...draft.toolIds, tool.id] : draft.toolIds.filter((id) => id !== tool.id) })} /><span><strong>{tool.name}</strong><code>{tool.id}</code><small>{tool.description}</small></span></label>)}</div></section>
+          <section className="suna-agent-section"><h3><Shield size={15} />工具白名单</h3><p>只允许调用选中的具体工具；实际工具还受父任务与全局配置限制。全部取消即禁用工具。</p><div className="suna-agent-tool-actions"><Button variant="actionSecondary" type="button" onClick={() => update({ toolIds: knownTools.filter((tool) => tool.enabled).map((tool) => tool.id) })}>选择已接入工具</Button><Button variant="actionSecondary" type="button" onClick={() => update({ toolIds: [] })}>全部取消</Button><small>{draft.toolIds.length} 项已选择</small></div><div className="suna-agent-tools">{availableTools.map((tool) => <label key={tool.id}><Checkbox aria-label={tool.name} checked={draft.toolIds.includes(tool.id)} onCheckedChange={(checked) => update({ toolIds: checked === true ? [...draft.toolIds, tool.id] : draft.toolIds.filter((id) => id !== tool.id) })} /><span><strong>{tool.name}</strong><code>{tool.id}</code><small>{tool.description}</small></span></label>)}</div></section>
           <section className="suna-agent-section"><h3><Shield size={15} />权限限制</h3><p>勾选表示允许使用父任务已授权的能力；专家不能扩大父任务或全局权限。关闭能力可进一步收窄范围。</p><div className="suna-agent-permissions">{permissionLabels.map(([key, label]) => <label key={key}><Checkbox aria-label={label} checked={draft.permissionRestrictions[key]} onCheckedChange={(checked) => update({ permissionRestrictions: { ...draft.permissionRestrictions, [key]: checked === true } })} /><span>{label}{key !== "confirmDangerous" && globalPermissions[key] === false && <small>全局已禁用</small>}</span></label>)}</div></section>
           <section className="suna-agent-section"><h3>执行预算</h3><p>各项上限与父任务预算取更小值，子任务还受父任务剩余期限限制。</p><div className="suna-agent-fields">{limitFields.map(({ key, label, min, max }) => <label key={key}><span>{label}</span><Input type="number" required min={min} max={max} step={1} value={draft.limits[key]} onChange={(event) => update({ limits: { ...draft.limits, [key]: Number(event.target.value) } })} /></label>)}</div></section>
         </fieldset>
-        <footer><div><button type="submit" className="suna-primary-button" disabled={busy || !dirty}>{busy ? <LoaderCircle size={14} className="suna-spin" /> : <Save size={14} />}保存配置</button>{draft.preset ? <button type="button" className="suna-action-secondary" disabled={busy} onClick={() => void reset()}><RotateCcw size={14} />恢复此预设</button> : <button type="button" className="suna-action-secondary is-danger" disabled={busy} onClick={() => void remove()}><Trash2 size={14} />删除自定义 Agent</button>}</div><span role="status">{busy ? "保存中..." : dirty ? "有未保存修改" : saved ? "已保存" : "配置已加载"}</span></footer>
+        <footer><div><Button variant="primary" type="submit" disabled={busy || !dirty}>{busy ? <LoaderCircle size={14} className="suna-spin" /> : <Save size={14} />}保存配置</Button>{draft.preset ? <Button variant="actionSecondary" type="button" disabled={busy} onClick={() => void reset()}><RotateCcw size={14} />恢复此预设</Button> : <Button variant="actionSecondary" className="is-danger" type="button" disabled={busy} onClick={() => void remove()}><Trash2 size={14} />删除自定义 Agent</Button>}</div><span role="status">{busy ? "保存中..." : dirty ? "有未保存修改" : saved ? "已保存" : "配置已加载"}</span></footer>
       </form><AgentSchedulesPanel agentId={selectedSaved?.id} /></div> : <div className="suna-management-empty">没有可编辑的 Agent，请刷新重试。</div>}
     </div>}
   </section>;

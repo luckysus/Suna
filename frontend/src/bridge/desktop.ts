@@ -540,6 +540,50 @@ export interface ExperimentPlanRecord {
   updated_at: string;
 }
 
+/** 第 56 / 80 章：落库的科研报告。 */
+export interface ReportRecord {
+  id: string;
+  kind: string;
+  title: string;
+  topic: string;
+  format: "markdown" | "docx" | "pptx" | "pdf";
+  content_markdown: string;
+  dataset_id: string | null;
+  knowledge_base_ids_json: string;
+  metadata_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveReportRequest {
+  kind: string;
+  title: string;
+  topic?: string;
+  format: ReportRecord["format"];
+  contentMarkdown: string;
+  datasetId?: string | null;
+  knowledgeBaseIds?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+/** 第 80 章：`prediction_tasks` / `optimization_tasks` 的语义记录。 */
+export interface ComputeTaskRecord {
+  id: string;
+  kind: "prediction" | "optimization";
+  background_task_id: string | null;
+  dataset_id: string | null;
+  model_id: string | null;
+  direction: string | null;
+  method: string | null;
+  trials_requested: number | null;
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  request_json: string;
+  result_json: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ExperimentPlanVariable {
   name: string;
   low?: number;
@@ -1636,6 +1680,11 @@ export const desktop = {
   setExperimentPlanState: (id: string, state: ExperimentPlanRecord["state"]) =>
     call<ExperimentPlanRecord>("set_experiment_plan_state", { id, state }),
   deleteExperimentPlan: (id: string) => call<void>("delete_experiment_plan", { id }),
+  saveReport: (request: SaveReportRequest) => call<ReportRecord>("save_report", { request }),
+  listReports: () => call<ReportRecord[]>("list_reports"),
+  deleteReport: (id: string) => call<void>("delete_report", { id }),
+  listComputeTasks: (kind: "prediction" | "optimization") =>
+    call<ComputeTaskRecord[]>("list_compute_tasks", { kind }),
   setActiveSteelModel: (id: string) =>
     call<SteelModelRecord>("set_active_steel_model", { id }),
   deleteSteelModel: (id: string) => call<void>("delete_steel_model", { id }),

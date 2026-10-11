@@ -1,0 +1,5 @@
+/* 第 63/72 章：命令面板的分组标题 */
+
+.suna-search-group{display:flex;flex-direction:column;gap:2px}
+.suna-search-group + .suna-search-group{margin-top:8px;padding-top:8px;border-top:1px solid var(--suna-line)}
+.suna-search-group-label{margin:0 0 2px;padding:0 10px;color:var(--suna-text-muted);font-size:calc(10.5px * var(--suna-ui-font-scale));font-weight:600;letter-spacing:.04em;text-transform:uppercase}

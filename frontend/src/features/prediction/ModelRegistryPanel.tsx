@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Check, CircleAlert, Loader2, RefreshCw, Star, Trash2 } from "lucide-react";
 import { desktop, type SteelDatasetRecord, type SteelModelRecord } from "../../bridge/desktop";
 import { algorithmLabel, formatMetricValue } from "./predictionModel";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 
 /**
  * 第 35 章模型中心：已注册模型版本的卡片列表。
@@ -78,7 +81,7 @@ export default function ModelRegistryPanel({
     try {
       setModels(await desktop.listAllSteelModels());
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "无法加载模型列表");
+      onError(errorMessage(reason, "无法加载模型列表"));
     } finally {
       setLoading(false);
     }
@@ -93,7 +96,7 @@ export default function ModelRegistryPanel({
       onNotice(`已将「${modelCardTitle(model)}」v${model.version} 设为活动版本`);
       await load();
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "无法切换活动版本");
+      onError(errorMessage(reason, "无法切换活动版本"));
     } finally {
       setBusyId("");
     }
@@ -107,7 +110,7 @@ export default function ModelRegistryPanel({
       onNotice(`已删除「${modelCardTitle(model)}」v${model.version}`);
       await load();
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "无法删除该模型版本");
+      onError(errorMessage(reason, "无法删除该模型版本"));
     } finally {
       setBusyId("");
     }
@@ -117,16 +120,16 @@ export default function ModelRegistryPanel({
     <section className="suna-registry-panel">
       <div className="suna-registry-head">
         <p>模型中心汇总所有已注册的模型版本：训练完成的模型会自动注册，ONNX 导出的模型在注册后也会出现在这里。</p>
-        <button className="suna-ghost-button" onClick={() => void load()} disabled={loading}>
+        <Button variant="ghost" onClick={() => void load()} disabled={loading}>
           {loading ? <Loader2 className="suna-spin" size={15} /> : <RefreshCw size={15} />}刷新
-        </button>
+        </Button>
       </div>
       <div className="suna-management-grid">
         {models.map((model) => {
           const metrics = modelCardMetrics(model);
           const busy = busyId === model.id;
           return (
-            <article className="suna-management-card suna-registry-card" key={model.id}>
+            <Card variant="management" as="article" className="suna-registry-card" key={model.id}>
               <div className="suna-registry-card-head">
                 <h2>{modelCardTitle(model)}</h2>
                 <span className={`suna-management-badge ${model.is_active ? "" : "is-muted"}`}>
@@ -143,23 +146,14 @@ export default function ModelRegistryPanel({
                 <div><dt>RMSE</dt><dd>{formatMetricValue(metrics?.rmse)}</dd></div>
               </dl>
               <div className="suna-registry-actions">
-                <button
-                  className="suna-ghost-button"
-                  onClick={() => void activate(model)}
-                  disabled={busy || model.is_active}
-                >
+                <Button variant="ghost" onClick={() => void activate(model)} disabled={busy || model.is_active} >
                   {busy ? <Loader2 className="suna-spin" size={14} /> : <Star size={14} />}设为活动
-                </button>
-                <button
-                  className="suna-ghost-button"
-                  onClick={() => void remove(model)}
-                  disabled={busy || model.is_active}
-                  title={model.is_active ? "活动版本不可删除，请先切换到其他版本" : "删除该版本"}
-                >
+                </Button>
+                <Button variant="ghost" onClick={() => void remove(model)} disabled={busy || model.is_active} title={model.is_active ? "活动版本不可删除，请先切换到其他版本" : "删除该版本"} >
                   <Trash2 size={14} />删除
-                </button>
+                </Button>
               </div>
-            </article>
+            </Card>
           );
         })}
       </div>

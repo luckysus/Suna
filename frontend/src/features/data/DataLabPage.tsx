@@ -3,15 +3,22 @@ import { BarChart3, Database, FileSpreadsheet, Loader2, RefreshCw, Search, Uploa
 import { desktop, type DatasetAnalysis, type DatasetSeries, type MultivariateResult, type SteelDatasetRecord } from "../../bridge/desktop";
 import { Input } from "../../components/ui/input";
 import { DataLabAnalysisPanel, DataLabVisualizePanel } from "./DataLabPanels";
+import { DataLabTablePanel } from "./DataLabTablePanel";
+import { FileDropZone } from "../../components/common/FileDropZone";
 import "./data-lab.css";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
-type DataTab = "manage" | "analysis" | "visualize";
+type DataTab = "manage" | "analysis" | "visualize" | "table";
 
 const tabs: Array<{ id: DataTab; label: string }> = [
   { id: "manage", label: "数据管理" },
   { id: "analysis", label: "数据分析" },
   { id: "visualize", label: "数据可视化" },
+  { id: "table", label: "数据表" },
 ];
+
+const DATA_EXTENSIONS = ["csv", "xlsx", "xls", "json"];
 
 export default function DataLabPage() {
   const [datasets, setDatasets] = useState<SteelDatasetRecord[]>([]);
@@ -20,6 +27,8 @@ export default function DataLabPage() {
   const [tab, setTab] = useState<DataTab>("manage");
   const [distributionOrdinal, setDistributionOrdinal] = useState<number | null>(null);
   const [series, setSeries] = useState<DatasetSeries | null>(null);
+  const [tableSeries, setTableSeries] = useState<DatasetSeries | null>(null);
+  const [tableBusy, setTableBusy] = useState(false);
   const [multivariate, setMultivariate] = useState<MultivariateResult | null>(null);
   const [clusterCount, setClusterCount] = useState(3);
   const [visualizeBusy, setVisualizeBusy] = useState(false);
@@ -36,7 +45,7 @@ export default function DataLabPage() {
       setDatasets(items);
       if (!selected) setSelected(items[0]?.id ?? "");
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "无法加载数据集");
+      setMessage(errorMessage(reason, "无法加载数据集"));
     } finally {
       setBusy(false);
     }
@@ -44,14 +53,23 @@ export default function DataLabPage() {
   useEffect(() => { void load(); }, []);
 
   const importFile = async () => {
-    const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "数据文件", extensions: ["csv", "xlsx", "xls", "json"] }] });
+    const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "数据文件", extensions: DATA_EXTENSIONS }] });
     if (typeof path !== "string") return;
+    await importPaths([path]);
+  };
+
+  // 第 68 章：拖拽与按钮走同一条导入链路。
+  const importPaths = async (paths: string[]) => {
+    if (paths.length === 0) return;
+    setBusy(true);
     try {
-      await desktop.saveSteelDataset({ sourcePath: path });
-      setMessage("数据集已保存，请完成列映射后激活");
+      for (const path of paths) await desktop.saveSteelDataset({ sourcePath: path });
+      setMessage(paths.length === 1 ? "数据集已保存，请完成列映射后激活" : `已保存 ${paths.length} 个数据集，请完成列映射后激活`);
       await load();
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "导入失败");
+      setMessage(errorMessage(reason, "导入失败"));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -73,7 +91,7 @@ export default function DataLabPage() {
       const numeric = result.columns.filter((column) => column.inferredType === "number" && column.distribution.length > 0);
       setDistributionOrdinal(numeric[0]?.ordinal ?? null);
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "数据分析失败");
+      setMessage(errorMessage(reason, "数据分析失败"));
     } finally {
       setBusy(false);
     }
@@ -82,8 +100,24 @@ export default function DataLabPage() {
   const openTab = (next: DataTab) => {
     setTab(next);
     if (next === "manage" || !dataset) return;
+    if (next === "table") { if (!tableSeries) void loadTable(); return; }
     if (!analysis) void analyze();
     if (next === "visualize" && !series) void loadVisualization();
+  };
+
+  // 第 67 章：科研数据表格，读取全部非重复字段用于排序 / 筛选 / 分页 / 复制 / 导出。
+  const loadTable = async () => {
+    if (!dataset) return;
+    const ordinals = dataset.columns.filter((column) => !column.duplicate).map((column) => column.ordinal);
+    if (ordinals.length === 0) { setMessage("该数据集没有可展示的字段"); return; }
+    setTableBusy(true);
+    try {
+      setTableSeries(await desktop.readSteelDatasetSeries({ datasetId: dataset.id, columns: ordinals }));
+    } catch (reason) {
+      setMessage(errorMessage(reason, "无法读取数据表"));
+    } finally {
+      setTableBusy(false);
+    }
   };
 
   // 参与多元分析的数值列：最多 6 个，避免 PCA/聚类的维度与载荷难以解读。
@@ -111,7 +145,7 @@ export default function DataLabPage() {
       setSeries(seriesResult);
       setMultivariate(multivariateResult);
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "无法加载可视化数据");
+      setMessage(errorMessage(reason, "无法加载可视化数据"));
     } finally {
       setVisualizeBusy(false);
     }
@@ -133,8 +167,8 @@ export default function DataLabPage() {
           <p>管理实验数据，检查质量并为预测与优化准备可信数据。</p>
         </div>
         <div className="suna-data-actions">
-          <button className="suna-ghost-button" onClick={() => void load()}><RefreshCw size={15} />刷新</button>
-          <button className="suna-primary-button" onClick={() => void importFile()}><Upload size={15} />导入数据</button>
+          <Button variant="ghost" onClick={() => void load()}><RefreshCw size={15} />刷新</Button>
+          <Button variant="primary" onClick={() => void importFile()}><Upload size={15} />导入数据</Button>
         </div>
       </header>
 
@@ -154,6 +188,13 @@ export default function DataLabPage() {
 
       {message && <div className="suna-data-message">{message}</div>}
 
+      <FileDropZone
+        extensions={DATA_EXTENSIONS}
+        onFiles={(paths) => importPaths(paths)}
+        onRejected={(reason) => setMessage(reason)}
+        label="松开即可导入数据集"
+        hint="支持 CSV / Excel / JSON"
+      >
       <div className="suna-data-layout">
         <section className="suna-data-list">
           <div className="suna-data-title">
@@ -193,9 +234,9 @@ export default function DataLabPage() {
               </div>
             </div>
             {dataset && (
-              <button className="suna-primary-button" onClick={() => void analyze()} disabled={busy}>
+              <Button variant="primary" onClick={() => void analyze()} disabled={busy}>
                 {busy ? <Loader2 className="suna-spin" size={15} /> : <BarChart3 size={15} />}分析数据
-              </button>
+              </Button>
             )}
           </div>
 
@@ -207,13 +248,15 @@ export default function DataLabPage() {
             </div>
           )}
 
-          {tab !== "manage" && !analysis && (
+          {(tab === "analysis" || tab === "visualize") && !analysis && (
             <div className="suna-data-empty large">
               <BarChart3 size={30} />
               <strong>{busy ? "正在分析…" : "尚未生成分析结果"}</strong>
               <span>点击「分析数据」或重新选择数据集。</span>
             </div>
           )}
+
+          {tab === "table" && <DataLabTablePanel series={tableSeries} datasetName={dataset?.sourceName} busy={tableBusy} />}
 
           {tab === "analysis" && analysis && (
             <DataLabAnalysisPanel analysis={analysis} numericColumns={numericColumns} chartData={chartData} datasetId={selected} datasetColumns={dataset?.columns ?? []} onCleaned={(next) => { setMessage(next); void load(); }} />
@@ -236,6 +279,7 @@ export default function DataLabPage() {
           )}
         </section>
       </div>
+      </FileDropZone>
     </section>
   );
 }

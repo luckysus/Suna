@@ -3,6 +3,8 @@ import { Beaker, CalendarPlus, FlaskConical, Loader2, Play, Plus, Trash2 } from 
 import { desktop, type ExperimentDesignPoint, type ExperimentDesignResult, type ExperimentVariableRange, type SteelDatasetRecord } from "../../bridge/desktop";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { errorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 /**
  * 第 44–46 章实验设计工作台。
@@ -88,7 +90,7 @@ export default function ExperimentDesignPanel({ datasets, onNotice, onError }: {
         onError("贝叶斯优化与主动学习需要选择数据集、目标列和至少一个特征列"); return;
       }
       const series = await desktop.readSteelDatasetSeries({ datasetId: dataset.id, columns: [...featureColumns, Number(targetColumn)] }).catch((reason: unknown) => {
-        onError(reason instanceof Error ? reason.message : "无法读取已有实验数据"); return null;
+        onError(errorMessage(reason, "无法读取已有实验数据")); return null;
       });
       if (!series) return;
       const built = buildExistingMatrix(series.rows, Number(targetColumn), featureColumns);
@@ -115,7 +117,7 @@ export default function ExperimentDesignPanel({ datasets, onNotice, onError }: {
       setResult(completed);
       onNotice(`已生成 ${completed.points.length} 组${methodLabel(completed.method)}实验组合`);
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "实验设计失败");
+      onError(errorMessage(reason, "实验设计失败"));
     } finally {
       setBusy(false);
     }
@@ -137,7 +139,7 @@ export default function ExperimentDesignPanel({ datasets, onNotice, onError }: {
       }
       onNotice(`已把 ${created} 组实验加入实验计划`);
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : `无法加入实验计划（已创建 ${created} 组）`);
+      onError(errorMessage(reason, `无法加入实验计划（已创建 ${created} 组）`));
     }
   };
 
@@ -150,14 +152,14 @@ export default function ExperimentDesignPanel({ datasets, onNotice, onError }: {
           <SelectContent>{METHODS.map((item) => <SelectItem value={item.value} key={item.value}>{item.label}</SelectItem>)}</SelectContent>
         </Select></label>
         <div className="suna-design-variable-head"><strong>变量范围</strong>
-          <button className="suna-icon-button" onClick={() => setVariables((current) => [...current, { name: "", low: "", high: "" }])} aria-label="添加变量"><Plus size={15} /></button>
+          <Button size="icon" onClick={() => setVariables((current) => [...current, { name: "", low: "", high: "" }])} aria-label="添加变量"><Plus size={15} /></Button>
         </div>
         {variables.map((item, index) => (
           <div className="suna-experiment-variable" key={index}>
             <Input value={item.name} placeholder="变量名" onChange={(event) => update(index, "name", event.target.value)} />
             <Input value={item.low} placeholder="下限" onChange={(event) => update(index, "low", event.target.value)} />
             <Input value={item.high} placeholder="上限" onChange={(event) => update(index, "high", event.target.value)} />
-            {variables.length > 1 && <button className="suna-icon-button" onClick={() => setVariables((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="删除变量"><Trash2 size={14} /></button>}
+            {variables.length > 1 && <Button size="icon" onClick={() => setVariables((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="删除变量"><Trash2 size={14} /></Button>}
           </div>
         ))}
         {method === "doe" && <label>水平数<Input type="number" min={2} max={5} value={levels} onChange={(event) => setLevels(Number(event.target.value))} /></label>}
@@ -188,14 +190,14 @@ export default function ExperimentDesignPanel({ datasets, onNotice, onError }: {
           <SelectTrigger aria-label="优化方向"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="maximize">最大化目标</SelectItem><SelectItem value="minimize">最小化目标</SelectItem></SelectContent>
         </Select></label>}
-        <button className="suna-primary-button" onClick={() => void run()} disabled={busy}>
+        <Button variant="primary" onClick={() => void run()} disabled={busy}>
           {busy ? <Loader2 className="suna-spin" size={15} /> : <Play size={15} />}{busy ? "设计中..." : "生成实验组合"}
-        </button>
+        </Button>
       </div>
       {result && (
         <section className="suna-design-result">
           <div className="suna-experiment-title"><FlaskConical size={17} /><div><h2>推荐结果</h2><span>{methodLabel(result.method)} · {result.points.length} 组</span></div>
-            <button className="suna-ghost-button" onClick={() => void addAllToPlan()}><CalendarPlus size={14} />全部加入实验计划</button>
+            <Button variant="ghost" onClick={() => void addAllToPlan()}><CalendarPlus size={14} />全部加入实验计划</Button>
           </div>
           <ul className="suna-design-notes">{result.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>
           <div className="suna-optimization-table">

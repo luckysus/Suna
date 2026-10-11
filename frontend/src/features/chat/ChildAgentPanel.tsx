@@ -4,6 +4,8 @@ import { desktop, type AgentChildTurnRecord } from "../../bridge/desktop";
 import type { AgentEventEnvelope, AgentRunState, PermissionDecision } from "../../bridge/generated/protocol";
 import { createAgentRunView, reduceAgentEvents, type AgentRunView } from "./agentEvents";
 import "./childAgents.css";
+import { errorMessage as toErrorMessage } from "../../utils/errorMessage";
+import { Button } from "../../components/ui/button";
 
 const settledStates: AgentRunState[] = ["completed", "cancelled", "failed", "interrupted"];
 const stateLabels: Record<AgentRunState, string> = {
@@ -20,7 +22,7 @@ interface ChildAgentPanelProps {
 }
 
 function errorMessage(reason: unknown) {
-  return reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "无法读取子任务";
+  return toErrorMessage(reason, typeof reason === "string" ? reason : "无法读取子任务");
 }
 
 export default function ChildAgentPanel({ parentRunId, parentConversationId, showToolDetails = true, onResolvePermission }: ChildAgentPanelProps) {
@@ -139,14 +141,14 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
         return <button type="button" className={`suna-child-select ${selectedId === child.child_turn_id ? "is-active" : ""}`} key={child.child_turn_id} onClick={() => setSelectedId(child.child_turn_id)} aria-pressed={selectedId === child.child_turn_id}><span><Bot size={12} />{child.agent_id || `子任务 ${index + 1}`}<code>{child.child_turn_id.slice(0, 8)}</code></span>{child.task_summary && <small className="suna-child-task-summary">{child.task_summary}</small>}<small>{stateLabels[childState]}{childView?.taskProgress ? ` · ${childView.taskProgress.progress}%` : ""}</small></button>;
       })}</div>
       {selected && <div className="suna-child-detail">
-        <div className="suna-child-detail-header"><strong>{state ? stateLabels[state] : ""}</strong>{state && !settledStates.includes(state) && <button type="button" className="suna-action-secondary is-danger" disabled={cancelling === selected.child_turn_id || cancelRequested.includes(selected.child_turn_id)} onClick={() => void cancel(selected)}><Square size={10} />{cancelling === selected.child_turn_id ? "取消中" : cancelRequested.includes(selected.child_turn_id) ? "已请求取消" : "取消子任务"}</button>}</div>
+        <div className="suna-child-detail-header"><strong>{state ? stateLabels[state] : ""}</strong>{state && !settledStates.includes(state) && <Button variant="actionSecondary" className="is-danger" type="button" disabled={cancelling === selected.child_turn_id || cancelRequested.includes(selected.child_turn_id)} onClick={() => void cancel(selected)}><Square size={10} />{cancelling === selected.child_turn_id ? "取消中" : cancelRequested.includes(selected.child_turn_id) ? "已请求取消" : "取消子任务"}</Button>}</div>
         {typeof progress === "number" && <div className="suna-chat-inspector-progress" aria-label={`子任务进度 ${progress}%`}><span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} /></div>}
         <small>事件 {view?.sequence ?? 0} · Token {view?.usage?.total_tokens.toLocaleString() ?? "—"}</small>
         {(selected.provider || selected.model) && <small>模型 {selected.provider} · {selected.model || "默认"}</small>}
         {selected.task_summary && <p className="suna-child-task">{selected.task_summary}</p>}
         <small>开始于 {new Date(selected.created_at).toLocaleString()}</small>
         {showToolDetails && !!view?.toolCalls.length && <div className="suna-child-tools">{view.toolCalls.map((tool) => <div key={tool.toolCallId}><Wrench size={11} /><span>{tool.name}<small>{tool.status === "running" ? `${tool.progress}%` : tool.status}{tool.message ? ` · ${tool.message}` : ""}</small>{tool.error && <small className="suna-child-error">{tool.error.message}</small>}</span></div>)}</div>}
-        {!!view?.permissions.filter((permission) => permission.decision === null).length && <div className="suna-child-permissions">{view.permissions.filter((permission) => permission.decision === null).map((permission) => <div key={permission.permissionId}><strong>{permission.summary}</strong><small>{permission.reason}</small><div><button type="button" className="suna-action-secondary" onClick={() => onResolvePermission(permission.permissionId, "allow_once")}>允许一次</button><button type="button" className="suna-action-secondary is-danger" onClick={() => onResolvePermission(permission.permissionId, "deny")}>拒绝</button></div></div>)}</div>}
+        {!!view?.permissions.filter((permission) => permission.decision === null).length && <div className="suna-child-permissions">{view.permissions.filter((permission) => permission.decision === null).map((permission) => <div key={permission.permissionId}><strong>{permission.summary}</strong><small>{permission.reason}</small><div><Button variant="actionSecondary" type="button" onClick={() => onResolvePermission(permission.permissionId, "allow_once")}>允许一次</Button><Button variant="actionSecondary" className="is-danger" type="button" onClick={() => onResolvePermission(permission.permissionId, "deny")}>拒绝</Button></div></div>)}</div>}
         {view?.assistantText && <details open={state === "completed"}><summary>子任务结果</summary><pre className="suna-child-result">{view.assistantText}</pre></details>}
         {view?.error && <p className="suna-child-error">{view.error.code}: {view.error.message}</p>}
         {view?.checkpoint && <small>检查点 · 模型调用 {view.checkpoint.modelCalls} · 工具轮次 {view.checkpoint.toolRound}</small>}

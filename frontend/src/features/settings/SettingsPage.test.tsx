@@ -321,4 +321,23 @@ describe("SettingsPage", () => {
       await waitFor(() => expect(document.documentElement.dataset.fontSize).toBe(expected));
     }
   });
+
+  it("applies each sidebar width choice to the document", async () => {
+    renderSettings();
+
+    fireEvent.click(await screen.findByRole("tab", { name: "settingsCategoryAppearance" }));
+    const widths = [
+      ["settingsSidebarNarrow", "narrow"],
+      ["settingsSidebarStandard", "standard"],
+      ["settingsSidebarWide", "wide"],
+    ] as const;
+    for (const [label, expected] of widths) {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      await waitFor(() => expect(document.documentElement.dataset.sidebarWidth).toBe(expected));
+    }
+    await waitFor(() => expect(desktop.setSetting).toHaveBeenCalledWith(
+      "ui.preferences",
+      expect.stringContaining('"sidebarWidth":"wide"'),
+    ), { timeout: 1500 });
+  });
 });

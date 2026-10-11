@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { Card } from "../ui/card";
 
 type StatCardProps = {
   icon: LucideIcon;
@@ -20,7 +21,7 @@ export default function StatCard({ icon: Icon, label, value, unit, color }: Stat
   const c = colorMap[color] ?? colorMap.indigo;
 
   return (
-    <div className="suna-stat-card group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:border-slate-300">
+    <Card variant="stat" className="group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:border-slate-300" >
       <div
         className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ${c.dot} opacity-60 blur-[2px] group-hover:opacity-100 transition-opacity`}
       />
@@ -34,6 +35,6 @@ export default function StatCard({ icon: Icon, label, value, unit, color }: Stat
         {value}
         <span className="suna-stat-card-unit ml-1 text-xs font-normal text-slate-400">{unit}</span>
       </p>
-    </div>
+    </Card>
   );
 }
