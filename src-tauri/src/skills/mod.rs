@@ -798,6 +798,10 @@ pub struct SkillDraft {
     pub tools: Vec<String>,
     #[serde(default)]
     pub knowledge_base: Option<String>,
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    #[serde(default)]
+    pub model_id: Option<String>,
     pub body: String,
 }
 
@@ -844,6 +848,16 @@ fn validate_draft(draft: &SkillDraft) -> Result<(), String> {
             return Err("knowledge_base 不能为空字符串".to_string());
         }
     }
+    if let Some(agent_id) = &draft.agent_id {
+        if agent_id.trim().is_empty() {
+            return Err("agent_id 不能为空字符串".to_string());
+        }
+    }
+    if let Some(model_id) = &draft.model_id {
+        if model_id.trim().is_empty() {
+            return Err("model_id 不能为空字符串".to_string());
+        }
+    }
     Ok(())
 }
 
@@ -872,6 +886,22 @@ fn render_skill_markdown(name: &str, draft: &SkillDraft) -> String {
         .filter(|kb| !kb.is_empty())
     {
         fields.push(format!("knowledge_base: {kb}"));
+    }
+    if let Some(agent_id) = draft
+        .agent_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        fields.push(format!("agent_id: {agent_id}"));
+    }
+    if let Some(model_id) = draft
+        .model_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        fields.push(format!("model_id: {model_id}"));
     }
     fields.push(String::new());
     fields.push(draft.body.trim().to_string());
@@ -965,6 +995,8 @@ pub fn duplicate_skill(
         tags: record.tags.clone(),
         tools: Vec::new(),
         knowledge_base: None,
+        agent_id: None,
+        model_id: None,
         body: record.body.clone(),
     };
     write_user_skill(

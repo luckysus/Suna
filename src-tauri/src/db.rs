@@ -1,7 +1,7 @@
 use chrono::Utc;
 use rusqlite::Connection;
 use std::time::Duration;
-use std::{fs, path::PathBuf, sync::Arc, sync::Mutex};
+use std::{path::PathBuf, sync::Arc, sync::Mutex};
 use tauri::Manager;
 
 use crate::tasks::scheduler::SchedulerState;
@@ -68,15 +68,7 @@ pub(crate) fn configured_data_directory(
 }
 
 pub(crate) fn app_data_directory(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let default = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("resolve app data dir failed: {error}"))?;
-    let override_path = std::env::var_os("SUNA_DATA_DIR").map(PathBuf::from);
-    let directory = configured_data_directory(default, override_path)?;
-    fs::create_dir_all(&directory)
-        .map_err(|error| format!("create app data dir failed: {error}"))?;
-    Ok(directory)
+    Ok(app.state::<crate::storage::data_directory::DataDirectoryState>().root.clone())
 }
 
 pub(crate) fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {

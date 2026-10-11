@@ -1,6 +1,6 @@
 //! Opt-in smoke test for the real chat, PostgreSQL/pgvector, embedding, and
 //! reranker integrations. CI keeps this test compiled but skips the network
-//! calls unless `SUNA_LIVE_SMOKE=1` is explicitly set.
+//! calls unless explicitly selected with `--ignored`.
 
 use std::env;
 use std::time::Duration;
@@ -39,11 +39,8 @@ fn siliconflow_profile(base_url: String, model_id: String) -> ProviderProfile {
 }
 
 #[test]
+#[ignore = "requires explicit real provider credentials and PostgreSQL configuration"]
 fn real_stack_smoke() {
-    if env::var("SUNA_LIVE_SMOKE").ok().as_deref() != Some("1") {
-        return;
-    }
-
     let chat_kind = required("SUNA_LIVE_CHAT_PROVIDER");
     let chat_base_url = required("SUNA_LIVE_CHAT_BASE_URL");
     let chat_model = required("SUNA_LIVE_CHAT_MODEL");
@@ -146,4 +143,36 @@ fn real_stack_smoke() {
     ))
     .expect("live reranker request succeeds");
     assert_eq!(rerank_result.len(), 1);
+}
+
+#[test]
+#[ignore = "calls the real Bailian API using local environment credentials"]
+fn real_bailian_chat_smoke() {
+    let model = env::var("SUNA_LIVE_CHAT_MODEL").unwrap_or_else(|_| "qwen3.8-flash".into());
+    let profile = resolve_chat_profile("qwen", &required("DASHSCOPE_BASE_URL"), &model).unwrap();
+    let chat = configured_chat_provider(profile, optional_secret("DASHSCOPE_API_KEY")).unwrap();
+    let mut events = Vec::new();
+    let response = tauri::async_runtime::block_on(chat.chat(
+        ChatRequest {
+            messages: vec![ChatMessage::new(
+                "user",
+                "Reply with the single token SUNA_LIVE_OK.",
+            )],
+            temperature: 0.0,
+            tools: None,
+            response_format: None,
+            reasoning_effort: None,
+            max_tokens: Some(64),
+            stop: None,
+        },
+        &mut |event| events.push(event),
+        &|| false,
+    ))
+    .expect("real Bailian request succeeds");
+    assert!(
+        response.text.contains("SUNA_LIVE_OK"),
+        "unexpected health-check response"
+    );
+    assert!(!events.is_empty(), "no real streaming events received");
+    println!("Bailian {model}: streaming response and final token verified");
 }

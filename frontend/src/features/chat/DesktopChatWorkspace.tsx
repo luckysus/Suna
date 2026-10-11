@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import {
   Archive,
   ArrowUp,
@@ -315,6 +316,7 @@ export default function DesktopChatWorkspace({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLFormElement>(null);
   const activeProfile = controller.chatProfiles.find((profile) => profile.id === controller.activeChatProfileId);
   const selectedModel = activeProfile?.model_id || activeProfile?.display_name || "本地模型";
   const providerLabel = activeProfile ? PROVIDER_KIND_LABELS[activeProfile.kind] ?? activeProfile.kind : "未配置";
@@ -395,9 +397,18 @@ export default function DesktopChatWorkspace({
       pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       csv: "text/csv", txt: "text/plain", md: "text/markdown", markdown: "text/markdown", json: "application/json", html: "text/html", htm: "text/html",
+      png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif",
     };
     return known[extension] || "application/octet-stream";
   };
+
+  const addNativeAttachments = (paths: string[]) => {
+    const next = paths.filter((path) => /\.(pdf|docx?|xlsx?|csv|txt|md|markdown|json|html?|png|jpe?g|webp|gif)$/i.test(path)).map((path) => ({
+      name: path.split(/[\\/]/).pop() || "attachment", mime: nativeMime(path), data: "", path,
+    }));
+    if (next.length > 0) controller.onAttachmentsChange([...controller.attachments, ...next]);
+  };
+  useNativeFileDrop(composerRef, { onFiles: addNativeAttachments, onHover: setDragging });
 
   const pickNativeAttachments = async () => {
     try {
@@ -408,13 +419,7 @@ export default function DesktopChatWorkspace({
         filters: [{ name: "支持的文档附件", extensions: ["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "md", "markdown", "json", "html", "htm"] }],
       });
       const paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
-      const next = paths.map((path) => ({
-        name: path.split(/[\\/]/).pop() || "attachment",
-        mime: nativeMime(path),
-        data: "",
-        path,
-      }));
-      if (next.length > 0) controller.onAttachmentsChange([...controller.attachments, ...next]);
+      addNativeAttachments(paths);
     } catch {
       // Keep the composer usable when the native picker is unavailable.
     }
@@ -601,6 +606,7 @@ export default function DesktopChatWorkspace({
         </div>
 
         <form
+          ref={composerRef}
           className={`suna-chat-composer ${dragging ? "is-dragging" : ""}`}
           data-testid="desktop-agent-composer"
           onSubmit={submit}

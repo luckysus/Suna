@@ -1882,6 +1882,13 @@ pub async fn search_postgres_knowledge(
     state: tauri::State<'_, KnowledgeDatabaseState>,
     request: PostgresKnowledgeSearchRequest,
 ) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
+    search_postgres_lexical_pool(&active_pool(&state)?, request).await
+}
+
+async fn search_postgres_lexical_pool(
+    pool: &PgPool,
+    request: PostgresKnowledgeSearchRequest,
+) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
     let started_at = Instant::now();
     let query = request.query.trim();
     if query.is_empty() {
@@ -1914,7 +1921,6 @@ pub async fn search_postgres_knowledge(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let pool = active_pool(&state)?;
     let rows = sqlx::query(
         "SELECT c.id, c.version_id, d.id AS document_id, d.knowledge_base_id, d.display_name,
                 c.text, c.source_location,
@@ -1926,12 +1932,13 @@ pub async fn search_postgres_knowledge(
          WHERE d.knowledge_base_id = $1
            AND d.deleted_at IS NULL
            AND c.search_vector @@ plainto_tsquery('simple', $2)
-           AND ($3::text IS NULL OR d.source_kind = $3)
+           AND ($3::text IS NULL OR d.source_kind = $3 OR d.metadata ->> 'category' = $3)
            AND ($4::text IS NULL OR lower(coalesce(d.metadata ->> 'material', '')) LIKE lower('%' || $4 || '%'))
            AND ($5::text IS NULL OR lower(coalesce(d.metadata ->> 'process', '')) LIKE lower('%' || $5 || '%'))
            AND ($6::text IS NULL OR lower(coalesce(d.metadata ->> 'property', '')) LIKE lower('%' || $6 || '%'))
            AND ($7::int IS NULL OR d.metadata ->> 'year' = $7::text)
            AND ($8::text IS NULL OR (d.metadata -> 'tags') ? $8 OR lower(coalesce(d.metadata ->> 'tags', '')) LIKE lower('%' || $8 || '%'))
+           AND ($10::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $10 || '%'))
          ORDER BY rank DESC, c.ordinal
          LIMIT $9",
     )
@@ -1944,7 +1951,8 @@ pub async fn search_postgres_knowledge(
     .bind(filters.year)
     .bind(tag)
     .bind(i64::from(limit))
-    .fetch_all(&pool)
+    .bind(filters.source.as_deref().map(str::trim).filter(|value| !value.is_empty()))
+    .fetch_all(pool)
     .await
     .map_err(|error| {
         format!(
@@ -1987,7 +1995,7 @@ pub async fn search_postgres_knowledge(
     .bind(serde_json::json!({ "mode": "full_text", "limit": limit, "filters": filters }))
     .bind(serde_json::to_value(&hits).map_err(|error| error.to_string())?)
     .bind(i64::try_from(started_at.elapsed().as_millis()).unwrap_or(i64::MAX))
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|error| format!("写入检索审计失败: {}", safe_error(&error.to_string())))?;
     Ok(hits)
@@ -2244,9 +2252,15 @@ pub async fn search_postgres_vectors(
     state: tauri::State<'_, KnowledgeDatabaseState>,
     request: PostgresVectorSearchRequest,
 ) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
+    search_postgres_vectors_pool(&active_pool(&state)?, request).await
+}
+
+async fn search_postgres_vectors_pool(
+    pool: &PgPool,
+    request: PostgresVectorSearchRequest,
+) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
     let vector = encode_pgvector(&request.embedding)?;
     let limit = request.limit.clamp(1, 100);
-    let pool = active_pool(&state)?;
     let rows = sqlx::query(
         "SELECT c.id, c.version_id, d.id AS document_id, d.knowledge_base_id, d.display_name,
                 c.text, c.source_location,
@@ -2269,7 +2283,7 @@ pub async fn search_postgres_vectors(
     .bind(vector)
     .bind(i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?)
     .bind(i64::from(limit))
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await
     .map_err(|error| {
         format!(
@@ -2308,6 +2322,13 @@ pub async fn search_postgres_hybrid(
     state: tauri::State<'_, KnowledgeDatabaseState>,
     request: PostgresHybridSearchRequest,
 ) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
+    search_postgres_hybrid_unfiltered_pool(&active_pool(&state)?, request).await
+}
+
+async fn search_postgres_hybrid_unfiltered_pool(
+    pool: &PgPool,
+    request: PostgresHybridSearchRequest,
+) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
     let started_at = Instant::now();
     let query = request.query.trim();
     if query.is_empty() {
@@ -2316,7 +2337,6 @@ pub async fn search_postgres_hybrid(
     let vector = encode_pgvector(&request.embedding)?;
     let limit = request.limit.clamp(1, 100);
     let rrf_k = request.rrf_k.clamp(1, 10_000);
-    let pool = active_pool(&state)?;
     let rows = sqlx::query(
         "WITH lexical AS (
             SELECT c.id,
@@ -2368,7 +2388,7 @@ pub async fn search_postgres_hybrid(
     .bind(i64::from(limit))
     .bind(rrf_k as f64)
     .bind(i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?)
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await
     .map_err(|error| {
         format!(
@@ -2411,7 +2431,7 @@ pub async fn search_postgres_hybrid(
     .bind(serde_json::json!({ "mode": "hybrid", "limit": limit, "rrf_k": rrf_k }))
     .bind(serde_json::to_value(&hits).map_err(|error| error.to_string())?)
     .bind(i64::try_from(started_at.elapsed().as_millis()).unwrap_or(i64::MAX))
-    .execute(&pool)
+    .execute(pool)
     .await
     .map_err(|error| format!("写入混合检索审计失败: {}", safe_error(&error.to_string())))?;
     Ok(hits)
@@ -2478,7 +2498,7 @@ pub(crate) async fn search_postgres_hybrid_pool(
               AND ($10::text IS NULL OR lower(coalesce(d.metadata ->> 'property', '')) LIKE lower('%' || $10 || '%'))
               AND ($11::text IS NULL OR (d.metadata -> 'tags') ? $11 OR lower(coalesce(d.metadata ->> 'tags', '')) LIKE lower('%' || $11 || '%'))
               AND ($12::int IS NULL OR d.metadata ->> 'year' = $12::text)
-              AND ($14::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $14 || '%'))
+              AND ($13::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $13 || '%'))
               AND c.search_vector @@ plainto_tsquery('simple', $2)
             ORDER BY position
             LIMIT $4
@@ -2496,12 +2516,12 @@ pub(crate) async fn search_postgres_hybrid_pool(
               AND ($10::text IS NULL OR lower(coalesce(d.metadata ->> 'property', '')) LIKE lower('%' || $10 || '%'))
               AND ($11::text IS NULL OR (d.metadata -> 'tags') ? $11 OR lower(coalesce(d.metadata ->> 'tags', '')) LIKE lower('%' || $11 || '%'))
               AND ($12::int IS NULL OR d.metadata ->> 'year' = $12::text)
-              AND ($14::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $14 || '%'))
+              AND ($13::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $13 || '%'))
               AND e.knowledge_base_id = d.knowledge_base_id
               AND e.dimension = $6
               AND e.model_id = v.embedding_model_id
               AND v.manifest_sealed = TRUE
-              AND ($13::real IS NULL OR (1 - (e.embedding <=> $3::vector)) >= $13::real)
+              AND ($14::real IS NULL OR (1 - (e.embedding <=> $3::vector)) >= $14::real)
             ORDER BY position
             LIMIT $4
          ), scored AS (
@@ -3238,7 +3258,9 @@ fn authorize_postgres_content_file(
     let root = database
         .parent()
         .ok_or_else(|| "解析本地内容目录失败".to_string())?;
-    authorize_postgres_content_path(root, std::path::Path::new(stored_path))
+    let stored_path = app.state::<crate::storage::data_directory::DataDirectoryState>()
+        .relocate(std::path::Path::new(stored_path));
+    authorize_postgres_content_path(root, &stored_path)
 }
 
 fn authorize_postgres_content_path(
@@ -5692,3 +5714,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 }
+
+#[cfg(test)]
+#[path = "knowledge_db_live_tests.rs"]
+pub(crate) mod live_tests;

@@ -1480,7 +1480,7 @@ body {
   overflow: hidden;
 }
 
-.suna-chat-inspector-progress > span {
+.suna-chat-inspector-progress .suna-progress-indicator {
   background: var(--suna-steel);
   border-radius: inherit;
   display: block;
@@ -1815,7 +1815,7 @@ body {
   color: var(--suna-amber);
 }
 
-.suna-chat-inspector-progress > span {
+.suna-chat-inspector-progress .suna-progress-indicator {
   background: var(--suna-amber);
 }
 
@@ -4812,6 +4812,12 @@ body,
 .suna-new-welcome{display:flex;align-items:center;flex-direction:column;justify-content:flex-start;padding:48px 28px 14px!important;text-align:center}.suna-welcome-brand{display:flex;align-items:center;gap:14px;text-align:left}.suna-welcome-mark{display:grid;place-items:center;width:58px;height:58px;border-radius:16px;background:transparent;color:#2563eb}.suna-welcome-brand strong{display:block;color:#163461;font-size:calc(34px * var(--suna-ui-font-scale));letter-spacing:-.04em}.suna-welcome-brand small{display:block;margin-top:4px;color:#7790b5;font-size:calc(11px * var(--suna-ui-font-scale))}.suna-new-welcome h1{margin-top:23px;color:#1a3763;font-size:calc(23px * var(--suna-ui-font-scale));font-weight:650}.suna-new-welcome h1 em{color:#2563eb;font-style:normal}.suna-new-welcome>p{max-width:520px;margin:9px auto 22px;color:#7890b0;font-size:calc(13px * var(--suna-ui-font-scale));line-height:1.8}.suna-welcome-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:min(820px,100%);text-align:left}.suna-welcome-card{position:relative;display:flex;flex-direction:column;min-height:116px;padding:13px;border:1px solid #dfebfb;border-radius:9px;background:#fff;color:#24426c;text-align:left;cursor:pointer}.suna-welcome-card:hover{border-color:#9cbcf0;background:#f9fbff;box-shadow:0 4px 14px rgba(52,104,190,.08)}.suna-welcome-card>span{display:grid;place-items:center;width:27px;height:27px;border-radius:7px;background:#e9f2ff;color:#2563eb;font-size:calc(16px * var(--suna-ui-font-scale))}.suna-welcome-card strong{margin-top:12px;font-size:calc(13px * var(--suna-ui-font-scale));font-weight:600}.suna-welcome-card small{margin-top:4px;color:#8498b4;font-size:calc(10px * var(--suna-ui-font-scale));line-height:1.4}.suna-welcome-card b{position:absolute;right:12px;top:15px;color:#7294c4;font-size:calc(14px * var(--suna-ui-font-scale));font-weight:400}@media(max-width:1100px){.suna-welcome-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* 第 18 章：Chat 输入框文件拖拽 */
+.suna-new-content .suna-chat {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .suna-chat-composer {
   position: relative;
 }

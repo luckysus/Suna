@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import { setTheme as setNativeTheme } from "@tauri-apps/api/app";
 import {
   open as openNativeDialog,
@@ -1084,9 +1085,16 @@ export interface StoragePaths {
   local_data: string;
   sqlite_database: string;
   knowledge_content: string;
+  models: string;
   cache: string;
   logs: string;
   temp: string;
+}
+
+export interface DataDirectoryChange {
+  pending_directory: string | null;
+  message: string | null;
+  environment_override: boolean;
 }
 
 export interface UpdateCheckResult {
@@ -1262,6 +1270,8 @@ export interface SkillDraft {
   tags: string[];
   tools: string[];
   knowledge_base?: string | null;
+  agent_id?: string | null;
+  model_id?: string | null;
   body: string;
 }
 
@@ -1502,6 +1512,7 @@ export interface DatabaseQuerySummary {
 }
 
 export type FileDialogOptions = OpenDialogOptions;
+export type NativeFileDragEvent = DragDropEvent;
 export type SaveFileDialogOptions = SaveDialogOptions;
 
 function call<T>(command: string, args?: Record<string, unknown>) {
@@ -1510,6 +1521,8 @@ function call<T>(command: string, args?: Record<string, unknown>) {
 }
 
 export const desktop = {
+  listenFileDrop: (callback: (event: NativeFileDragEvent) => void) =>
+    getCurrentWebview().onDragDropEvent((event) => callback(event.payload)),
   setNativeTheme: (theme: "light" | "dark") => {
     if (!isDesktopRuntime()) return Promise.resolve();
     return setNativeTheme(theme);
@@ -1920,6 +1933,11 @@ getComputeOptimizationResult: (id: string) =>
   getStoragePaths: () => call<StoragePaths>("get_storage_paths"),
   openStoragePath: (kind: keyof StoragePaths) => call<void>("open_storage_path", { kind }),
   clearStorageCache: (kind: "cache" | "temp") => call<number>("clear_storage_cache", { kind }),
+  changeDataDirectory: (directory: string) =>
+    call<DataDirectoryChange>("change_data_directory", { directory }),
+  getDataDirectoryChange: () => call<DataDirectoryChange>("get_data_directory_change"),
+  cancelDataDirectoryChange: () => call<void>("cancel_data_directory_change"),
+  restartForDataDirectory: () => call<void>("restart_for_data_directory"),
   exportDiagnostics: (lastErrorKind?: string) =>
     call<Record<string, unknown>>("export_diagnostics", lastErrorKind ? { lastErrorKind } : undefined),
   writeDiagnosticsExport: (outputPath: string, lastErrorKind?: string) =>

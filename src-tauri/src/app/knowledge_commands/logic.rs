@@ -716,12 +716,13 @@ async fn query_postgres_knowledge_with_pool_degradation(
          JOIN knowledge_bases kb ON kb.id = d.knowledge_base_id AND kb.deleted_at IS NULL
          WHERE d.knowledge_base_id = ANY($2::uuid[]) AND d.deleted_at IS NULL
            AND c.search_vector @@ plainto_tsquery('simple', $1)
-           AND ($3::text IS NULL OR d.source_kind = $3)
+           AND ($3::text IS NULL OR d.source_kind = $3 OR d.metadata ->> 'category' = $3)
            AND ($4::text IS NULL OR lower(coalesce(d.metadata ->> 'material', '')) LIKE lower('%' || $4 || '%'))
            AND ($5::text IS NULL OR lower(coalesce(d.metadata ->> 'process', '')) LIKE lower('%' || $5 || '%'))
            AND ($6::text IS NULL OR lower(coalesce(d.metadata ->> 'property', '')) LIKE lower('%' || $6 || '%'))
            AND ($7::int IS NULL OR d.metadata ->> 'year' = $7::text)
            AND ($8::text IS NULL OR (d.metadata -> 'tags') ? $8 OR lower(coalesce(d.metadata ->> 'tags', '')) LIKE lower('%' || $8 || '%'))
+           AND ($10::text IS NULL OR lower(coalesce(d.metadata ->> 'source', d.display_name, '')) LIKE lower('%' || $10 || '%'))
          ORDER BY rank DESC, c.ordinal
          LIMIT $9",
     )
@@ -734,6 +735,7 @@ async fn query_postgres_knowledge_with_pool_degradation(
     .bind(filters.year)
     .bind(tag)
     .bind(i64::try_from(limit).map_err(|_| "检索数量无效")?)
+    .bind(filters.source.as_deref().map(str::trim).filter(|value| !value.is_empty()))
     .fetch_all(&pool)
     .await
     .map_err(|error| format!("PostgreSQL 检索失败: {}", error))?;

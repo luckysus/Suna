@@ -30,6 +30,10 @@ use std::str::FromStr;
 use tauri::Manager;
 use uuid::Uuid;
 
+#[cfg(test)]
+#[path = "steel_agent_gateway_live_tests.rs"]
+mod live_tests;
+
 #[derive(Clone)]
 pub struct DesktopSteelAgentGateway {
     database: PathBuf,
@@ -403,7 +407,7 @@ impl DesktopSteelAgentGateway {
         let document_hint = text_arg(&arguments, "document_hint");
         let folder_hint = text_arg(&arguments, "folder_hint");
         let chapter_number = arguments.get("chapter_number").and_then(Value::as_u64);
-        let mut expanded = format!("{query} {mode}");
+        let mut expanded = query.clone();
         if !document_hint.is_empty() {
             expanded.push(' ');
             expanded.push_str(&document_hint);

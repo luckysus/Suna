@@ -8,6 +8,7 @@ import { FileDropZone } from "../../components/common/FileDropZone";
 import "./data-lab.css";
 import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 
 type DataTab = "manage" | "analysis" | "visualize" | "table";
 
@@ -172,19 +173,19 @@ export default function DataLabPage() {
         </div>
       </header>
 
-      <nav className="suna-data-tabs">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={tab === item.id ? "is-active" : ""}
-            aria-pressed={tab === item.id}
-            onClick={() => openTab(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs value={tab} onValueChange={(value) => openTab(value as DataTab)}>
+        <TabsList className="suna-data-tabs">
+          {tabs.map((item) => (
+            <TabsTrigger
+              key={item.id}
+              value={item.id}
+              className={tab === item.id ? "is-active" : ""}
+            >
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {message && <div className="suna-data-message">{message}</div>}
 

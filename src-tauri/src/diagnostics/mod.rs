@@ -30,6 +30,7 @@ pub struct StoragePaths {
     pub local_data: String,
     pub sqlite_database: String,
     pub knowledge_content: String,
+    pub models: String,
     pub cache: String,
     pub logs: String,
     pub temp: String,
@@ -61,7 +62,7 @@ fn storage_health(connection: &Connection, path: &Path) -> Result<StorageHealth,
 }
 
 #[cfg(windows)]
-fn available_disk_bytes(path: &Path) -> Result<Option<u64>, String> {
+pub(crate) fn available_disk_bytes(path: &Path) -> Result<Option<u64>, String> {
     use std::os::windows::ffi::OsStrExt;
 
     #[link(name = "kernel32")]
@@ -95,7 +96,7 @@ fn available_disk_bytes(path: &Path) -> Result<Option<u64>, String> {
 }
 
 #[cfg(not(windows))]
-fn available_disk_bytes(_path: &Path) -> Result<Option<u64>, String> {
+pub(crate) fn available_disk_bytes(_path: &Path) -> Result<Option<u64>, String> {
     Ok(None)
 }
 
@@ -124,7 +125,8 @@ pub fn get_storage_paths(app: tauri::AppHandle) -> Result<StoragePaths, String> 
         documents: documents.to_string_lossy().into_owned(),
         local_data: local_data.to_string_lossy().into_owned(),
         sqlite_database: root.join("suna.sqlite3").to_string_lossy().into_owned(),
-        knowledge_content: root.join("content").to_string_lossy().into_owned(),
+        knowledge_content: root.join("objects").to_string_lossy().into_owned(),
+        models: root.to_string_lossy().into_owned(),
         cache: root.join("cache").to_string_lossy().into_owned(),
         logs: root.join("logs").to_string_lossy().into_owned(),
         temp: root.join("temp").to_string_lossy().into_owned(),
@@ -166,7 +168,8 @@ fn storage_path(app: &tauri::AppHandle, kind: &str) -> Result<PathBuf, String> {
             .app_local_data_dir()
             .map_err(|error| format!("resolve local data dir failed: {error}"))?,
         "sqlite_database" => root.join("suna.sqlite3"),
-        "knowledge_content" => root.join("content"),
+        "knowledge_content" => root.join("objects"),
+        "models" => root,
         "cache" => root.join("cache"),
         "logs" => root.join("logs"),
         "temp" => root.join("temp"),
@@ -176,7 +179,7 @@ fn storage_path(app: &tauri::AppHandle, kind: &str) -> Result<PathBuf, String> {
 }
 
 #[cfg(windows)]
-fn is_link_or_reparse_point(metadata: &std::fs::Metadata) -> bool {
+pub(crate) fn is_link_or_reparse_point(metadata: &std::fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
 
     const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
@@ -184,7 +187,7 @@ fn is_link_or_reparse_point(metadata: &std::fs::Metadata) -> bool {
 }
 
 #[cfg(not(windows))]
-fn is_link_or_reparse_point(metadata: &std::fs::Metadata) -> bool {
+pub(crate) fn is_link_or_reparse_point(metadata: &std::fs::Metadata) -> bool {
     metadata.file_type().is_symlink()
 }
 
@@ -201,6 +204,7 @@ pub fn open_storage_path(app: tauri::AppHandle, kind: String) -> Result<(), Stri
                 | "temp"
                 | "logs"
                 | "knowledge_content"
+                | "models"
         )
     {
         std::fs::create_dir_all(&path)

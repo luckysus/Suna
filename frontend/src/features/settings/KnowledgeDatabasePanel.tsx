@@ -3,6 +3,7 @@ import { Check, Database, ExternalLink, LoaderCircle, RefreshCw, Save, Unplug } 
 import { desktop, isDesktopRuntime, type KnowledgeDatabaseConfig, type KnowledgeDatabaseHealth } from "../../bridge/desktop";
 import { settingsErrorMessage } from "./settingsError";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
@@ -142,7 +143,14 @@ export default function KnowledgeDatabasePanel() {
           <h2 className="flex items-center gap-2"><Database size={18} aria-hidden="true" /> PostgreSQL 知识库</h2>
           <p>知识库使用 PostgreSQL；客户端设置和会话仍保存在本地。</p>
         </div>
-        <button type="button" onClick={refresh} disabled={loading || busy} title="刷新状态" aria-label="刷新状态">{loading ? <LoaderCircle size={16} className="suna-spin" /> : <RefreshCw size={16} />}</button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={refresh} disabled={loading || busy} aria-label="刷新状态">{loading ? <LoaderCircle size={16} className="suna-spin" /> : <RefreshCw size={16} />}</button>
+            </TooltipTrigger>
+            <TooltipContent>刷新状态</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       {loading && <p className="suna-settings-loading" role="status"><LoaderCircle size={15} className="suna-spin" />正在读取知识库状态...</p>}
       <div className="grid gap-3 md:grid-cols-2">

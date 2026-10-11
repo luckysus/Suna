@@ -66,6 +66,11 @@ pub fn run() {
         .manage(crate::knowledge_db::KnowledgeDatabaseState::default())
         .manage(SchedulerState::default())
         .manage(agent_automation::AgentAutomationState::default())
+        .setup(|app| {
+            app.manage(crate::storage::data_directory::DataDirectoryState::initialize(app.handle())
+                .map_err(std::io::Error::other)?);
+            Ok(())
+        })
         .invoke_handler(commands::handler!())
         .build(tauri::generate_context!())
         .expect("failed to build Suna");

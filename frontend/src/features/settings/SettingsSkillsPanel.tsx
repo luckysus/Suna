@@ -19,7 +19,7 @@ import { Card } from "../../components/ui/card";
 
 type EditorState = { mode: "create" } | { mode: "edit"; original: string } | null;
 
-const emptyDraft = (): SkillDraft => ({ name: "", description: "", version: "", tags: [], tools: [], knowledge_base: "", body: "" });
+const emptyDraft = (): SkillDraft => ({ name: "", description: "", version: "", tags: [], tools: [], knowledge_base: "", agent_id: "", model_id: "", body: "" });
 
 export default function SettingsSkillsPanel() {
   const { t } = useLocale();
@@ -41,7 +41,7 @@ export default function SettingsSkillsPanel() {
   const openCreate = () => { setDraft(emptyDraft()); setEditor({ mode: "create" }); setError(null); };
   const openEdit = (skill: SkillSummary) => {
     // 编辑器需要正文：从磁盘读取由 update 接口完成，这里先以目录元数据填充。
-    setDraft({ name: skill.name, description: skill.description, version: skill.version, tags: skill.tags, tools: [], knowledge_base: "", body: "" });
+    setDraft({ name: skill.name, description: skill.description, version: skill.version, tags: skill.tags, tools: [], knowledge_base: "", agent_id: "", model_id: "", body: "" });
     setEditor({ mode: "edit", original: skill.name });
     setError(null);
   };
@@ -76,6 +76,8 @@ export default function SettingsSkillsPanel() {
       <label>标签（逗号分隔，ASCII）<Input value={draft.tags.join(", ")} onChange={(event) => setDraft({ ...draft, tags: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} placeholder="steel, analysis" /></label>
       <label>相关工具（逗号分隔，可选）<Input value={draft.tools.join(", ")} onChange={(event) => setDraft({ ...draft, tools: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} placeholder="steel.knowledge_search" /></label>
       <label>知识库（可选）<Input value={draft.knowledge_base ?? ""} onChange={(event) => setDraft({ ...draft, knowledge_base: event.target.value })} placeholder="耐磨钢知识库" /></label>
+      <label>Agent（可选）<Input value={draft.agent_id ?? ""} onChange={(event) => setDraft({ ...draft, agent_id: event.target.value })} placeholder="master" /></label>
+      <label>模型（可选）<Input value={draft.model_id ?? ""} onChange={(event) => setDraft({ ...draft, model_id: event.target.value })} placeholder="gpt-4o" /></label>
       <label>工作流程提示（正文）<Textarea rows={8} value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} placeholder="输入/步骤/输出/边界…" required /></label>
       <Button variant="primary" type="submit" disabled={busy === "editor"}>{busy === "editor" ? <LoaderCircle size={15} className="suna-spin" /> : <Save size={15} />}保存</Button>
     </form>}

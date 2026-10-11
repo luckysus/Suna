@@ -1,13 +1,13 @@
-import { useState, type DragEvent, type ReactNode } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Upload } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import "./file-drop-zone.css";
 
 /**
  * 第 68 章：通用 Drag & Drop。
  *
- * 包住任意区域，拖入文件后把**本地路径**交给调用方（Tauri 会在拖拽的 File
- * 上注入 `path`）。扩展名不符或拿不到路径时通过 `onRejected` 反馈，不会静默丢弃。
+ * 原生 WebView 拖拽事件提供本地路径；扩展名不符或拿不到路径时反馈给调用方。
  */
 
 export type FileDropZoneProps = {
@@ -43,14 +43,12 @@ export function FileDropZone({
   className,
 }: FileDropZoneProps) {
   const [dragging, setDragging] = useState(false);
+  const region = useRef<HTMLDivElement>(null);
 
   const accepts = (path: string) => extensions.length === 0 || extensions.includes(extensionOf(path));
 
-  const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragging(false);
+  const acceptPaths = async (dropped: string[]) => {
     if (disabled) return;
-    const dropped = Array.from(event.dataTransfer.files).map((file) => (file as File & { path?: string }).path ?? "");
     const readable = dropped.filter(Boolean);
     if (readable.length === 0) {
       onRejected?.("无法读取拖拽文件路径，请使用导入按钮选择文件", []);
@@ -63,9 +61,16 @@ export function FileDropZone({
     }
     if (accepted.length > 0) await onFiles(accepted);
   };
+  useNativeFileDrop(region, { disabled, onFiles: acceptPaths, onHover: setDragging, onError: () => onRejected?.("拖拽导入失败，请使用导入按钮重试", []) });
+  const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    await acceptPaths(Array.from(event.dataTransfer.files).map((file) => (file as File & { path?: string }).path ?? ""));
+  };
 
   return (
     <div
+      ref={region}
       className={cn("suna-drop-zone", dragging && "is-dragging", disabled && "is-disabled", className)}
       onDragOver={(event) => { if (!disabled) { event.preventDefault(); setDragging(true); } }}
       onDragEnter={(event) => { if (!disabled) { event.preventDefault(); setDragging(true); } }}

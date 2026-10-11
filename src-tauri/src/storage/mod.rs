@@ -1,6 +1,7 @@
 pub mod backup;
 pub mod conversation_export;
 pub mod database;
+pub mod data_directory;
 pub mod migrations;
 pub mod repositories;
 pub mod secrets;

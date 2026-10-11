@@ -17,6 +17,7 @@ import type { RecoveredRun } from "../../bridge/desktop";
 import type { AgentPermissionView, AgentRunView, AgentToolView } from "./agentEvents";
 import ChildAgentPanel from "./ChildAgentPanel";
 import { Button } from "../../components/ui/button";
+import { Progress } from "../../components/ui/progress";
 
 interface AgentRunInspectorProps {
   run: AgentRunView | null;
@@ -164,9 +165,7 @@ export default function AgentRunInspector({
           <h4 id="agent-progress-heading"><Clock3 size={13} aria-hidden="true" />当前进度</h4>
           <span>{run.taskProgress?.kind ?? stateLabel(run.state, t)}</span>
         </div>
-        <div className="suna-chat-inspector-progress" aria-label={`任务进度 ${progress}%`}>
-          <span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-        </div>
+        <Progress value={progress} className="suna-chat-inspector-progress" aria-label={`任务进度 ${progress}%`} />
       </section>
 
       {showToolDetails && run.toolCalls.length > 0 && (

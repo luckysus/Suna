@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Clock, Cpu } from "lucide-react";
 import type { WebPendingConfirmation } from "./webTypes";
 import { Input } from "../../../components/ui/input";
+import { Badge } from "../../../components/ui/badge";
 
 function readArg(item: WebPendingConfirmation, keys: string[]) {
   for (const key of keys) {
@@ -29,7 +30,7 @@ function ConfirmCard({
       <div className="flex items-center gap-2">
         {danger && <AlertTriangle size={16} className="text-red-600" />}
         <div className="font-semibold text-slate-900">{item.title}</div>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${danger ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{danger ? "高风险" : "需确认"}</span>
+        <Badge className={danger ? "bg-red-100 text-red-700 hover:bg-red-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>{danger ? "高风险" : "需确认"}</Badge>
       </div>
       {(item.warning || danger) && <p className={`mt-1 text-sm leading-relaxed ${danger ? "text-red-700" : "text-amber-700"}`}>{item.warning || "此操作无法撤销，请谨慎确认。"}</p>}
       {(estimatedTime || resource) && (

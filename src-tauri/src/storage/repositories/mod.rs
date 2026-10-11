@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod checkpoints;
 pub mod child_turns;
 pub mod compute_tasks;

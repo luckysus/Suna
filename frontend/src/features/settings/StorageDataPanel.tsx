@@ -1,6 +1,6 @@
 import { Archive, Database, Download, ExternalLink, FolderOpen, HardDrive, LoaderCircle, RefreshCw, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { desktop, isDesktopRuntime, type StorageHealth, type StoragePaths } from "../../bridge/desktop";
+import { desktop, isDesktopRuntime, type DataDirectoryChange, type StorageHealth, type StoragePaths } from "../../bridge/desktop";
 import { settingsErrorMessage } from "./settingsError";
 import { Button } from "../../components/ui/button";
 
@@ -14,6 +14,7 @@ export default function StorageDataPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [directoryChange, setDirectoryChange] = useState<DataDirectoryChange | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -22,6 +23,7 @@ export default function StorageDataPanel() {
       if (typeof desktop.getStoragePaths !== "function" || typeof desktop.getStorageHealth !== "function") { setError("当前桌面运行时不支持本地存储检查"); return; }
       const [nextPaths, nextHealth] = await Promise.all([desktop.getStoragePaths(), desktop.getStorageHealth()]);
       setPaths(nextPaths); setHealth(nextHealth);
+      if (typeof desktop.getDataDirectoryChange === "function") setDirectoryChange(await desktop.getDataDirectoryChange());
     } catch (cause) { setError(settingsErrorMessage(cause, "无法读取本地存储状态")); } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -71,6 +73,33 @@ export default function StorageDataPanel() {
       await load();
     } catch (cause) { setError(settingsErrorMessage(cause, "备份恢复失败")); } finally { setBusy(null); }
   };
+  const changeDataDirectory = async () => {
+    setBusy("change-directory"); setError(null); setNotice(null);
+    try {
+      const selected = await desktop.openFileDialog({ directory: true, multiple: false, title: "选择新的 Suna 数据目录" });
+      const directory = Array.isArray(selected) ? selected[0] : selected;
+      if (!directory || typeof directory !== "string") return;
+      if (!window.confirm("下次重启时将复制并校验数据库、知识内容、模型和运行状态。请选择空目录，旧目录会保留。是否准备迁移？")) return;
+      const result = await desktop.changeDataDirectory(directory);
+      setDirectoryChange(result);
+    } catch (cause) {
+      setError(settingsErrorMessage(cause, "数据目录切换失败"));
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  return <section className="suna-storage-data-panel" aria-labelledby="storage-data-heading" aria-busy={loading}><header><div><span className="suna-settings-kicker">LOCAL STORAGE</span><h2 id="storage-data-heading">存储与数据</h2><p>查看 Suna 本地数据、知识内容和运行缓存的位置与健康状态。</p></div><Button size="icon" type="button" onClick={() => void load()} disabled={loading || busy !== null} aria-label="刷新存储状态" title="刷新存储状态">{loading ? <LoaderCircle size={16} className="suna-spin" /> : <RefreshCw size={16} />}</Button></header>{loading && <p className="suna-settings-loading" role="status"><LoaderCircle size={15} className="suna-spin" />正在读取本地存储状态...</p>}{error && <p className="suna-storage-error" role="alert">{error}</p>}{notice && <p className="suna-storage-notice" role="status">{notice}</p>}<div className="suna-storage-metrics"><div><HardDrive size={16} /><span>SQLite 数据库</span><strong>{health.database_ok ? "正常" : "待检查"}</strong></div><div><Database size={16} /><span>迁移版本</span><strong>{health.current_migration_version} / {health.latest_migration_version}</strong></div><div><HardDrive size={16} /><span>数据库大小</span><strong>{formatBytes(health.database_size_bytes)}</strong></div><div><FolderOpen size={16} /><span>可回收空间</span><strong>{formatBytes(health.reclaimable_bytes)}</strong></div><div><HardDrive size={16} /><span>可用磁盘</span><strong>{formatBytes(health.available_disk_bytes)}</strong></div></div>{paths && <div className="suna-storage-paths"><h3>本地目录</h3>{([ ["应用数据", "app_data", paths.app_data], ["文档", "documents", paths.documents], ["LocalData", "local_data", paths.local_data], ["SQLite 数据库", "sqlite_database", paths.sqlite_database], ["知识内容", "knowledge_content", paths.knowledge_content], ["缓存", "cache", paths.cache], ["日志", "logs", paths.logs], ["临时文件", "temp", paths.temp] ] as const).map(([label, kind, value]) => <div key={kind}><span>{label}</span><code title={value}>{value}</code>{kind !== "sqlite_database" && <Button size="icon" type="button" onClick={() => void openPath(kind)} disabled={busy === "open:" + kind} aria-label={"打开" + label} title={"打开" + label}>{busy === "open:" + kind ? <LoaderCircle size={14} className="suna-spin" /> : <ExternalLink size={14} />}</Button>}</div>)}</div>}<div className="suna-storage-actions"><Button variant="secondary" type="button" onClick={() => void clear("cache", "缓存")} disabled={busy !== null || loading}><Trash2 size={15} />清理缓存</Button><Button variant="secondary" type="button" onClick={() => void clear("temp", "临时文件")} disabled={busy !== null || loading}><Trash2 size={15} />清理临时文件</Button><Button variant="secondary" type="button" onClick={() => void exportDiagnostics()} disabled={busy !== null || loading}><Download size={15} />导出诊断</Button><Button variant="secondary" type="button" onClick={() => void restoreBackup()} disabled={busy !== null || loading}><Upload size={15} />恢复备份</Button><Button variant="primary" type="button" onClick={() => void createBackup()} disabled={busy !== null || loading}><Archive size={15} />创建备份</Button></div></section>;
+  const restart = async () => {
+    setBusy("restart"); setError(null);
+    try { await desktop.restartForDataDirectory(); }
+    catch (cause) { setError(settingsErrorMessage(cause, "重启失败，请稍后重试")); }
+    finally { setBusy(null); }
+  };
+  const cancelChange = async () => {
+    setBusy("cancel-directory"); setError(null);
+    try { await desktop.cancelDataDirectoryChange(); await load(); }
+    catch (cause) { setError(settingsErrorMessage(cause, "取消迁移失败")); }
+    finally { setBusy(null); }
+  };
+  return <section className="suna-storage-data-panel" aria-labelledby="storage-data-heading" aria-busy={loading}><header><div><span className="suna-settings-kicker">LOCAL STORAGE</span><h2 id="storage-data-heading">存储与数据</h2><p>查看 Suna 本地数据、知识库、模型和运行缓存的位置与健康状态。</p></div><Button size="icon" type="button" onClick={() => void load()} disabled={loading || busy !== null} aria-label="刷新存储状态" title="刷新存储状态">{loading ? <LoaderCircle size={16} className="suna-spin" /> : <RefreshCw size={16} />}</Button></header>{loading && <p className="suna-settings-loading" role="status"><LoaderCircle size={15} className="suna-spin" />正在读取本地存储状态...</p>}{error && <p className="suna-storage-error" role="alert">{error}</p>}{directoryChange?.environment_override && <p className="suna-storage-notice" role="status">数据目录由 SUNA_DATA_DIR 环境变量固定，移除该变量后可更改目录。</p>}{directoryChange?.message && <p className="suna-storage-notice" role="status">{directoryChange.message}</p>}{directoryChange?.pending_directory && <div role="status"><p>重启后迁移到：<code>{directoryChange.pending_directory}</code></p><p>迁移期间启动时间会变长，请等待复制和校验完成。当前仍使用原目录。</p><Button variant="primary" disabled={busy !== null || directoryChange.environment_override} onClick={() => void restart()}>重启并迁移</Button><Button variant="secondary" disabled={busy !== null} onClick={() => void cancelChange()}>取消迁移</Button></div>}{notice && <p className="suna-storage-notice" role="status">{notice}</p>}<div className="suna-storage-metrics"><div><HardDrive size={16} /><span>SQLite 数据库</span><strong>{health.database_ok ? "正常" : "待检查"}</strong></div><div><Database size={16} /><span>迁移版本</span><strong>{health.current_migration_version} / {health.latest_migration_version}</strong></div><div><HardDrive size={16} /><span>数据库大小</span><strong>{formatBytes(health.database_size_bytes)}</strong></div><div><FolderOpen size={16} /><span>可回收空间</span><strong>{formatBytes(health.reclaimable_bytes)}</strong></div><div><HardDrive size={16} /><span>可用磁盘</span><strong>{formatBytes(health.available_disk_bytes)}</strong></div></div>{paths && <div className="suna-storage-paths"><h3>本地目录</h3>{([ ["应用数据", "app_data", paths.app_data], ["文档", "documents", paths.documents], ["LocalData", "local_data", paths.local_data], ["SQLite 数据库", "sqlite_database", paths.sqlite_database], ["知识库目录", "knowledge_content", paths.knowledge_content], ["模型目录（模型存于 SQLite）", "models", paths.models], ["缓存", "cache", paths.cache], ["日志", "logs", paths.logs], ["临时文件", "temp", paths.temp] ] as const).map(([label, kind, value]) => <div key={kind}><span>{label}</span><code title={value}>{value}</code>{kind !== "sqlite_database" && <Button size="icon" type="button" onClick={() => void openPath(kind)} disabled={busy === "open:" + kind} aria-label={"打开" + label} title={"打开" + label}>{busy === "open:" + kind ? <LoaderCircle size={14} className="suna-spin" /> : <ExternalLink size={14} />}</Button>}</div>)}</div>}<div className="suna-storage-actions"><Button variant="secondary" type="button" onClick={() => void changeDataDirectory()} disabled={busy !== null || loading || directoryChange?.environment_override || !!directoryChange?.pending_directory}><FolderOpen size={15} />{busy === "change-directory" ? "正在准备迁移…" : "更改数据目录"}</Button><Button variant="secondary" type="button" onClick={() => void clear("cache", "缓存")} disabled={busy !== null || loading}><Trash2 size={15} />清理缓存</Button><Button variant="secondary" type="button" onClick={() => void clear("temp", "临时文件")} disabled={busy !== null || loading}><Trash2 size={15} />清理临时文件</Button><Button variant="secondary" type="button" onClick={() => void exportDiagnostics()} disabled={busy !== null || loading}><Download size={15} />导出诊断</Button><Button variant="secondary" type="button" onClick={() => void restoreBackup()} disabled={busy !== null || loading}><Upload size={15} />恢复备份</Button><Button variant="primary" type="button" onClick={() => void createBackup()} disabled={busy !== null || loading}><Archive size={15} />创建备份</Button></div></section>;
 }

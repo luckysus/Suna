@@ -1,6 +1,6 @@
 use crate::agent::desktop::AgentPreferences;
 use crate::providers::profiles::ProviderCapability;
-use crate::storage::repositories::{provider_profiles, settings};
+use crate::storage::repositories::{agents, settings};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -146,7 +146,7 @@ impl AgentProfile {
         self.limits.validate()?;
         self.preset = preset_ids().contains(&self.id.as_str());
         self.status = if self.enabled {
-            "available"
+            "ready"
         } else {
             "disabled"
         }
@@ -190,7 +190,6 @@ pub fn preset_ids() -> [&'static str; 9] {
     ]
 }
 
-/// These IDs are the registrations exposed by the local runtime, not UI categories.
 pub fn builtin_tool_capabilities() -> Vec<(&'static str, &'static str, &'static str)> {
     vec![
         (
@@ -316,36 +315,44 @@ pub fn presets() -> Vec<AgentProfile> {
     }).collect()
 }
 
-pub fn list(connection: &Connection, workspace_id: &str) -> Result<Vec<AgentProfile>, String> {
+/// 从 settings JSON 回填到 agents 表（一次性迁移）。
+fn backfill_legacy_profiles(
+    connection: &Connection,
+    workspace_id: &str,
+) -> Result<(), String> {
     let raw = settings::get(connection, workspace_id, AGENT_PROFILES_KEY)?;
-    let saved: Vec<AgentProfile> = raw
-        .map(|raw| {
-            serde_json::from_str(&raw)
-                .map_err(|error| format!("Agent profiles are invalid: {error}"))
-        })
-        .transpose()?
-        .unwrap_or_default();
-    if saved.len() > 100 {
-        return Err("Too many Agent profiles".to_string());
-    }
-    let mut seen = BTreeSet::new();
-    let saved = saved
-        .into_iter()
-        .map(|profile| {
-            let profile = profile.validate()?;
-            if !seen.insert(profile.id.clone()) {
-                return Err("Duplicate Agent profile ID".to_string());
-            }
-            Ok(profile)
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let mut profiles = presets();
+    let Some(raw) = raw else { return Ok(()); };
+    let saved: Vec<AgentProfile> = serde_json::from_str(&raw)
+        .map_err(|error| format!("Agent profiles are invalid: {error}"))?;
     for profile in saved {
+        let profile = profile.validate()?;
+        agents::upsert(connection, workspace_id, &profile)?;
+    }
+    Ok(())
+}
+
+/// 读取当前有效的 Agent 列表（代码预置 + 表内覆盖）。
+pub fn list(connection: &Connection, workspace_id: &str) -> Result<Vec<AgentProfile>, String> {
+    let mut profiles = presets();
+    let has_table = agents::count(connection, workspace_id).unwrap_or(-1) > 0;
+    if !has_table {
+        // 首次读取且表为空：尝试从旧 settings JSON 回填
+        let _ = backfill_legacy_profiles(connection, workspace_id);
+    }
+    let overrides = agents::list_overrides(connection, workspace_id)?;
+    let mut seen = BTreeSet::new();
+    for profile in overrides {
+        if !seen.insert(profile.id.clone()) {
+            continue;
+        }
         if let Some(existing) = profiles.iter_mut().find(|item| item.id == profile.id) {
             *existing = profile;
         } else {
             profiles.push(profile);
         }
+    }
+    if profiles.len() > 100 {
+        return Err("Too many Agent profiles".to_string());
     }
     Ok(profiles)
 }
@@ -361,13 +368,13 @@ pub fn get(
 }
 
 pub fn save(
-    connection: &mut Connection,
+    connection: &Connection,
     workspace_id: &str,
     profile: AgentProfile,
 ) -> Result<AgentProfile, String> {
     let profile = profile.validate()?;
     if let Some(id) = profile.provider_id.as_ref().filter(|_| profile.enabled) {
-        let provider = provider_profiles::get(
+        let provider = crate::storage::repositories::provider_profiles::get(
             connection,
             workspace_id,
             Uuid::parse_str(id).map_err(|error| error.to_string())?,
@@ -377,20 +384,12 @@ pub fn save(
             return Err("The selected Provider must be enabled and support chat".to_string());
         }
     }
-    let mut profiles = list(connection, workspace_id)?;
-    if let Some(existing) = profiles.iter_mut().find(|item| item.id == profile.id) {
-        *existing = profile.clone();
-    } else if profiles.len() < 100 {
-        profiles.push(profile.clone());
-    } else {
-        return Err("Too many Agent profiles".to_string());
-    }
-    persist(connection, workspace_id, &profiles)?;
+    agents::upsert(connection, workspace_id, &profile)?;
     Ok(profile)
 }
 
 pub fn reset(
-    connection: &mut Connection,
+    connection: &Connection,
     workspace_id: &str,
     id: &str,
 ) -> Result<AgentProfile, String> {
@@ -398,71 +397,77 @@ pub fn reset(
         .into_iter()
         .find(|profile| profile.id == id)
         .ok_or_else(|| "Only preset Agent profiles can be reset".to_string())?;
-    save(connection, workspace_id, profile)
+    agents::delete(connection, workspace_id, id)?;
+    Ok(profile)
 }
 
-pub fn delete(connection: &mut Connection, workspace_id: &str, id: &str) -> Result<(), String> {
+pub fn delete(connection: &Connection, workspace_id: &str, id: &str) -> Result<(), String> {
     if preset_ids().contains(&id) {
         return Err("Preset Agents cannot be deleted; disable them instead".to_string());
     }
-    let mut profiles = list(connection, workspace_id)?;
-    if !profiles.iter().any(|profile| profile.id == id) {
-        return Err("Agent profile not found".to_string());
-    }
-    profiles.retain(|profile| profile.id != id);
-    persist(connection, workspace_id, &profiles)
-}
-
-fn persist(
-    connection: &mut Connection,
-    workspace_id: &str,
-    profiles: &[AgentProfile],
-) -> Result<(), String> {
-    let raw = serde_json::to_string(profiles).map_err(|error| error.to_string())?;
-    settings::set(connection, workspace_id, AGENT_PROFILES_KEY, &raw)
+    agents::delete(connection, workspace_id, id)?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn profiles_persist_independently_and_preset_reset_is_scoped() {
+    fn database() -> Connection {
         let mut connection = Connection::open_in_memory().unwrap();
         crate::storage::migrations::migrate(&mut connection).unwrap();
-        let original = presets();
-        assert_eq!(original.len(), 9);
-        assert_ne!(original[1].system_prompt, original[2].system_prompt);
-        let mut profile = original[1].clone();
+        connection
+    }
+
+    #[test]
+    fn presets_available_without_any_override() {
+        let connection = database();
+        let all = list(&connection, "local").unwrap();
+        assert_eq!(all.len(), 9);
+        assert!(all.iter().all(|p| p.preset));
+    }
+
+    #[test]
+    fn override_is_persisted_and_retrieved() {
+        let connection = database();
+        let mut profile = presets().remove(1);
         profile.enabled = false;
-        profile.system_prompt = "Only return cited evidence".to_string();
-        profile.tool_ids = vec!["steel.knowledge_search".to_string()];
-        save(&mut connection, "local", profile.clone()).unwrap();
-        assert_eq!(
-            get(&connection, "local", "knowledge")
-                .unwrap()
-                .unwrap()
-                .system_prompt,
-            profile.system_prompt
-        );
-        assert_eq!(
-            get(&connection, "other", "knowledge").unwrap().unwrap(),
-            original[1]
-        );
-        assert!(delete(&mut connection, "local", "knowledge").is_err());
-        assert_eq!(
-            reset(&mut connection, "local", "knowledge").unwrap(),
-            original[1]
-        );
+        profile.name = "自定义 Knowledge".to_string();
+        save(&connection, "local", profile.clone()).unwrap();
+
+        let all = list(&connection, "local").unwrap();
+        let knowledge = all.iter().find(|p| p.id == "knowledge").unwrap();
+        assert!(!knowledge.enabled);
+        assert_eq!(knowledge.name, "自定义 Knowledge");
+    }
+
+    #[test]
+    fn reset_restores_preset_and_delete_removes_custom() {
+        let connection = database();
+        let mut profile = presets().remove(1);
+        profile.enabled = false;
+        save(&connection, "local", profile.clone()).unwrap();
+
+        let original = presets().into_iter().find(|p| p.id == "knowledge").unwrap();
+        let resetted = reset(&connection, "local", "knowledge").unwrap();
+        assert_eq!(resetted, original);
+        assert_eq!(list(&connection, "local").unwrap()[1], original);
+
+        // 自定义 Agent
         profile.id = "custom-evidence".to_string();
-        save(&mut connection, "local", profile).unwrap();
-        delete(&mut connection, "local", "custom-evidence").unwrap();
-        assert_eq!(list(&connection, "local").unwrap().len(), 9);
-        let mut unavailable = original[2].clone();
-        unavailable.provider_id = Some(Uuid::new_v4().to_string());
-        assert!(save(&mut connection, "local", unavailable.clone()).is_err());
-        unavailable.enabled = false;
-        assert!(save(&mut connection, "local", unavailable).is_ok());
+        save(&connection, "local", profile.clone()).unwrap();
+        delete(&connection, "local", "custom-evidence").unwrap();
+        assert!(
+            list(&connection, "local").unwrap()
+                .iter()
+                .all(|p| p.id != "custom-evidence")
+        );
+    }
+
+    #[test]
+    fn preset_cannot_be_deleted() {
+        let connection = database();
+        assert!(delete(&connection, "local", "master").is_err());
     }
 
     #[test]
