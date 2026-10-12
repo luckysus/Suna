@@ -34,14 +34,14 @@ impl ProviderKind {
 
     pub fn supports(self, capability: ProviderCapability) -> bool {
         match self {
-            Self::OpenAiCompatible | Self::Anthropic | Self::Qwen | Self::Ollama => {
+            Self::OpenAiCompatible | Self::Anthropic | Self::Ollama => {
                 matches!(
                     capability,
                     ProviderCapability::Chat | ProviderCapability::Embedding
                 )
             }
             Self::DeepSeek => capability == ProviderCapability::Chat,
-            Self::SiliconFlow => matches!(
+            Self::SiliconFlow | Self::Qwen => matches!(
                 capability,
                 ProviderCapability::Chat
                     | ProviderCapability::Embedding

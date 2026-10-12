@@ -129,7 +129,7 @@ fn queue_document_import_inner(
                 workspace_id,
                 secrets,
                 id,
-                ProviderKind::MinerU,
+                &[ProviderKind::MinerU],
             )
         })
         .transpose()?;
@@ -138,7 +138,7 @@ fn queue_document_import_inner(
         workspace_id,
         secrets,
         request.embedding_profile_id,
-        ProviderKind::SiliconFlow,
+        &[ProviderKind::SiliconFlow, ProviderKind::Qwen],
     )?;
     let embedding_model = embedding
         .profile
@@ -243,11 +243,11 @@ fn provider(
     workspace_id: &str,
     secrets: &dyn SecretStore,
     id: Uuid,
-    expected_kind: ProviderKind,
+    expected_kinds: &[ProviderKind],
 ) -> Result<ProviderProfileRecord, String> {
     let record = provider_profiles::get_record(connection, workspace_id, id)?
         .ok_or_else(|| "provider profile not found".to_string())?;
-    if record.profile.kind != expected_kind {
+    if !expected_kinds.contains(&record.profile.kind) {
         return Err("provider profile kind mismatch".to_string());
     }
     if !record.profile.enabled {

@@ -77,6 +77,8 @@ function configuredEmbeddingProfiles(profiles: ProviderProfileResponse[]) {
     profile.enabled
     && (profile.secret_configured || profile.kind === "ollama")
     && supportsEmbedding(profile.kind)
+    && !/rerank/i.test(profile.model_id ?? "")
+    && (profile.kind !== "qwen" || /embedding/i.test(profile.model_id ?? ""))
     && Boolean(profile.model_id?.trim())
   ));
 }

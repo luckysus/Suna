@@ -10,6 +10,7 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { errorMessage } from "../../utils/errorMessage";
+import { isChatProfile } from "../../utils/providerModel";
 import { Button } from "../../components/ui/button";
 
 const permissionLabels: Array<[keyof AgentPermissionRestrictions, string]> = [
@@ -61,7 +62,7 @@ export default function AgentManagementPage() {
       if (!mounted) return;
       setAgents(profiles);
       setPresets(templates);
-      setProviders(providerProfiles.filter((provider) => provider.enabled && provider.kind !== "mineru"));
+      setProviders(providerProfiles.filter((provider) => provider.enabled && isChatProfile(provider)));
       setTools(capabilities);
       setGlobalPermissions(parseObject(preferences));
       setDraft(profiles[0] ? copyProfile(profiles[0]) : null);

@@ -1,5 +1,6 @@
 import { desktop, isDesktopRuntime, type ProviderKind, type ProviderProfileResponse } from "../../bridge/desktop";
 import { errorMessage } from "../../utils/errorMessage";
+import { isChatProfile } from "../../utils/providerModel";
 
 export type ProviderSlot = "chat" | "embedding" | "reranker" | "mineru";
 export type RetrievalPlan = "free" | "pro";
@@ -155,11 +156,12 @@ export function profileForSlot(
     if (slot === "chat") {
       return profile.kind === "deepseek"
         || profile.kind === "anthropic"
-        || profile.kind === "qwen"
+        || (profile.kind === "qwen" && isChatProfile(profile))
         || profile.kind === "open_ai_compatible"
         || profile.kind === "ollama";
     }
     if (slot === "mineru") return profile.kind === "mineru";
+    if (profile.kind === "qwen") return slot === "embedding" ? profile.model_id?.includes("embedding") : profile.model_id?.includes("rerank");
     if (profile.kind !== "siliconflow") return false;
     return slot === "embedding"
       ? profile.model_id?.toLowerCase().includes("bge-m3") && !profile.model_id.toLowerCase().includes("reranker")

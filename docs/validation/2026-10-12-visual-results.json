@@ -1,0 +1,303 @@
+{
+  "started_at_utc": "2026-10-12T02:40:35.777Z",
+  "platform": "Windows",
+  "runtime": "headless Chromium",
+  "playwright_version": "1.62.1",
+  "update_snapshots": "none",
+  "viewport": {
+    "width": 1280,
+    "height": 820,
+    "device_scale_factor": 1.25
+  },
+  "comparison": {
+    "threshold": 0.15,
+    "max_diff_pixel_ratio": 0.0001
+  },
+  "e2e_passed": 48,
+  "visual_checks_passed": 39,
+  "reviewed_baseline_count": 38,
+  "baseline_hashes_unchanged": true,
+  "negative_background_drift_detected": true,
+  "checks": [
+    {
+      "file": "knowledge.spec.ts",
+      "title": "知识中心可以创建知识库并切换核心工作区",
+      "status": "passed"
+    },
+    {
+      "file": "knowledge.spec.ts",
+      "title": "知识中心提交文档导入并显示处理状态",
+      "status": "passed"
+    },
+    {
+      "file": "knowledge.spec.ts",
+      "title": "知识库管理需要删除二次确认",
+      "status": "passed"
+    },
+    {
+      "file": "knowledge.spec.ts",
+      "title": "知识图谱展示节点关系并支持删除手工关系",
+      "status": "passed"
+    },
+    {
+      "file": "smoke.spec.ts",
+      "title": "desktop shell exposes the Suna research workspace",
+      "status": "passed"
+    },
+    {
+      "file": "smoke.spec.ts",
+      "title": "desktop shell keeps stable geometry at supported window sizes",
+      "status": "passed"
+    },
+    {
+      "file": "smoke.spec.ts",
+      "title": "navigation remains keyboard reachable and exposes the knowledge center",
+      "status": "passed"
+    },
+    {
+      "file": "startup.spec.ts",
+      "title": "新用户进入 Suna 对话中心并可以打开知识中心",
+      "status": "passed"
+    },
+    {
+      "file": "startup.spec.ts",
+      "title": "知识中心在常用窗口尺寸下保持可用布局",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light chat",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light knowledge",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light literature",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light data",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light prediction",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light optimization",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light experiment",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light agents",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light tools",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light mcp",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light skills",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light models",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light reports",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light settings",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light account",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light about",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light diagnostics",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light embedding provider editor",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "light reranker provider editor",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark chat",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark knowledge",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark literature",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark data",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark prediction",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark optimization",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark experiment",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark agents",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark tools",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark mcp",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark skills",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark models",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark reports",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark settings",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark account",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark about",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark diagnostics",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark embedding provider editor",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "dark reranker provider editor",
+      "status": "passed"
+    },
+    {
+      "file": "visual.spec.ts",
+      "title": "pixel comparison detects a changed panel background",
+      "status": "passed"
+    }
+  ],
+  "baseline_sha256": {
+    "dark-about-win32.png": "609f51df10b0b57abc3d7f4166408ea67f931e90e335f3ecf8775a520603681b",
+    "dark-account-win32.png": "e12fb4a4fba83cc74a564efa0602137c47653280fba11bd3ef58af53d0f9ac2e",
+    "dark-agents-win32.png": "4341dda47d48abc04bc084228f22f7a6ab40d538f92b3c99d31e68d6c9f81c87",
+    "dark-chat-win32.png": "e13fe52f000cb4b4f255c44aa39ed8f974bc5c916e8d48098361136719304e81",
+    "dark-data-win32.png": "de4d16497e0599af64a2b488af6ca0e43b4986a01a9f46e51ca868bd17bb6d81",
+    "dark-diagnostics-win32.png": "a4afc1d55880e97921ddb4ef098fcc2e16d737d09c8e10038581c8340bc1210e",
+    "dark-embedding-editor-win32.png": "a8e8f9d9a72653fce0649f94f3a148518b68d43988686324786ef09d8dac71c1",
+    "dark-experiment-win32.png": "aa950ad2691e7f331eab9d18e16cf7b808fab1723048944989f9599cdc98e8f0",
+    "dark-knowledge-win32.png": "539b5cd632ef072362bdd831473f8b0a359fdbb3a17bee7894d163439bc2fdf3",
+    "dark-literature-win32.png": "74ea6eb7031afbea8f983e1a358e9ead042a9ca67314089de3432751f0a5115b",
+    "dark-mcp-win32.png": "58a219c496c4ba34bdefa0891a7c3f11a86003de5602d6af0777a53a85eaf6b7",
+    "dark-models-win32.png": "4abc325852d20a3bedfd23008880adab551871e347e6507c42be0069f60d2449",
+    "dark-optimization-win32.png": "2ba182936af4f37d55c363fab49fecfb639c2c55d4b29d9e797267700fe74f9b",
+    "dark-prediction-win32.png": "58a1001e72b1565ae7d3f05b0891794c6c8d4f0479f3d167ea245cc613014192",
+    "dark-reports-win32.png": "88bdd83b578f6a9f85598eb550ebe9e8e5349a4aaed6f7d73cbe769632f51d0a",
+    "dark-reranker-editor-win32.png": "f0308aa4d98b1d3797691871d0b56f53b7835467ec64a17ed1e2477ab2b2c65d",
+    "dark-settings-win32.png": "d3686e262da6a7c424bc5b1b051282a9d8744a4332cb550e73a76c4ecaa91109",
+    "dark-skills-win32.png": "2c237e62f1dc524708ca27d4f6ff86a9bf6e41b993f67210938be7f5296bf023",
+    "dark-tools-win32.png": "fb2d06a807b7af47f8436084c0c5d2e1e2291efcaf49f91995a67489ac163e19",
+    "light-about-win32.png": "b657efda7e0bb33f23a7af794dbc31489864aa06f6d2a9e1714cc922c379588f",
+    "light-account-win32.png": "9fc6c98b872888723c49720b8744710330245035a0343036e6bcac2b3614d791",
+    "light-agents-win32.png": "68a71e0cf59c97d7c31cd09d989aac5ac0ecaaea0c9aa0f39f933f8fb9743530",
+    "light-chat-win32.png": "7689cb543346d2facb913e247ea2cb53265c95dbae01b043ef1c5e34fef93bc6",
+    "light-data-win32.png": "e1a55c1f6113969c497128ecba4a0b2f160bf584e6233f289d6ab8ffe4292b05",
+    "light-diagnostics-win32.png": "e97e570a96cff07d107fc5947ec94734a925d151800be99ebb781b08d9831b0e",
+    "light-embedding-editor-win32.png": "a5aae0dece6ee18693b1ed8b2c1ef16f58f10477c65d00129ea1fd4ada95be14",
+    "light-experiment-win32.png": "0a2ca790fee40757411cf62425a103b3a941ea59cac3f0331d51dd68c5872cd0",
+    "light-knowledge-win32.png": "1a72500849796dfe9265b81be156ee6144a336f0a49fe8fcfb14ebf53708ffc0",
+    "light-literature-win32.png": "3ade3cfcc90af2244b789c4bcd0de6d20c5b16373eb66eb4e8cf743ddc71e356",
+    "light-mcp-win32.png": "46a14d28a03c3abb2351977f1ca1cac6c1ce1cd8fad6b3acda903d4f4adebf5d",
+    "light-models-win32.png": "d59d051efdf829be3e91b4d6237a0c966bdccefb035a4f2782869a8764fa877d",
+    "light-optimization-win32.png": "3e409601e45cdefc92984675b82b55b1d5ec06b64dd2288c9053ca0b1ae530bc",
+    "light-prediction-win32.png": "6b0311dca13257b078fadb22e783020a0a20a771faf13b00be0037827e2b7962",
+    "light-reports-win32.png": "93278242369b1405bef7e0969f8dc93b55a3260fdb5364b3e1aca3c4864daf36",
+    "light-reranker-editor-win32.png": "5c50c26e3de5e035b65b91ee413c9f4cd9740a0b9bce5e05f5cc4931cdc73245",
+    "light-settings-win32.png": "fbada87eab5aa2fdeff886005223fe8b59bdd688377545810e6833329a21a05b",
+    "light-skills-win32.png": "137ec38184cb20e42480ff5499f5986c0ff75bc238a903a6e393b097502b4d15",
+    "light-tools-win32.png": "7eb05b8552e7f32f4d8c7aa8da67e8a66e5a0b1814d325add41d5373659810d7"
+  }
+}

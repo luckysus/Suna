@@ -36,7 +36,12 @@ export default function SettingsProviderCard({
     onChange({ ...editor, [key]: value } as SettingsEditor);
   };
   const updateKind = (kind: ProviderKind) => {
-    const preset = kind === "deepseek"
+    const retrieval = editor.slot === "embedding" || editor.slot === "reranker";
+    const preset = retrieval
+      ? kind === "qwen"
+        ? { displayName: "阿里百炼", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", modelId: editor.slot === "embedding" ? "qwen3.7-text-embedding" : "qwen3.7-text-rerank" }
+        : { displayName: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", modelId: editor.slot === "embedding" ? "BAAI/bge-m3" : "BAAI/bge-reranker-v2-m3" }
+      : kind === "deepseek"
       ? { displayName: "DeepSeek", baseUrl: "https://api.deepseek.com", modelId: "deepseek-v4-flash" }
       : kind === "anthropic"
         ? { displayName: "Anthropic", baseUrl: "https://api.anthropic.com/v1", modelId: "claude-sonnet-4" }
@@ -52,19 +57,24 @@ export default function SettingsProviderCard({
     <form className="suna-settings-card" onSubmit={(event) => void onSubmit(event, editor)}>
       <div className="suna-settings-card-heading"><div><span className="suna-settings-card-icon"><PlugZap size={17} aria-hidden="true" /></span><h2>{t(slotTitles[editor.slot])}</h2></div><span className={`suna-settings-status ${editor.secretConfigured ? "is-configured" : "is-missing"}`}>{editor.secretConfigured ? t("settingsSecretConfigured") : t("settingsSecretMissing")}</span></div>
       <div className="suna-settings-fields">
-        {editor.slot === "chat" && (
+        {editor.slot !== "mineru" && (
           <>
-            <label htmlFor="settings-chat-kind">{t("settingsProviderType")}</label>
+            <label htmlFor={`settings-${editor.slot}-kind`}>{t("settingsProviderType")}</label>
             <Select value={editor.kind} onValueChange={(value) => updateKind(value as ProviderKind)}>
-              <SelectTrigger id="settings-chat-kind" aria-label={t("settingsProviderType")}>
+              <SelectTrigger id={`settings-${editor.slot}-kind`} aria-label={t("settingsProviderType")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                {editor.slot === "chat" ? <>
                 <SelectItem value="deepseek">{t("providerDeepSeek")}</SelectItem>
                 <SelectItem value="anthropic">{t("providerAnthropic")}</SelectItem>
                 <SelectItem value="qwen">{t("providerQwen")}</SelectItem>
                 <SelectItem value="open_ai_compatible">{t("providerOpenAiCompatible")}</SelectItem>
                 <SelectItem value="ollama">{t("providerOllama")}</SelectItem>
+                </> : <>
+                  <SelectItem value="siliconflow">SiliconFlow</SelectItem>
+                  <SelectItem value="qwen">阿里百炼 Qwen</SelectItem>
+                </>}
               </SelectContent>
             </Select>
           </>

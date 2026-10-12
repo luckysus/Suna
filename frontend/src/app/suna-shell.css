@@ -26,11 +26,11 @@
 [data-theme="dark"] .suna-new-sidebar{border-right-color:var(--suna-line);background:var(--suna-sidebar)}
 [data-theme="dark"] .suna-new-brand strong{color:#eaf2ff}
 [data-theme="dark"] .suna-new-brand span:not(.suna-new-mark){color:#9ab1d1}
-[data-theme="dark"] .suna-new-create{background:#3f86f6;box-shadow:0 5px 12px rgba(0,0,0,.24)}
+[data-theme="dark"] .suna-new-create{background:var(--suna-primary-fill);box-shadow:0 5px 12px rgba(0,0,0,.24)}
 [data-theme="dark"] .suna-new-nav-label{color:#7894bb}
 [data-theme="dark"] .suna-new-nav-item{color:#b1c5e0}
 [data-theme="dark"] .suna-new-nav-item:hover{background:#203858;color:#eaf2ff}
-[data-theme="dark"] .suna-new-nav-item.is-active{background:#347be8;color:#fff}
+[data-theme="dark"] .suna-new-nav-item.is-active{background:var(--suna-primary-fill);color:#fff}
 [data-theme="dark"] .suna-new-history-item{color:#9db4d4}
 [data-theme="dark"] .suna-new-history-item:hover,[data-theme="dark"] .suna-new-history-item.is-active{background:#203858;color:#eaf2ff}
 [data-theme="dark"] .suna-new-sidebar-bottom{border-top-color:var(--suna-line)}

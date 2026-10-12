@@ -80,6 +80,29 @@ fn import_queues_local_parser_without_a_mineru_profile() {
 }
 
 #[test]
+fn import_accepts_qwen_embedding_and_pins_the_model() {
+    let mut fixture = Fixture::new();
+    let model = suna::providers::siliconflow::QWEN_EMBEDDING_MODEL;
+    let id = save_profile(&mut fixture.connection, ProviderKind::Qwen, Some(model));
+    fixture
+        .secrets
+        .set(
+            &SecretRef::new(id, "api_key").unwrap(),
+            &SecretValue::new("test-only-key").unwrap(),
+        )
+        .unwrap();
+    let mut request = fixture.request();
+    request.embedding_profile_id = id;
+    let response = fixture.queue_request(request);
+    let version =
+        knowledge::get_document_version(&fixture.connection, WORKSPACE, response.version_id)
+            .unwrap()
+            .unwrap();
+    assert_eq!(version.embedding_profile_id, id.to_string());
+    assert_eq!(version.embedding_model_id, model);
+}
+
+#[test]
 fn import_database_failure_rolls_back_graph_but_keeps_shared_object() {
     let mut fixture = Fixture::new();
     fixture

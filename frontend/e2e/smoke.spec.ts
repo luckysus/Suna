@@ -5,7 +5,8 @@ test("desktop shell exposes the Suna research workspace", async ({ page }) => {
 
   await expect(page.locator(".suna-new-sidebar")).toBeVisible();
   await expect(page.locator(".suna-new-main")).toBeVisible();
-  await expect(page.getByText("Suna", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".suna-new-brand strong")).toHaveText("Suna");
+  await expect(page.locator(".suna-new-brand strong")).toBeVisible();
   await expect(page.getByRole("button", { name: "对话中心" })).toBeVisible();
 });
 

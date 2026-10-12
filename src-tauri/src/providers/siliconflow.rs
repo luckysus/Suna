@@ -19,6 +19,8 @@ use tokio::time::sleep;
 
 pub const DEFAULT_EMBEDDING_MODEL: &str = "BAAI/bge-m3";
 pub const DEFAULT_RERANK_MODEL: &str = "BAAI/bge-reranker-v2-m3";
+pub const QWEN_EMBEDDING_MODEL: &str = "qwen3.7-text-embedding";
+pub const QWEN_RERANK_MODEL: &str = "qwen3.7-text-rerank";
 const MAX_BATCH_SIZE: usize = 64;
 const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_ATTEMPTS: usize = 3;
@@ -47,7 +49,7 @@ impl SiliconFlowPlan {
     }
 }
 
-pub struct SiliconFlowProvider {
+pub struct RetrievalProvider {
     profile: ProviderProfile,
     credential: SecretValue,
     plan: SiliconFlowPlan,
@@ -58,7 +60,9 @@ pub struct SiliconFlowProvider {
     rerank_capabilities: ProviderCapabilities,
 }
 
-impl SiliconFlowProvider {
+pub type SiliconFlowProvider = RetrievalProvider;
+
+impl RetrievalProvider {
     pub fn with_models(
         profile: ProviderProfile,
         credential: Option<SecretValue>,
@@ -67,24 +71,51 @@ impl SiliconFlowProvider {
         rerank_model: Option<String>,
     ) -> Result<Self, ProviderError> {
         let profile = profile.validate().map_err(provider_response)?;
-        if profile.kind != ProviderKind::SiliconFlow {
+        if !matches!(profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) {
             return Err(provider_response(
-                "SiliconFlow provider requires a SiliconFlow profile",
+                "Embedding/Rerank requires a SiliconFlow or Qwen profile",
             ));
         }
         let credential = credential.ok_or_else(|| {
             ProviderError::new(
                 ProviderErrorCode::Authentication,
                 None,
-                "SiliconFlow credential is required",
+                "Embedding/Rerank credential is required",
             )
         })?;
         validate_bearer_transport(&profile.base_url, true).map_err(provider_response)?;
-        let embedding_model = normalized_model(embedding_model, DEFAULT_EMBEDDING_MODEL);
-        let rerank_model = normalized_model(rerank_model, DEFAULT_RERANK_MODEL);
+        let qwen = profile.kind == ProviderKind::Qwen;
+        let embedding_model = normalized_model(
+            embedding_model,
+            if qwen {
+                QWEN_EMBEDDING_MODEL
+            } else {
+                DEFAULT_EMBEDDING_MODEL
+            },
+        );
+        let rerank_model = normalized_model(
+            rerank_model,
+            if qwen {
+                QWEN_RERANK_MODEL
+            } else {
+                DEFAULT_RERANK_MODEL
+            },
+        );
         let embedding_url = endpoint(&profile.base_url, "embeddings");
-        let rerank_url = endpoint(&profile.base_url, "rerank");
+        let rerank_url = if qwen {
+            let mut url = reqwest::Url::parse(&profile.base_url)
+                .map_err(|_| provider_response("invalid Qwen base URL"))?;
+            url.set_path("/api/v1/services/rerank/text-rerank/text-rerank");
+            url.set_query(None);
+            url.to_string()
+        } else {
+            endpoint(&profile.base_url, "rerank")
+        };
         let client = build_client(&HttpClientConfig::default())?;
+        let embedding_capabilities =
+            capabilities(profile.kind, ProviderCapability::Embedding, embedding_model);
+        let rerank_capabilities =
+            capabilities(profile.kind, ProviderCapability::Rerank, rerank_model);
         Ok(Self {
             profile,
             credential,
@@ -92,8 +123,8 @@ impl SiliconFlowProvider {
             client,
             embedding_url,
             rerank_url,
-            embedding_capabilities: capabilities(ProviderCapability::Embedding, embedding_model),
-            rerank_capabilities: capabilities(ProviderCapability::Rerank, rerank_model),
+            embedding_capabilities,
+            rerank_capabilities,
         })
     }
 
@@ -154,9 +185,9 @@ impl SiliconFlowProvider {
                 return Err(ProviderError::from_status(status, &body_text, &redactor));
             }
             return serde_json::from_slice(&bytes)
-                .map_err(|_| provider_response("SiliconFlow returned invalid JSON"));
+                .map_err(|_| provider_response("Retrieval provider returned invalid JSON"));
         }
-        Err(provider_response("SiliconFlow request failed"))
+        Err(provider_response("Retrieval provider request failed"))
     }
 }
 
@@ -166,7 +197,7 @@ struct EmbeddingRequest<'a> {
     input: &'a [String],
 }
 
-impl EmbeddingProvider for SiliconFlowProvider {
+impl EmbeddingProvider for RetrievalProvider {
     fn capabilities(&self) -> &ProviderCapabilities {
         &self.embedding_capabilities
     }
@@ -177,7 +208,11 @@ impl EmbeddingProvider for SiliconFlowProvider {
         }
         let mut vectors = Vec::with_capacity(inputs.len());
         let mut dimensions = None;
-        for batch in inputs.chunks(MAX_BATCH_SIZE) {
+        for batch in inputs.chunks(
+            self.embedding_capabilities
+                .max_batch_size
+                .unwrap_or(MAX_BATCH_SIZE),
+        ) {
             let value = self
                 .post_json(
                     &self.embedding_url,
@@ -187,12 +222,12 @@ impl EmbeddingProvider for SiliconFlowProvider {
                     },
                 )
                 .await?;
-            let data = value["data"].as_array().ok_or_else(|| {
-                provider_response("SiliconFlow embedding response is missing data")
-            })?;
+            let data = value["data"]
+                .as_array()
+                .ok_or_else(|| provider_response("Embedding response is missing data"))?;
             if data.len() != batch.len() {
                 return Err(provider_response(
-                    "SiliconFlow embedding count does not match input count",
+                    "Embedding count does not match input count",
                 ));
             }
             let mut batch_vectors = vec![None; batch.len()];
@@ -201,23 +236,20 @@ impl EmbeddingProvider for SiliconFlowProvider {
                 let vector = parse_vector(&item["embedding"])?;
                 match dimensions {
                     Some(expected) if vector.len() != expected => {
-                        return Err(provider_response(
-                            "SiliconFlow embedding dimension mismatch",
-                        ));
+                        return Err(provider_response("Embedding dimension mismatch"));
                     }
                     None => dimensions = Some(vector.len()),
                     _ => {}
                 }
                 if batch_vectors[index].replace(vector).is_some() {
-                    return Err(provider_response("duplicate SiliconFlow embedding index"));
+                    return Err(provider_response("duplicate embedding index"));
                 }
             }
             vectors.extend(
                 batch_vectors
                     .into_iter()
                     .map(|vector| {
-                        vector
-                            .ok_or_else(|| provider_response("missing SiliconFlow embedding index"))
+                        vector.ok_or_else(|| provider_response("missing embedding index"))
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             );
@@ -236,7 +268,7 @@ struct RerankRequest<'a> {
     documents: Vec<&'a str>,
 }
 
-impl RerankProvider for SiliconFlowProvider {
+impl RerankProvider for RetrievalProvider {
     fn capabilities(&self) -> &ProviderCapabilities {
         &self.rerank_capabilities
     }
@@ -254,25 +286,36 @@ impl RerankProvider for SiliconFlowProvider {
                 "rerank document batch exceeds provider limit",
             ));
         }
-        let value = self
-            .post_json(
-                &self.rerank_url,
-                &RerankRequest {
-                    model: &self.rerank_capabilities.model_id,
-                    query: query.trim(),
-                    documents: documents
-                        .iter()
-                        .map(|document| document.text.as_str())
-                        .collect(),
-                },
-            )
-            .await?;
-        let results = value["results"]
-            .as_array()
-            .ok_or_else(|| provider_response("SiliconFlow rerank response is missing results"))?;
+        let texts: Vec<&str> = documents
+            .iter()
+            .map(|document| document.text.as_str())
+            .collect();
+        let qwen = self.profile.kind == ProviderKind::Qwen;
+        let request = if qwen {
+            serde_json::json!({
+                "model": self.rerank_capabilities.model_id,
+                "input": { "query": query.trim(), "documents": texts },
+                "parameters": { "top_n": documents.len(), "return_documents": false }
+            })
+        } else {
+            serde_json::to_value(RerankRequest {
+                model: &self.rerank_capabilities.model_id,
+                query: query.trim(),
+                documents: texts,
+            })
+            .map_err(|_| provider_response("invalid rerank request"))?
+        };
+        let value = self.post_json(&self.rerank_url, &request).await?;
+        let results = (if qwen {
+            &value["output"]["results"]
+        } else {
+            &value["results"]
+        })
+        .as_array()
+        .ok_or_else(|| provider_response("Rerank response is missing results"))?;
         if results.len() != documents.len() {
             return Err(provider_response(
-                "SiliconFlow rerank result count does not match document count",
+                "Rerank result count does not match document count",
             ));
         }
         let mut seen = vec![false; documents.len()];
@@ -280,12 +323,12 @@ impl RerankProvider for SiliconFlowProvider {
         for result in results {
             let index = parse_index(result, documents.len())?;
             if std::mem::replace(&mut seen[index], true) {
-                return Err(provider_response("duplicate SiliconFlow rerank index"));
+                return Err(provider_response("duplicate rerank index"));
             }
             let score = result["relevance_score"]
                 .as_f64()
                 .and_then(finite_f32)
-                .ok_or_else(|| provider_response("invalid SiliconFlow rerank score"))?;
+                .ok_or_else(|| provider_response("invalid rerank score"))?;
             normalized.push(RerankResult {
                 id: documents[index].id.clone(),
                 score,
@@ -295,16 +338,26 @@ impl RerankProvider for SiliconFlowProvider {
     }
 }
 
-fn capabilities(capability: ProviderCapability, model_id: String) -> ProviderCapabilities {
+fn capabilities(
+    kind: ProviderKind,
+    capability: ProviderCapability,
+    model_id: String,
+) -> ProviderCapabilities {
     ProviderCapabilities {
-        provider_kind: ProviderKind::SiliconFlow,
+        provider_kind: kind,
         model_id,
         capabilities: vec![capability],
         context_window: None,
         streaming: false,
         tool_calls: false,
         json_schema: false,
-        max_batch_size: Some(MAX_BATCH_SIZE),
+        max_batch_size: Some(
+            if kind == ProviderKind::Qwen && capability == ProviderCapability::Embedding {
+                10
+            } else {
+                MAX_BATCH_SIZE
+            },
+        ),
     }
 }
 
@@ -403,7 +456,7 @@ async fn read_bounded(response: reqwest::Response) -> Result<Vec<u8>, ProviderEr
 fn append_bounded(buffer: &mut Vec<u8>, bytes: &[u8], limit: usize) -> Result<(), ProviderError> {
     if bytes.len() > limit.saturating_sub(buffer.len()) {
         return Err(provider_response(
-            "SiliconFlow response exceeded size limit",
+            "Retrieval provider response exceeded size limit",
         ));
     }
     buffer.extend_from_slice(bytes);
@@ -415,7 +468,7 @@ fn parse_index(value: &Value, length: usize) -> Result<usize, ProviderError> {
         .as_u64()
         .and_then(|index| usize::try_from(index).ok())
         .filter(|index| *index < length)
-        .ok_or_else(|| provider_response("invalid SiliconFlow result index"))?;
+        .ok_or_else(|| provider_response("invalid result index"))?;
     Ok(index)
 }
 
@@ -423,14 +476,14 @@ fn parse_vector(value: &Value) -> Result<Vec<f32>, ProviderError> {
     let values = value
         .as_array()
         .filter(|values| !values.is_empty())
-        .ok_or_else(|| provider_response("invalid SiliconFlow embedding vector"))?;
+        .ok_or_else(|| provider_response("invalid embedding vector"))?;
     values
         .iter()
         .map(|value| {
             value
                 .as_f64()
                 .and_then(finite_f32)
-                .ok_or_else(|| provider_response("invalid SiliconFlow embedding value"))
+                .ok_or_else(|| provider_response("invalid embedding value"))
         })
         .collect()
 }

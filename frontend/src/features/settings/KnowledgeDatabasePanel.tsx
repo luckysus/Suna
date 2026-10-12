@@ -167,7 +167,7 @@ export default function KnowledgeDatabasePanel() {
 </Select></label>
         <label>Embedding 模型<Select value={config.embedding_model} onValueChange={(value) => update("embedding_model", value)}>
   <SelectTrigger aria-label="Embedding 模型"><SelectValue /></SelectTrigger>
-  <SelectContent><SelectItem value="BAAI/bge-m3">BGE-M3</SelectItem><SelectItem value="text-embedding-3-small">text-embedding-3-small</SelectItem>
+  <SelectContent><SelectItem value="BAAI/bge-m3">BGE-M3</SelectItem><SelectItem value="text-embedding-3-small">text-embedding-3-small</SelectItem><SelectItem value="qwen3.7-text-embedding">Qwen3.7 Text Embedding</SelectItem><SelectItem value="qwen3.7-text-embedding-flash">Qwen3.7 Text Embedding Flash</SelectItem>
   </SelectContent>
 </Select></label>
         <label>向量维度<Input type="number" min="1" max="65536" value={config.vector_dimension} onChange={(event) => update("vector_dimension", event.target.value)} /></label>

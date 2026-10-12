@@ -1293,6 +1293,158 @@ fn siliconflow_embedding_batches_inputs_and_preserves_index_order() {
 }
 
 #[test]
+fn qwen_embedding_batches_ten_inputs_and_preserves_response_index_order() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for batch_size in [10, 1] {
+            let mut stream = accept_request(&listener);
+            let request = read_http_request(&mut stream);
+            assert!(String::from_utf8_lossy(&request)
+                .starts_with("POST /compatible-mode/v1/embeddings "));
+            let request = json_request_body(&request);
+            assert_eq!(
+                request["model"],
+                suna::providers::siliconflow::QWEN_EMBEDDING_MODEL
+            );
+            let inputs = request["input"].as_array().unwrap();
+            assert_eq!(inputs.len(), batch_size);
+            let data: Vec<_> = inputs
+                .iter()
+                .enumerate()
+                .rev()
+                .map(|(index, input)| {
+                    let n: f32 = input.as_str().unwrap().parse().unwrap();
+                    serde_json::json!({"index": index, "embedding": [n, 1.0]})
+                })
+                .collect();
+            let body = serde_json::json!({"data": data}).to_string();
+            write!(stream, "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body).unwrap();
+        }
+    });
+    let provider = suna::providers::configured_embedding_provider(
+        profile(
+            ProviderKind::Qwen,
+            &format!("http://{address}/compatible-mode/v1"),
+            None,
+        ),
+        Some(SecretValue::new("test-only-key").unwrap()),
+        SiliconFlowPlan::Free,
+        None,
+    )
+    .unwrap();
+    assert_eq!(provider.capabilities().provider_kind, ProviderKind::Qwen);
+    assert_eq!(provider.capabilities().max_batch_size, Some(10));
+    let response =
+        tauri::async_runtime::block_on(provider.embed((0..11).map(|n| n.to_string()).collect()))
+            .unwrap();
+    assert_eq!(
+        response.vectors,
+        (0..11).map(|n| vec![n as f32, 1.0]).collect::<Vec<_>>()
+    );
+    join_server(server);
+}
+
+#[test]
+fn qwen_rerank_uses_native_endpoint_and_maps_indexes_to_candidate_ids() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        let mut stream = accept_request(&listener);
+        let request = read_http_request(&mut stream);
+        assert!(String::from_utf8_lossy(&request)
+            .starts_with("POST /api/v1/services/rerank/text-rerank/text-rerank "));
+        let request = json_request_body(&request);
+        assert_eq!(
+            request["model"],
+            suna::providers::siliconflow::QWEN_RERANK_MODEL
+        );
+        assert_eq!(request["input"]["query"], "steel");
+        assert_eq!(
+            request["input"]["documents"],
+            serde_json::json!(["water", "steel"])
+        );
+        assert_eq!(
+            request["parameters"],
+            serde_json::json!({"top_n":2,"return_documents":false})
+        );
+        let body = r#"{"output":{"results":[{"index":1,"relevance_score":0.9},{"index":0,"relevance_score":0.1}]}}"#;
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
+            body.len(),
+            body
+        )
+        .unwrap();
+    });
+    let provider = suna::providers::configured_rerank_provider(
+        profile(
+            ProviderKind::Qwen,
+            &format!("http://{address}/compatible-mode/v1"),
+            None,
+        ),
+        Some(SecretValue::new("test-only-key").unwrap()),
+        SiliconFlowPlan::Free,
+        None,
+    )
+    .unwrap();
+    let results = tauri::async_runtime::block_on(provider.rerank(
+        " steel ".into(),
+        vec![
+            suna::providers::capabilities::RerankDocument {
+                id: "a".into(),
+                text: "water".into(),
+            },
+            suna::providers::capabilities::RerankDocument {
+                id: "b".into(),
+                text: "steel".into(),
+            },
+        ],
+    ))
+    .unwrap();
+    assert_eq!(results[0].id, "b");
+    assert_eq!(results[0].score, 0.9);
+    assert_eq!(results[1].id, "a");
+    join_server(server);
+}
+
+#[test]
+fn qwen_rerank_rejects_invalid_native_results() {
+    for body in [
+        r#"{"output":{"results":[{"index":2,"relevance_score":0.5}]}}"#,
+        r#"{"output":{"results":[{"index":0,"relevance_score":1e300}]}}"#,
+        r#"{"output":{"results":[]}}"#,
+    ] {
+        let (base_url, server) = status_server(
+            "200 OK",
+            body,
+            "/api/v1/services/rerank/text-rerank/text-rerank",
+        );
+        let provider = suna::providers::configured_rerank_provider(
+            profile(
+                ProviderKind::Qwen,
+                &format!("{base_url}/compatible-mode/v1"),
+                None,
+            ),
+            Some(SecretValue::new("test-only-key").unwrap()),
+            SiliconFlowPlan::Free,
+            None,
+        )
+        .unwrap();
+        let error = tauri::async_runtime::block_on(provider.rerank(
+            "steel".into(),
+            vec![suna::providers::capabilities::RerankDocument {
+                id: "a".into(),
+                text: "steel".into(),
+            }],
+        ))
+        .unwrap_err();
+        assert_eq!(error.code(), ProviderErrorCode::ProviderResponse);
+        join_server(server);
+    }
+}
+
+#[test]
 fn siliconflow_sends_default_embedding_and_rerank_models() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind default model provider");
     let address = listener.local_addr().unwrap();

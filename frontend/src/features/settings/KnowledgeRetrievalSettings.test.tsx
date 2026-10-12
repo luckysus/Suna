@@ -69,4 +69,16 @@ describe("KnowledgeRetrievalSettings", () => {
     expect(await screen.findByText(/尚未配置可用的 Embedding Provider/)).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Embedding Provider" })).not.toBeInTheDocument();
   });
+
+  it("offers the Bailian embedding profile without offering chat or rerank profiles", async () => {
+    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([
+      ...["qwen3.7-text-embedding", "qwen-plus", "qwen3.7-text-rerank"].map((model, i) => ({
+        ...embeddingProfile, id: `qwen-${i}`, kind: "qwen" as const, model_id: model, display_name: model,
+      })),
+    ]);
+    render(<KnowledgeRetrievalSettings />);
+    fireEvent.click(await screen.findByRole("combobox", { name: "Embedding Provider" }));
+    expect(await screen.findByRole("option", { name: /qwen3.7-text-embedding/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /qwen-plus|qwen3.7-text-rerank/ })).not.toBeInTheDocument();
+  });
 });

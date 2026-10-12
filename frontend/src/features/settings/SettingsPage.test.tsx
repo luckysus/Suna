@@ -147,6 +147,30 @@ describe("SettingsPage", () => {
     expect(screen.queryByText("secret-token")).not.toBeInTheDocument();
   });
 
+  it("saves and probes Bailian embedding and reranker from their provider cards", async () => {
+    const { container } = renderSettings();
+    fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
+    await screen.findByDisplayValue("BAAI/bge-m3");
+    for (const [slot, model, capability] of [
+      ["embedding", "qwen3.7-text-embedding", "embedding"],
+      ["reranker", "qwen3.7-text-rerank", "rerank"],
+    ]) {
+      const form = container.querySelector(`#settings-${slot}-kind`)!.closest("form")!;
+      fireEvent.click(within(form).getByRole("combobox", { name: "settingsProviderType" }));
+      fireEvent.click(await screen.findByRole("option", { name: "阿里百炼 Qwen" }));
+      expect(within(form).getByDisplayValue(model)).toBeInTheDocument();
+      const enabled = within(form).getByRole("checkbox", { name: "settingsEnabled" });
+      if (enabled.getAttribute("data-state") !== "checked") fireEvent.click(enabled);
+      fireEvent.click(within(form).getByRole("button", { name: "settingsSave" }));
+      await waitFor(() => expect(desktop.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+        kind: "qwen", model_id: model, base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      })));
+      await waitFor(() => expect(within(form).getByRole("button", { name: "settingsTest" })).toBeEnabled());
+      fireEvent.click(within(form).getByRole("button", { name: "settingsTest" }));
+      await waitFor(() => expect(desktop.testProviderProfile).toHaveBeenCalledWith(expect.any(String), capability));
+    }
+  });
+
   it("persists the selected settings section for the next desktop launch", async () => {
     renderSettings();
 

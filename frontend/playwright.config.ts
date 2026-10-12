@@ -5,6 +5,7 @@ const executablePath = process.env.SUNA_PLAYWRIGHT_EXECUTABLE;
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  updateSnapshots: "none",
   use: {
     baseURL: "http://127.0.0.1:4173",
     locale: "zh-CN",

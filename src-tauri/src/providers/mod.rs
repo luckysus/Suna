@@ -16,16 +16,18 @@ use self::http::{ProviderError, ProviderErrorCode};
 use self::ollama::OllamaProvider;
 use self::openai::OpenAiProvider;
 use self::profiles::{ProviderCapability, ProviderKind, ProviderProfile};
+use self::siliconflow::RetrievalProvider;
 pub use self::siliconflow::SiliconFlowPlan;
-use self::siliconflow::SiliconFlowProvider;
 use crate::storage::secrets::SecretValue;
 
 pub enum ConfiguredEmbeddingProvider {
-    SiliconFlow(SiliconFlowProvider),
+    SiliconFlow(RetrievalProvider),
+    Qwen(RetrievalProvider),
 }
 
 pub enum ConfiguredRerankProvider {
-    SiliconFlow(SiliconFlowProvider),
+    SiliconFlow(RetrievalProvider),
+    Qwen(RetrievalProvider),
 }
 
 pub fn configured_embedding_provider(
@@ -34,8 +36,14 @@ pub fn configured_embedding_provider(
     plan: SiliconFlowPlan,
     model: Option<String>,
 ) -> Result<ConfiguredEmbeddingProvider, ProviderError> {
-    SiliconFlowProvider::with_models(profile, credential, plan, model, None)
-        .map(ConfiguredEmbeddingProvider::SiliconFlow)
+    let qwen = profile.kind == ProviderKind::Qwen;
+    RetrievalProvider::with_models(profile, credential, plan, model, None).map(|provider| {
+        if qwen {
+            ConfiguredEmbeddingProvider::Qwen(provider)
+        } else {
+            ConfiguredEmbeddingProvider::SiliconFlow(provider)
+        }
+    })
 }
 
 pub fn configured_rerank_provider(
@@ -44,36 +52,34 @@ pub fn configured_rerank_provider(
     plan: SiliconFlowPlan,
     model: Option<String>,
 ) -> Result<ConfiguredRerankProvider, ProviderError> {
-    SiliconFlowProvider::with_models(profile, credential, plan, None, model)
-        .map(ConfiguredRerankProvider::SiliconFlow)
+    let qwen = profile.kind == ProviderKind::Qwen;
+    RetrievalProvider::with_models(profile, credential, plan, None, model).map(|provider| {
+        if qwen {
+            ConfiguredRerankProvider::Qwen(provider)
+        } else {
+            ConfiguredRerankProvider::SiliconFlow(provider)
+        }
+    })
 }
 
-pub async fn probe_siliconflow(
+pub async fn probe_retrieval(
     profile: ProviderProfile,
     credential: Option<SecretValue>,
     capability: ProviderCapability,
 ) -> Result<u16, ProviderError> {
     let model = profile.model_id.clone();
     let provider = match capability {
-        ProviderCapability::Embedding => SiliconFlowProvider::with_models(
-            profile,
-            credential,
-            SiliconFlowPlan::Free,
-            model,
-            None,
-        )?,
-        ProviderCapability::Rerank => SiliconFlowProvider::with_models(
-            profile,
-            credential,
-            SiliconFlowPlan::Free,
-            None,
-            model,
-        )?,
+        ProviderCapability::Embedding => {
+            RetrievalProvider::with_models(profile, credential, SiliconFlowPlan::Free, model, None)?
+        }
+        ProviderCapability::Rerank => {
+            RetrievalProvider::with_models(profile, credential, SiliconFlowPlan::Free, None, model)?
+        }
         _ => {
             return Err(ProviderError::new(
                 ProviderErrorCode::UnsupportedCapability,
                 None,
-                "SiliconFlow probe requires embedding or rerank capability",
+                "Retrieval probe requires embedding or rerank capability",
             ))
         }
     };
@@ -94,7 +100,7 @@ pub async fn probe_siliconflow(
                 )
                 .await?;
         }
-        _ => unreachable!("unsupported SiliconFlow probe capability"),
+        _ => unreachable!("unsupported retrieval probe capability"),
     }
     Ok(reqwest::StatusCode::OK.as_u16())
 }
@@ -102,13 +108,15 @@ pub async fn probe_siliconflow(
 impl EmbeddingProvider for ConfiguredEmbeddingProvider {
     fn capabilities(&self) -> &ProviderCapabilities {
         match self {
-            Self::SiliconFlow(provider) => EmbeddingProvider::capabilities(provider),
+            Self::SiliconFlow(provider) | Self::Qwen(provider) => {
+                EmbeddingProvider::capabilities(provider)
+            }
         }
     }
 
     async fn embed(&self, inputs: Vec<String>) -> Result<EmbeddingResponse, ProviderError> {
         match self {
-            Self::SiliconFlow(provider) => provider.embed(inputs).await,
+            Self::SiliconFlow(provider) | Self::Qwen(provider) => provider.embed(inputs).await,
         }
     }
 }
@@ -116,7 +124,9 @@ impl EmbeddingProvider for ConfiguredEmbeddingProvider {
 impl RerankProvider for ConfiguredRerankProvider {
     fn capabilities(&self) -> &ProviderCapabilities {
         match self {
-            Self::SiliconFlow(provider) => RerankProvider::capabilities(provider),
+            Self::SiliconFlow(provider) | Self::Qwen(provider) => {
+                RerankProvider::capabilities(provider)
+            }
         }
     }
 
@@ -126,7 +136,9 @@ impl RerankProvider for ConfiguredRerankProvider {
         documents: Vec<RerankDocument>,
     ) -> Result<Vec<RerankResult>, ProviderError> {
         match self {
-            Self::SiliconFlow(provider) => provider.rerank(query, documents).await,
+            Self::SiliconFlow(provider) | Self::Qwen(provider) => {
+                provider.rerank(query, documents).await
+            }
         }
     }
 }

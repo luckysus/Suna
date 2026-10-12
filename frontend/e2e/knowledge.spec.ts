@@ -18,7 +18,9 @@ test.beforeEach(async ({ page }) => {
     const base = () => ({ id: "base-local-1", name: "高强钢研究", description: "单用户本地研究资料", library_type: "research", tags: ["钢铁"], visibility: "private", embedding_model: "", chunk_strategy: "semantic", created_at: now, updated_at: now });
     const callbacks = new Map<number, (payload: unknown) => void>();
     let callbackId = 1;
+    Object.assign(window, { __TAURI_EVENT_PLUGIN_INTERNALS__: { unregisterListener: () => {} } });
     window.__TAURI_INTERNALS__ = {
+      metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } },
       transformCallback: (callback: (payload: unknown) => void, once = false) => {
         const id = callbackId++;
         callbacks.set(id, once ? (payload) => { callbacks.delete(id); callback(payload); } : callback);
@@ -92,9 +94,11 @@ test("知识中心可以创建知识库并切换核心工作区", async ({ page 
   await page.getByText("Q355B研究.pdf").click();
   await expect(page.getByText("Q355B 的屈服强度与热处理条件。").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "第 12 页" })).toBeVisible();
-  await page.getByLabel("选择 PDF 页码").selectOption("13");
+  await page.getByRole("combobox", { name: "选择 PDF 页码" }).click();
+  await page.getByRole("option", { name: "第 13 页", exact: true }).click();
   await expect(page.getByText("热处理后的组织观察结果。")).toBeVisible();
-  await page.getByLabel("选择 PDF 页码").selectOption("12");
+  await page.getByRole("combobox", { name: "选择 PDF 页码" }).click();
+  await page.getByRole("option", { name: "第 12 页", exact: true }).click();
   await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "文档元数据 JSON" })).toBeVisible();
   await page.getByRole("button", { name: "保存元数据" }).click();
@@ -102,7 +106,8 @@ test("知识中心可以创建知识库并切换核心工作区", async ({ page 
   await page.getByText("实验数据汇总.xlsx").click();
   await expect(page.getByRole("heading", { name: "拉伸实验" })).toBeVisible();
   await expect(page.getByText("355 MPa")).toBeVisible();
-  await page.getByLabel("选择工作表").selectOption("化学成分");
+  await page.getByRole("combobox", { name: "选择工作表" }).click();
+  await page.getByRole("option", { name: "化学成分", exact: true }).click();
   await expect(page.getByText("0.18%")).toBeVisible();
   await page.getByRole("button", { name: "关闭" }).last().click();
   await page.getByText("热处理工艺.docx").click();
@@ -144,7 +149,8 @@ test("知识中心可以创建知识库并切换核心工作区", async ({ page 
   await page.getByRole("button", { name: "新建" }).click();
   await page.getByLabel("页面标题").fill("Q355B 热处理笔记");
   await page.getByRole("button", { name: "创建", exact: true }).click();
-  await page.getByLabel("Wiki 来源文档").selectOption("doc-local-1");
+  await page.getByRole("combobox", { name: "Wiki 来源文档" }).click();
+  await page.getByRole("option", { name: "Q355B研究.pdf", exact: true }).click();
   await page.getByLabel("Wiki 标签").fill("淬火");
   await page.getByRole("button", { name: "添加", exact: true }).click();
   await expect(page.getByRole("button", { name: "淬火 ×" })).toBeVisible();
@@ -211,9 +217,11 @@ test("知识图谱展示节点关系并支持删除手工关系", async ({ page 
   await page.getByRole("button", { name: "创建", exact: true }).click();
   await page.getByRole("button", { name: "知识图谱" }).click();
   await expect(page.getByText("2 个 Wiki 节点 · 0 条关系边")).toBeVisible();
-  await page.getByLabel("关系源页面").selectOption({ label: "材料性能" });
+  await page.getByRole("combobox", { name: "关系源页面" }).click();
+  await page.getByRole("option", { name: "材料性能", exact: true }).click();
   await page.getByLabel("关系类型").fill("影响");
-  await page.getByLabel("关系目标页面").selectOption({ label: "热处理工艺" });
+  await page.getByRole("combobox", { name: "关系目标页面" }).click();
+  await page.getByRole("option", { name: "热处理工艺", exact: true }).click();
   await page.getByRole("button", { name: "添加关系" }).click();
   await expect(page.getByText("知识边已创建")).toBeVisible();
   await expect(page.getByText("2 个 Wiki 节点 · 1 条关系边")).toBeVisible();

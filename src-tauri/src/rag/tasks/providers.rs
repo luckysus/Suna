@@ -33,7 +33,7 @@ impl RuntimeProviderFactory {
         &self,
         workspace_id: &str,
         profile_id: Uuid,
-        expected_kind: ProviderKind,
+        expected_kinds: &[ProviderKind],
         expected_revision: u64,
         expected_secret_generation: u64,
     ) -> Result<(ProviderProfile, SecretValue), FactoryFailure> {
@@ -51,7 +51,7 @@ impl RuntimeProviderFactory {
             return Err(FactoryFailure::SecretGenerationMismatch);
         }
         let profile = record.profile;
-        if profile.kind != expected_kind {
+        if !expected_kinds.contains(&profile.kind) {
             return Err(FactoryFailure::KindMismatch);
         }
         if !profile.enabled {
@@ -87,7 +87,7 @@ impl MinerURemoteFactory for RuntimeProviderFactory {
             .profile(
                 workspace_id,
                 profile_id,
-                ProviderKind::MinerU,
+                &[ProviderKind::MinerU],
                 expected_revision,
                 expected_secret_generation,
             )
@@ -113,7 +113,7 @@ impl EmbeddingRemoteFactory for RuntimeProviderFactory {
             .profile(
                 workspace_id,
                 profile_id,
-                ProviderKind::SiliconFlow,
+                &[ProviderKind::SiliconFlow, ProviderKind::Qwen],
                 expected_revision,
                 expected_secret_generation,
             )

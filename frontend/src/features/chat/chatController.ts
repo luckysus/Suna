@@ -22,6 +22,7 @@ import { useChatStore } from "../../stores/chatStore";
 import { useKnowledgeStore } from "../../stores/knowledgeStore";
 import { useModelStore } from "../../stores/modelStore";
 import { errorMessage } from "../../utils/errorMessage";
+import { isChatProfile } from "../../utils/providerModel";
 
 function conversationTitle(message: string, fallback: string) {
   const title = message.trim().slice(0, 28);
@@ -295,7 +296,7 @@ export function useChatController(): ChatControllerProps {
           : allKnowledgeBaseIds;
         setKnowledgeBaseIds(configuredKnowledgeBaseIds);
         setAutoSearchEnabled(knowledgePreferences.autoRetrieve === true);
-        const available = profiles.filter((profile) => profile.enabled && profile.model_id && profile.kind !== "mineru");
+        const available = profiles.filter((profile) => profile.enabled && isChatProfile(profile));
         setChatProfiles(available);
         setActiveChatProfileId((current) => current && available.some((profile) => profile.id === current)
           ? current

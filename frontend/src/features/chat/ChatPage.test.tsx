@@ -324,6 +324,21 @@ describe("ChatPage", () => {
     }
   });
 
+  it("keeps retrieval models out of the chat model picker", async () => {
+    const profiles = await desktop.listProviderProfiles();
+    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([
+      ...["qwen3.7-text-embedding", "qwen3.7-text-rerank", "BAAI/bge-m3"].map((model, i) => ({
+        ...profiles[0], id: `retrieval-${i}`, kind: "qwen" as const, model_id: model,
+      })),
+      ...profiles,
+    ]);
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "Q355B 标准" });
+    fireEvent.click(screen.getByTitle("切换当前对话模型"));
+    expect(screen.queryByRole("menuitem", { name: /qwen3.7-text|bge-m3/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "steel-model" })).toBeInTheDocument();
+  });
+
   it("sends the explicitly selected expert Agent with the question", async () => {
     vi.mocked(desktop.listAgentProfiles).mockResolvedValue([expertAgent]);
     render(<ChatPage />);

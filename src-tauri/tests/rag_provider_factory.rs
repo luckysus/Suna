@@ -36,6 +36,33 @@ fn runtime_factory_loads_workspace_scoped_mineru_and_siliconflow_profiles() {
 }
 
 #[test]
+fn runtime_factory_loads_qwen_embedding_with_revision_and_secret_pins() {
+    let fixture = FactoryFixture::new();
+    let model = suna::providers::siliconflow::QWEN_EMBEDDING_MODEL;
+    let id = fixture.save_profile(ProviderKind::Qwen, Some(model), true);
+    fixture.set_secret(id);
+    let factory = fixture.factory();
+    let embedding = EmbeddingRemoteFactory::load(&factory, WORKSPACE, id, 1, 0).unwrap();
+    assert_eq!(embedding.model_id(), model);
+    assert_eq!(embedding.max_batch_size(), 10);
+    assert_eq!(
+        EmbeddingRemoteFactory::load(&factory, WORKSPACE, id, 2, 0)
+            .err()
+            .unwrap()
+            .code(),
+        "embedding_profile_revision_mismatch"
+    );
+    assert_eq!(
+        EmbeddingRemoteFactory::load(&factory, WORKSPACE, id, 1, 1)
+            .err()
+            .unwrap()
+            .code(),
+        "embedding_secret_generation_mismatch"
+    );
+    assert!(MinerURemoteFactory::load(&factory, WORKSPACE, id, 1, 0).is_err());
+}
+
+#[test]
 fn runtime_factory_rejects_cross_workspace_disabled_kind_and_missing_secret() {
     let fixture = FactoryFixture::new();
     let mineru_id = fixture.save_profile(ProviderKind::MinerU, None, true);

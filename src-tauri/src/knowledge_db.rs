@@ -2114,7 +2114,7 @@ async fn embed_postgres_document_inner(
         )
     })?
     .ok_or_else(|| "Embedding provider 不存在".to_string())?;
-    if record.profile.kind != ProviderKind::SiliconFlow || !record.profile.enabled {
+    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) || !record.profile.enabled {
         return Err("当前 Embedding provider 不可用".to_string());
     }
     let model = record
@@ -2670,7 +2670,7 @@ pub async fn rerank_postgres_knowledge(
         )
     })?
     .ok_or_else(|| "Reranker provider 不存在".to_string())?;
-    if record.profile.kind != ProviderKind::SiliconFlow || !record.profile.enabled {
+    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) || !record.profile.enabled {
         return Err("当前 Reranker provider 不可用".to_string());
     }
     let model = record
