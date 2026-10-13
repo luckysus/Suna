@@ -80,14 +80,16 @@ fn migration_preserves_wal_records_all_files_and_relocates_owned_paths() {
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .unwrap();
-    assert_eq!(PathBuf::from(path), target.join("objects/nested/paper.txt"));
+    let expected = fs::canonicalize(target.join("objects/nested/paper.txt")).unwrap();
+    assert_eq!(fs::canonicalize(&path).unwrap(), expected);
+    assert_ne!(
+        fs::canonicalize(&path).unwrap(),
+        fs::canonicalize(&old_file).unwrap()
+    );
     let json: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(
-        json["path"],
-        target
-            .join("objects/nested/paper.txt")
-            .to_string_lossy()
-            .as_ref()
+        fs::canonicalize(json["path"].as_str().unwrap()).unwrap(),
+        expected
     );
     assert_eq!(
         json["external"],
@@ -143,6 +145,142 @@ fn relocation_matches_boundaries_and_supports_multiple_moves() {
     );
     assert!(relocate_path(&root.join("source-neighbor/paper"), &source, &target).is_none());
     fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn relocation_keeps_real_frozen_artifact_hashes_and_is_idempotent() {
+    use crate::storage::repositories::{
+        research_artifacts as artifacts, research_projects as projects,
+    };
+    let base = root();
+    let source = base.join("中文 source");
+    let target = base.join("中文 target");
+    fs::create_dir_all(source.join("objects")).unwrap();
+    let file = source.join("objects/paper.txt");
+    fs::write(&file, "unchanged source").unwrap();
+    let mut c = Connection::open(source.join("suna.sqlite3")).unwrap();
+    crate::storage::migrations::migrate(&mut c).unwrap();
+    let project = projects::save(
+        &mut c,
+        "ws",
+        projects::SaveResearchProject {
+            id: None,
+            name: "合成迁移夹具".into(),
+            description: "fixture only".into(),
+            material_system: None,
+            tags: vec![],
+            expected_updated_at: None,
+        },
+    )
+    .unwrap();
+    let payload = serde_json::json!({"historicalPath":file,"fixture":"immutable evidence"});
+    let id = artifacts::create(
+        &c,
+        "ws",
+        &project.id,
+        "report",
+        "历史记录",
+        "original",
+        None,
+        payload.clone(),
+    )
+    .unwrap();
+    let before = artifacts::get(&c, "ws", &id).unwrap().content_sha256;
+    c.execute_batch(
+        "CREATE TABLE operational_paths(source_path TEXT,value_json TEXT,title_path TEXT);",
+    )
+    .unwrap();
+    let external = base.join("source-neighbor/private.txt");
+    c.execute(
+        "INSERT INTO operational_paths VALUES(?1,?2,?3)",
+        rusqlite::params![
+            file.to_string_lossy(),
+            serde_json::json!({"items":[file, external],"sourceDirectory":source}).to_string(),
+            file.to_string_lossy()
+        ],
+    )
+    .unwrap();
+    relocate_database(&mut c, &source, &target).unwrap();
+    let after = artifacts::get(&c, "ws", &id).unwrap();
+    assert_eq!(after.content_sha256, before);
+    assert_eq!(after.payload, Some(payload));
+    let row: (String, String, String) = c
+        .query_row("SELECT * FROM operational_paths", [], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
+        .unwrap();
+    assert_eq!(PathBuf::from(&row.0), target.join("objects/paper.txt"));
+    assert_eq!(PathBuf::from(&row.2), file);
+    let json: serde_json::Value = serde_json::from_str(&row.1).unwrap();
+    assert_eq!(
+        json["items"][0],
+        target.join("objects/paper.txt").to_string_lossy().as_ref()
+    );
+    assert_eq!(json["items"][1], external.to_string_lossy().as_ref());
+    assert_eq!(json["sourceDirectory"], target.to_string_lossy().as_ref());
+    relocate_database(&mut c, &source, &target).unwrap();
+    let repeated: (String, String, String) = c
+        .query_row("SELECT * FROM operational_paths", [], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
+        .unwrap();
+    assert_eq!(row, repeated);
+    assert_eq!(fs::read_to_string(&file).unwrap(), "unchanged source");
+    assert_eq!(
+        c.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "ok"
+    );
+    drop(c);
+    fs::remove_dir_all(base).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn relocation_handles_canonical_drive_case_slashes_and_short_aliases() {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    use windows_sys::Win32::Storage::FileSystem::GetShortPathNameW;
+    let base = root();
+    let source = base.join("研究 source with spaces");
+    let target = base.join("target");
+    fs::create_dir_all(source.join("objects")).unwrap();
+    let file = source.join("objects/记录.txt");
+    fs::write(&file, "original").unwrap();
+    let canonical = fs::canonicalize(&file).unwrap();
+    assert_eq!(
+        relocate_path(&canonical, &source, &target),
+        Some(target.join("objects/记录.txt"))
+    );
+    let spelling = source
+        .to_string_lossy()
+        .to_ascii_uppercase()
+        .replace('\\', "/");
+    assert_eq!(
+        relocate_path(&file, Path::new(&spelling), &target),
+        Some(target.join("objects/记录.txt"))
+    );
+    let wide: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut buffer = vec![0u16; 32768];
+    let length =
+        unsafe { GetShortPathNameW(wide.as_ptr(), buffer.as_mut_ptr(), buffer.len() as u32) }
+            as usize;
+    assert!(length > 0 && length < buffer.len());
+    let short = PathBuf::from(std::ffi::OsString::from_wide(&buffer[..length]));
+    if short == source {
+        eprintln!("8.3 aliases unavailable on this filesystem; canonical/case/separator assertions still executed");
+    }
+    assert_eq!(
+        relocate_path(&short.join("objects/记录.txt"), &source, &target),
+        Some(target.join("objects/记录.txt"))
+    );
+    assert_eq!(
+        relocate_path(&short.join("objects/missing.csv"), &source, &target),
+        Some(target.join("objects/missing.csv"))
+    );
+    assert!(relocate_path(Path::new(r"\\?\UNC\server\share\file"), &source, &target).is_none());
+    assert!(relocate_path(&file.with_extension("txt:secret"), &source, &target).is_none());
+    assert!(relocate_path(&source.join("objects/../../outside"), &source, &target).is_none());
+    fs::remove_dir_all(base).unwrap();
 }
 
 #[test]

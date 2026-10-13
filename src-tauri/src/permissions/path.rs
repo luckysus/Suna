@@ -74,6 +74,28 @@ impl AuthorizedPath {
     pub fn canonical_path(&self) -> &Path {
         &self.canonical
     }
+
+    /// A local DOS path derived only from this authorized filesystem result.
+    /// Raw caller-supplied verbatim paths still fail `validate_raw_path`.
+    pub fn local_path(&self) -> PathBuf {
+        #[cfg(windows)]
+        {
+            use std::path::{Component, Prefix};
+            let mut components = self.canonical.components();
+            if let Some(Component::Prefix(prefix)) = components.next() {
+                if let Prefix::VerbatimDisk(drive) = prefix.kind() {
+                    let mut local = PathBuf::from(format!("{}:\\", drive as char));
+                    for component in components {
+                        if let Component::Normal(name) = component {
+                            local.push(name);
+                        }
+                    }
+                    return local;
+                }
+            }
+        }
+        self.canonical.clone()
+    }
 }
 
 impl AuthorizedRoots {
@@ -86,6 +108,7 @@ impl AuthorizedRoots {
             validate_raw_path(&root)?;
             let canonical = fs::canonicalize(&root)
                 .map_err(|_| PathAuthorizationError::RootMissing(root.clone()))?;
+            validate_resolved_path(&canonical)?;
             if !canonical.is_dir() {
                 return Err(PathAuthorizationError::RootNotDirectory(canonical));
             }
@@ -197,6 +220,8 @@ fn validate_raw_path(path: &Path) -> Result<(), PathAuthorizationError> {
         return Err(PathAuthorizationError::RelativePath);
     }
     let text = path.to_string_lossy();
+    #[cfg(windows)]
+    let text = text.replace('/', "\\");
     let lowered = text.to_ascii_lowercase();
     if lowered.starts_with("\\\\.\\")
         || lowered.starts_with("\\\\?\\")
@@ -218,8 +243,43 @@ fn validate_raw_path(path: &Path) -> Result<(), PathAuthorizationError> {
     Ok(())
 }
 
+// These paths come from canonicalize/GetFinalPathNameByHandleW, never from an
+// unchecked request. Even filesystem results must resolve to a local disk.
+fn validate_resolved_path(path: &Path) -> Result<(), PathAuthorizationError> {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        match path.components().next() {
+            Some(Component::Prefix(prefix)) => match prefix.kind() {
+                Prefix::Disk(_) | Prefix::VerbatimDisk(_) => {}
+                Prefix::UNC(_, _) | Prefix::VerbatimUNC(_, _) => {
+                    return Err(PathAuthorizationError::NetworkPath);
+                }
+                _ => return Err(PathAuthorizationError::DevicePath),
+            },
+            _ => return Err(PathAuthorizationError::RelativePath),
+        }
+        for component in path.components() {
+            if let Component::Normal(name) = component {
+                if name.to_string_lossy().contains(':') {
+                    return Err(PathAuthorizationError::AlternateDataStream);
+                }
+            }
+            if matches!(component, Component::ParentDir | Component::CurDir) {
+                return Err(PathAuthorizationError::CannotResolve(path.to_path_buf()));
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    if !path.is_absolute() {
+        return Err(PathAuthorizationError::RelativePath);
+    }
+    Ok(())
+}
+
 fn resolve_with_missing_tail(path: &Path) -> Result<PathBuf, PathAuthorizationError> {
     if let Ok(canonical) = fs::canonicalize(path) {
+        validate_resolved_path(&canonical)?;
         return Ok(canonical);
     }
     let mut cursor = path.to_path_buf();
@@ -230,6 +290,7 @@ fn resolve_with_missing_tail(path: &Path) -> Result<PathBuf, PathAuthorizationEr
             for component in missing.iter().rev() {
                 resolved.push(component);
             }
+            validate_resolved_path(&resolved)?;
             return Ok(resolved);
         }
         let Some(name) = cursor.file_name() else {
@@ -249,26 +310,33 @@ fn resolve_with_missing_tail(path: &Path) -> Result<PathBuf, PathAuthorizationEr
 fn is_within(root: &Path, candidate: &Path) -> bool {
     let root = normalized(root);
     let candidate = normalized(candidate);
-    candidate == root || candidate.starts_with(&(root + "\\"))
+    candidate.starts_with(&root)
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
     normalized(left) == normalized(right)
 }
 
-fn normalized(path: &Path) -> String {
-    let normalized = path
-        .to_string_lossy()
-        .replace('/', "\\")
-        .trim_end_matches('\\')
-        .to_ascii_lowercase();
-    if let Some(path) = normalized.strip_prefix("\\\\?\\unc\\") {
-        format!("\\\\{path}")
-    } else if let Some(path) = normalized.strip_prefix("\\\\?\\") {
-        path.to_owned()
-    } else {
-        normalized
-    }
+fn normalized(path: &Path) -> Vec<OsString> {
+    path.components()
+        .map(|component| {
+            #[cfg(windows)]
+            {
+                use std::path::{Component, Prefix};
+                if let Component::Prefix(prefix) = component {
+                    if let Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) = prefix.kind() {
+                        return OsString::from(format!(
+                            "{}:",
+                            (drive as char).to_ascii_lowercase()
+                        ));
+                    }
+                }
+                OsString::from(component.as_os_str().to_string_lossy().to_ascii_lowercase())
+            }
+            #[cfg(not(windows))]
+            component.as_os_str().to_owned()
+        })
+        .collect()
 }
 
 #[cfg(windows)]
@@ -289,9 +357,11 @@ fn final_path_from_handle(file: &fs::File) -> Result<PathBuf, PathAuthorizationE
         }
         let length = length as usize;
         if length < buffer.len() {
-            return String::from_utf16(&buffer[..length])
+            let path = String::from_utf16(&buffer[..length])
                 .map(PathBuf::from)
-                .map_err(|_| PathAuthorizationError::TargetChanged);
+                .map_err(|_| PathAuthorizationError::TargetChanged)?;
+            validate_resolved_path(&path)?;
+            return Ok(path);
         }
         buffer.resize(length + 1, 0);
     }

@@ -76,12 +76,12 @@ pub fn normalize_dataset(
     }
     let directory = root.join("material-datasets");
     std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-    let canonical_root = std::fs::canonicalize(root).map_err(|e| e.to_string())?;
-    let canonical_dir = std::fs::canonicalize(directory).map_err(|e| e.to_string())?;
-    if !canonical_dir.starts_with(&canonical_root) {
-        return Err("material_directory_outside_data_root".into());
-    }
-    let path = canonical_dir.join(format!("规范化-{}.csv", Uuid::new_v4()));
+    let roots = crate::permissions::path::AuthorizedRoots::new(vec![root.to_path_buf()])
+        .map_err(|e| e.to_string())?;
+    let authorized = roots
+        .authorize(&directory.join(format!("规范化-{}.csv", Uuid::new_v4())))
+        .map_err(|e| e.to_string())?;
+    let path = authorized.local_path();
     let result = (|| {
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
@@ -89,9 +89,20 @@ pub fn normalize_dataset(
             .write(true)
             .open(&path)
             .map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        roots
+            .verify_opened_file(&authorized, &file)
+            .map_err(|e| e.to_string())?;
+        roots
+            .verify_target(&authorized, &path)
+            .map_err(|e| e.to_string())?;
         let body = crate::steel::to_csv(&table.headers, &table.rows);
         file.write_all(body.as_bytes())
             .and_then(|_| file.sync_all())
+            .map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        roots
+            .verify_opened_file(&authorized, &file)
             .map_err(|e| e.to_string())?;
         drop(file);
         let source = path.to_string_lossy().to_string();

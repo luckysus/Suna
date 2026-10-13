@@ -55,16 +55,21 @@ pub async fn save_export_file(
 }
 
 pub fn write_verified_export(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let authorized =
-        crate::permissions::path::authorize_output_path(path).map_err(|e| e.to_string())?;
+    let roots = crate::permissions::path::AuthorizedRoots::new(vec![path
+        .parent()
+        .ok_or("export parent required")?
+        .to_path_buf()])
+    .map_err(|e| e.to_string())?;
+    let authorized = roots.authorize(path).map_err(|e| e.to_string())?;
     if let Ok(meta) = fs::symlink_metadata(path) {
         if meta.file_type().is_symlink() || !meta.is_file() {
             return Err("export target must be a regular file".into());
         }
     }
     let temporary = authorized
-        .canonical_path()
+        .local_path()
         .with_file_name(format!(".suna-export-{}.tmp", uuid::Uuid::new_v4()));
+    let temporary_authorized = roots.authorize(&temporary).map_err(|e| e.to_string())?;
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -73,18 +78,15 @@ pub fn write_verified_export(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .map_err(|e| format!("创建导出临时文件失败：{e}"))?;
     let result = (|| {
         #[cfg(windows)]
-        {
-            let roots = crate::permissions::path::AuthorizedRoots::new(vec![authorized
-                .canonical_path()
-                .parent()
-                .ok_or("export parent required")?
-                .to_path_buf()])
+        roots
+            .verify_opened_file(&temporary_authorized, &file)
             .map_err(|e| e.to_string())?;
-            let temporary_authorized = roots.authorize(&temporary).map_err(|e| e.to_string())?;
-            roots
-                .verify_opened_file(&temporary_authorized, &file)
-                .map_err(|e| e.to_string())?;
-        }
+        roots
+            .verify_target(&temporary_authorized, &temporary)
+            .map_err(|e| e.to_string())?;
+        roots
+            .verify_target(&authorized, path)
+            .map_err(|e| e.to_string())?;
         file.write_all(bytes)
             .and_then(|_| file.sync_all())
             .map_err(|e| format!("写入导出文件失败：{e}"))?;
@@ -94,11 +96,13 @@ pub fn write_verified_export(path: &Path, bytes: &[u8]) -> Result<(), String> {
         if saved != bytes {
             return Err("导出内容校验失败".into());
         }
-        let current =
-            crate::permissions::path::authorize_output_path(path).map_err(|e| e.to_string())?;
-        if current.canonical_path() != authorized.canonical_path() {
-            return Err("导出目标已改变".into());
-        }
+        #[cfg(windows)]
+        roots
+            .verify_opened_file(&temporary_authorized, &file)
+            .map_err(|e| e.to_string())?;
+        roots
+            .verify_target(&authorized, path)
+            .map_err(|e| e.to_string())?;
         Ok(())
     })();
     drop(file);

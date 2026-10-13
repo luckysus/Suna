@@ -92,11 +92,25 @@ fn write_config(path: &Path, config: &DirectoryConfig) -> Result<(), String> {
 }
 
 fn display_path(path: &Path) -> PathBuf {
-    PathBuf::from(
-        path.to_string_lossy()
-            .strip_prefix(r"\\?\")
-            .unwrap_or(&path.to_string_lossy()),
-    )
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        let mut components = path.components();
+        if let Some(Component::Prefix(prefix)) = components.next() {
+            if let Prefix::VerbatimDisk(drive) = prefix.kind() {
+                let mut local = PathBuf::from(format!("{}:\\", drive as char));
+                for component in components {
+                    if let Component::Normal(name) = component {
+                        local.push(name);
+                    } else if !matches!(component, Component::RootDir) {
+                        return path.to_path_buf();
+                    }
+                }
+                return local;
+            }
+        }
+    }
+    path.to_path_buf()
 }
 
 fn normalized_directory(path: &Path) -> Result<PathBuf, String> {
@@ -106,31 +120,81 @@ fn normalized_directory(path: &Path) -> Result<PathBuf, String> {
 }
 
 fn path_key(path: &Path) -> String {
-    let value = display_path(path).to_string_lossy().replace('\\', "/");
+    let value = path_identity(path).unwrap_or_else(|| path.to_path_buf());
+    let value = value.to_string_lossy().into_owned();
     #[cfg(windows)]
-    let value = value.to_lowercase();
+    let value = value.replace('\\', "/").to_ascii_lowercase();
     value.trim_end_matches('/').to_string()
 }
 
+// Only local filesystem identity is compared here; this is not an authorization
+// API. Resolve existing ancestors so short aliases and missing tails agree.
+fn path_identity(path: &Path) -> Option<PathBuf> {
+    use std::path::Component;
+    let mut cursor = display_path(path);
+    if !cursor.is_absolute()
+        || cursor
+            .components()
+            .any(|c| matches!(c, Component::ParentDir))
+    {
+        return None;
+    }
+    #[cfg(windows)]
+    if !matches!(cursor.components().next(), Some(Component::Prefix(p)) if matches!(p.kind(), std::path::Prefix::Disk(_)))
+        || cursor
+            .components()
+            .any(|c| matches!(c, Component::Normal(name) if name.to_string_lossy().contains(':')))
+    {
+        return None;
+    }
+    let mut missing = Vec::new();
+    loop {
+        if let Ok(canonical) = fs::canonicalize(&cursor) {
+            let mut canonical = display_path(&canonical);
+            #[cfg(windows)]
+            if !matches!(canonical.components().next(), Some(Component::Prefix(p)) if matches!(p.kind(), std::path::Prefix::Disk(_)))
+            {
+                return None;
+            }
+            for name in missing.iter().rev() {
+                canonical.push(name);
+            }
+            return Some(canonical);
+        }
+        missing.push(cursor.file_name()?.to_os_string());
+        cursor = cursor.parent()?.to_path_buf();
+    }
+}
+
 fn relocate_path(path: &Path, source: &Path, target: &Path) -> Option<PathBuf> {
-    let key = path_key(path);
-    let source_key = path_key(source);
-    if key == source_key {
-        return Some(target.to_path_buf());
+    let path = path_identity(path)?;
+    let source = path_identity(source)?;
+    let components: Vec<_> = path.components().collect();
+    let source_components: Vec<_> = source.components().collect();
+    if components.len() < source_components.len() {
+        return None;
     }
-    if key.starts_with(&(source_key.clone() + "/")) {
-        let original = display_path(path).to_string_lossy().replace('\\', "/");
-        return Some(
-            target.join(
-                original
-                    .split('/')
-                    .skip(source_key.split('/').count())
-                    .collect::<Vec<_>>()
-                    .join("/"),
-            ),
-        );
+    for (candidate, root) in components.iter().zip(&source_components) {
+        #[cfg(windows)]
+        let same = candidate
+            .as_os_str()
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&root.as_os_str().to_string_lossy());
+        #[cfg(not(windows))]
+        let same = candidate == root;
+        if !same {
+            return None;
+        }
     }
-    None
+    let mut relocated = target.to_path_buf();
+    for component in components.iter().skip(source_components.len()) {
+        if let std::path::Component::Normal(name) = component {
+            relocated.push(name);
+        } else {
+            return None;
+        }
+    }
+    Some(relocated)
 }
 
 fn validate_target(source: &Path, target: &Path) -> Result<PathBuf, String> {
@@ -228,9 +292,15 @@ fn relocate_database(
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
+    let immutable_tables = transaction
+        .prepare("SELECT DISTINCT tbl_name FROM sqlite_master WHERE type='trigger' AND upper(sql) LIKE '%BEFORE UPDATE%' AND lower(sql) LIKE '%immutable%'")
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| row.get::<_, String>(0)).map_err(|e| e.to_string())?
+        .collect::<Result<std::collections::HashSet<_>, _>>().map_err(|e| e.to_string())?;
     for table in tables {
-        // Retrieval audits are immutable historical evidence, including their original paths.
-        if table == "retrieval_audits" {
+        // Frozen results, reviews and audit payloads retain their original paths
+        // and content hashes. Only operational references are relocated.
+        if immutable_tables.contains(&table) || table == "settings_audit_log" {
             continue;
         }
         let columns = transaction

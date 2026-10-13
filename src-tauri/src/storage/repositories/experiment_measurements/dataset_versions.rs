@@ -98,32 +98,33 @@ pub fn create_dataset_version(
     let bytes = crate::steel::to_csv(&headers, &rows).into_bytes();
     let directory = root.join("research-datasets");
     std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-    let canonical_root = std::fs::canonicalize(root).map_err(|e| e.to_string())?;
-    let canonical_dir = std::fs::canonicalize(&directory).map_err(|e| e.to_string())?;
-    if !canonical_dir.starts_with(&canonical_root) {
-        return Err("managed_dataset_directory_outside_root".into());
-    }
-    let path = canonical_dir.join(format!("实验测量-{}.csv", Uuid::new_v4()));
+    let roots = crate::permissions::path::AuthorizedRoots::new(vec![root.to_path_buf()])
+        .map_err(|e| e.to_string())?;
+    let authorized = roots
+        .authorize(&directory.join(format!("实验测量-{}.csv", Uuid::new_v4())))
+        .map_err(|e| e.to_string())?;
+    let path = authorized.local_path();
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .read(true)
         .create_new(true)
         .open(&path)
         .map_err(|e| e.to_string())?;
-    let roots = crate::permissions::path::AuthorizedRoots::new(vec![canonical_root])
-        .map_err(|e| e.to_string())?;
-    let authorized = roots.authorize(&path).map_err(|e| e.to_string())?;
-    #[cfg(windows)]
-    roots
-        .verify_opened_file(&authorized, &file)
-        .map_err(|e| e.to_string())?;
-    roots
-        .verify_target(&authorized, &path)
-        .map_err(|e| e.to_string())?;
     let result = (|| {
         use std::io::Write;
+        #[cfg(windows)]
+        roots
+            .verify_opened_file(&authorized, &file)
+            .map_err(|e| e.to_string())?;
+        roots
+            .verify_target(&authorized, &path)
+            .map_err(|e| e.to_string())?;
         file.write_all(&bytes)
             .and_then(|_| file.sync_all())
+            .map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        roots
+            .verify_opened_file(&authorized, &file)
             .map_err(|e| e.to_string())?;
         drop(file);
         let source_path = path.to_string_lossy().to_string();
