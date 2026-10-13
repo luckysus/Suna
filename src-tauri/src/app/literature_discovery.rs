@@ -162,12 +162,14 @@ async fn execute(
         .checkpoint(Some("{\"stage\":\"public_metadata_request\"}"), 10, None)
         .map_err(|_| HandlerError::retryable("checkpoint_failed"))?;
     let request = async {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(15))
-            .redirect(reqwest::redirect::Policy::none())
-            .user_agent(concat!("Suna/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(|_| HandlerError::permanent("literature_client_failed"))?;
+        let client = crate::providers::http::build_no_redirect_client(
+            &crate::providers::http::HttpClientConfig {
+                connect_timeout: Duration::from_secs(10),
+                request_timeout: Duration::from_secs(15),
+                proxy_url: None,
+            },
+        )
+        .map_err(|_| HandlerError::permanent("literature_client_failed"))?;
         let mut q = vec![
             ("query".to_string(), s.query.clone()),
             ("rows".into(), "20".into()),

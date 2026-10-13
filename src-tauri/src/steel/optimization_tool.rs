@@ -78,10 +78,8 @@ fn validate_optimization_arguments(arguments: &Value) -> Result<(), ToolExecutio
         .as_array()
         .is_some_and(|a| !a.is_empty())
     {
-        let request: crate::app::compute_commands::logic::OptimizeSteelProcessRequest =
-            serde_json::from_value(arguments.clone()).map_err(|e| {
-                ToolExecutionError::new("steel_optimization_invalid", e.to_string())
-            })?;
+        let request: super::OptimizeSteelProcessRequest = serde_json::from_value(arguments.clone())
+            .map_err(|e| ToolExecutionError::new("steel_optimization_invalid", e.to_string()))?;
         if request.dataset_id.is_empty()
             || request.objectives.len() > 4
             || request.variables.is_empty()

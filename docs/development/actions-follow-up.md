@@ -17,3 +17,5 @@
 第二次实际核查：[195](https://github.com/luckysus/Suna/actions/runs/38358898275) 的 Rust advisory scan 已成功，随后 npm audit 报 image-size 的 JXL/HEIF/ICNS 无限循环高危公告（GHSA-5p2g-fcmc-qvqq、GHSA-w3rx-r6r6-pgpr）。上游已发布2.0.4，但PptxGenJS仍约束1.x，因此仅覆盖该依赖到修复版2.0.4，保留报告导出。npm audit复查0漏洞，真实DOCX/PPTX包和PNG图表嵌入回归通过。公开页面存在缓存且进行中标签含空格，状态核查脚本补充分钟缓存刷新和进行中识别。
 
 第三次核查：[db52c68对应运行](https://github.com/luckysus/Suna/actions/runs/38360065977) 的Rust依赖策略、Rust公告、npm审计、Worker、契约和前端步骤均成功，`Run deterministic Rust suite`失败，后续步骤跳过。公开页面只有失败步骤及退出码，完整日志受访问限制。本地补跑迁移集成测试实际复现两项失败：升级夹具仍只包含0035，而当前已有0043；v12回填测试从最新版反向删表，遗留0036之后的科研表。修复为完整版本夹具和真实v12初始化，保留升级断言并增加夹具完整性检查；修复后11/11通过。完整Rust集成套件继续检查，尚不能据此宣布Windows流水线通过。
+
+第四次核查：[1044113对应运行](https://github.com/luckysus/Suna/actions/runs/38363920354) 仍在Rust步骤失败。本地完整套件进一步复现四项架构边界失败，修复共享HTTP客户端使用、将联合优化DTO下移至材料层、按职责拆分仓储和Tauri命令。凭据剔除的测试夹具移到集成测试边界，原持久化凭据门禁保留；没有扩大模块预算或白名单。架构28/28、科研报告/Agent上下文5/5、凭据与原始行剔除1/1通过，继续运行其他集成测试。
