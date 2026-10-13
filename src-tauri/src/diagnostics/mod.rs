@@ -1,3 +1,4 @@
+pub mod compute;
 pub(crate) mod export;
 pub mod logging;
 pub mod observability;

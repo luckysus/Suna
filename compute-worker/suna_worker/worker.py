@@ -49,6 +49,13 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
     method = request["method"]
     params = request.get("params", {})
 
+    if method == "diagnose":
+        from .diagnostics import dependency_report
+        report = dependency_report()
+        report.update({"workerVersion": WORKER_VERSION, "protocolVersion": PROTOCOL_VERSION})
+        _write(output, _response(request_id, result=report))
+        return False
+
     if method == "hello":
         _write(
             output,
@@ -57,7 +64,7 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
                 result={
                     "protocol_version": PROTOCOL_VERSION,
                     "worker_version": WORKER_VERSION,
-                    "capabilities": ["hello", "submit", "cancel", "shutdown", "training", "inference", "optimization"]
+                    "capabilities": ["hello", "submit", "cancel", "shutdown", "diagnose", "training", "inference", "optimization"]
                     + (["xgboost"] if xgboost_available() else []),
                     "operations": [
                         "echo",

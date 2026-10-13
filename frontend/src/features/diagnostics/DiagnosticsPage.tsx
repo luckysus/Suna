@@ -17,6 +17,7 @@ import DiagnosticsHealthGrid from "./DiagnosticsHealthGrid";
 import DiagnosticsTaskList from "./DiagnosticsTaskList";
 import { formatBytes } from "./diagnosticsModel";
 import { useTaskStore } from "../../stores/taskStore";
+import ComputeWorkerDiagnostics from "./ComputeWorkerDiagnostics";
 
 interface DiagnosticsSnapshot {
   storage: StorageHealth | null;
@@ -201,8 +202,8 @@ export default function DiagnosticsPage() {
         filters: [{ name: t("diagnosticsBackupFile"), extensions: ["suna-backup"] }],
       });
       if (typeof selected !== "string" || !selected.trim()) return;
-      await desktop.createBackup(selected);
-      setNotice(t("diagnosticsBackupCreated"));
+      const result=await desktop.createBackup(selected);
+      setNotice(`${t("diagnosticsBackupCreated")} · ${result.external_dataset_count==null?"旧格式未记录外部数据覆盖范围":`外部原始数据文件未包含：${result.external_dataset_count} 项`}`);
     } catch (cause) {
       setError(errorMessage(cause, t("diagnosticsBackupExportError")));
     } finally {
@@ -228,7 +229,8 @@ export default function DiagnosticsPage() {
         contentFileCount: preview.content_file_count,
         contentBytes: formatBytes(preview.content_bytes),
       });
-      if (!window.confirm(`${previewMessage}\n\n${t("diagnosticsBackupRestoreConfirm")}`)) return;
+      const coverage=preview.external_dataset_count==null?"旧格式未记录外部数据覆盖范围":`外部原始数据文件未包含：${preview.external_dataset_count} 项；请保留原文件`;
+      if (!window.confirm(`${previewMessage}\n${coverage}\n\n${t("diagnosticsBackupRestoreConfirm")}`)) return;
       await desktop.restoreBackup(selected);
       await load();
       setNotice(t("diagnosticsBackupRestored"));
@@ -273,6 +275,8 @@ export default function DiagnosticsPage() {
             busyTask={busyTask}
             onRetry={(task) => void retryTask(task)}
           />
+
+          <ComputeWorkerDiagnostics />
 
           <aside className="suna-diagnostics-privacy"><Check size={17} aria-hidden="true" /><div><strong>{t("diagnosticsPrivacyTitle")}</strong><span>{t("diagnosticsPrivacyCopy")}</span></div></aside>
         </>

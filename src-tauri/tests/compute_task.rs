@@ -1,3 +1,5 @@
+#[path = "support/worker.rs"]
+mod support_worker;
 use rusqlite::Connection;
 use serde_json::json;
 use serial_test::serial;
@@ -36,24 +38,7 @@ fn python_worker_config() -> WorkerConfig {
     let worker_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("compute-worker");
-    let venv_python = worker_root.join(".venv").join("Scripts").join("python.exe");
-    let executable = std::env::var_os("SUNA_COMPUTE_WORKER_PYTHON")
-        .map(PathBuf::from)
-        .filter(|path| path.is_file())
-        .or_else(|| venv_python.is_file().then_some(venv_python))
-        .or_else(|| {
-            let python = std::process::Command::new("where.exe")
-                .arg("python")
-                .output()
-                .expect("Windows Python lookup must be available");
-            assert!(python.status.success(), "python must be installed");
-            String::from_utf8_lossy(&python.stdout)
-                .lines()
-                .map(str::trim)
-                .find(|line| !line.is_empty())
-                .map(PathBuf::from)
-        })
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
     let mut config = WorkerConfig::new(executable);
     config.args = vec!["-m".into(), "suna_worker".into()];
     config.working_directory = Some(worker_root);

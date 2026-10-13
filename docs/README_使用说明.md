@@ -30,10 +30,11 @@ Codex 执行 `CODEX_EXECUTION_PROMPTS.md` 的 Prompt
 
 桌面：Tauri 2 + Rust；前端：React + TypeScript + Vite；UI
 优先复用已有组件，新项目可使用 Tailwind/shadcn；状态：Zustand；核心
-Agent Runtime：Rust；科研与机器学习服务：Python
-FastAPI；数据库：PostgreSQL；向量检索：pgvector 适配层。
+Agent Runtime：Rust；科研计算：本机 Python stdio Worker；主数据库：SQLite。已有 PostgreSQL/pgvector 连接按用户配置作为可选知识源，不能替代本机科研项目和成果存储。
 
 若现有仓库技术栈已经确定，Codex
 必须先审计并采用最小改动策略，不得为遵守文档而无理由重写项目。
 
 **重要：提示词可以定义完整开发范围，但不等于软件已经实现。必须以代码、测试、真实服务联调和验收为准。**
+
+科研扩展的实际使用流程、离线边界、备份范围和原生验收状态见 [科研入门](development/research-first-run.md) 与 [第四、第五部分交付状态](development/parts-4-5-status.md)。

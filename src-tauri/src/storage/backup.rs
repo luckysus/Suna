@@ -1,7 +1,8 @@
 use crate::permissions::path::{authorize_existing_file_with_handle, authorize_output_path};
 use chrono::Utc;
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
@@ -12,10 +13,17 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::domains::{self, DomainTrustStore};
 
-const FORMAT_VERSION: u32 = 1;
+const FORMAT_VERSION: u32 = 2;
+const MAX_MANIFEST_BYTES: u64 = 32 * 1024 * 1024;
 const DATABASE_ENTRY: &str = "suna.sqlite3";
 const CONTENT_PREFIX: &str = "content/";
-const CONTENT_DIRECTORIES: [&str; 3] = ["objects", "indexes", "microstructure"];
+const CONTENT_DIRECTORIES: [&str; 5] = [
+    "objects",
+    "indexes",
+    "microstructure",
+    "material-datasets",
+    "research-datasets",
+];
 const MAX_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
@@ -27,6 +35,23 @@ struct BackupManifest {
     database_entry: String,
     content_prefix: String,
     content_file_count: usize,
+    #[serde(default)]
+    content_hashes: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    managed_datasets: Vec<ManagedDataset>,
+    #[serde(default)]
+    database_sha256: Option<String>,
+    #[serde(default)]
+    external_dataset_count: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ManagedDataset {
+    workspace_id: String,
+    dataset_id: String,
+    relative_path: String,
+    sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -37,6 +62,7 @@ pub struct BackupSummary {
     pub database_bytes: u64,
     pub content_file_count: usize,
     pub content_bytes: u64,
+    pub external_dataset_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,7 +106,13 @@ pub fn create_backup(
 
     let files = collect_content_files(content_root, archive_path)?;
     let temporary_database = archive_path.with_extension(format!("sqlite3.tmp-{}", Uuid::new_v4()));
-    let result = create_backup_archive(connection, &temporary_database, archive_path, &files);
+    let result = create_backup_archive(
+        connection,
+        &temporary_database,
+        archive_path,
+        &files,
+        content_root,
+    );
     let _ = fs::remove_file(&temporary_database);
     result.map(|mut summary| {
         summary.archive_path = display_path.to_string_lossy().into_owned();
@@ -93,6 +125,7 @@ fn create_backup_archive(
     temporary_database: &Path,
     archive_path: &Path,
     files: &[(PathBuf, String, u64)],
+    content_root: &Path,
 ) -> Result<BackupSummary, String> {
     connection
         .execute(
@@ -104,18 +137,40 @@ fn create_backup_archive(
         .map_err(|error| format!("read database snapshot failed: {error}"))?
         .len();
     let content_bytes = files.iter().map(|(_, _, size)| *size).sum::<u64>();
+    let content_hashes = files
+        .iter()
+        .map(|(path, entry, _)| Ok((entry.clone(), file_sha(path)?)))
+        .collect::<Result<std::collections::BTreeMap<_, _>, String>>()?;
+    let snapshot_connection = Connection::open(temporary_database).map_err(|e| e.to_string())?;
+    let (managed_datasets, external_dataset_count) =
+        managed_dataset_sources(&snapshot_connection, content_root, &content_hashes)?;
+    drop(snapshot_connection);
     let manifest = BackupManifest {
         format_version: FORMAT_VERSION,
         created_at: Utc::now().to_rfc3339(),
         database_entry: DATABASE_ENTRY.to_string(),
         content_prefix: CONTENT_PREFIX.to_string(),
         content_file_count: files.len(),
+        content_hashes,
+        managed_datasets,
+        database_sha256: Some(file_sha(temporary_database)?),
+        external_dataset_count: Some(external_dataset_count),
     };
-    let archive_file = File::create(archive_path)
+    let archive_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(archive_path)
         .map_err(|error| format!("create backup archive failed: {error}"))?;
+    let mut cleanup = BackupOutput {
+        path: archive_path,
+        completed: false,
+    };
     let mut writer = ZipWriter::new(archive_file);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     let manifest_json = serde_json::to_vec(&manifest).map_err(|error| error.to_string())?;
+    if manifest_json.len() as u64 > MAX_MANIFEST_BYTES {
+        return Err("backup_manifest_byte_limit".into());
+    }
     writer
         .start_file("manifest.json", options)
         .map_err(|error| format!("write backup manifest failed: {error}"))?;
@@ -135,15 +190,18 @@ fn create_backup_archive(
         writer
             .start_file(entry, options)
             .map_err(|error| format!("write backup content failed: {error}"))?;
-        copy_file(
+        let (_, sha) = copy_hashed(
             &mut File::open(path).map_err(|error| error.to_string())?,
             &mut writer,
-        )
-        .map_err(|error| format!("write backup content failed: {error}"))?;
+        )?;
+        if manifest.content_hashes.get(entry) != Some(&sha) {
+            return Err("backup_source_changed_during_export".into());
+        }
     }
     writer
         .finish()
         .map_err(|error| format!("finish backup archive failed: {error}"))?;
+    cleanup.completed = true;
 
     Ok(BackupSummary {
         format_version: FORMAT_VERSION,
@@ -151,6 +209,7 @@ fn create_backup_archive(
         database_bytes,
         content_file_count: files.len(),
         content_bytes,
+        external_dataset_count: manifest.external_dataset_count,
     })
 }
 
@@ -181,6 +240,7 @@ fn preview_backup_from_file(
         database_bytes: stats.database_bytes,
         content_file_count: stats.content_file_count,
         content_bytes: stats.content_bytes,
+        external_dataset_count: manifest.external_dataset_count,
     })
 }
 
@@ -278,6 +338,7 @@ fn restore_backup_internal(
         database_bytes,
         content_file_count: stats.content_file_count,
         content_bytes,
+        external_dataset_count: manifest.external_dataset_count,
     })
 }
 
@@ -292,7 +353,7 @@ fn validate_archive(
     let mut names = HashSet::new();
     let mut database_count = 0_usize;
     for index in 0..archive.len() {
-        let entry = archive
+        let mut entry = archive
             .by_index(index)
             .map_err(|error| format!("read backup entry failed: {error}"))?;
         let name = entry.name().to_string();
@@ -306,7 +367,27 @@ fn validate_archive(
         if kind == EntryKind::Database {
             database_count += 1;
             database_bytes = entry.size();
+            if manifest.format_version == 2 {
+                let expected = manifest
+                    .database_sha256
+                    .as_ref()
+                    .ok_or("backup_database_hash_missing")?;
+                let (_, actual) = copy_hashed(&mut entry, &mut io::sink())?;
+                if &actual != expected {
+                    return Err("backup_database_hash_mismatch".into());
+                }
+            }
         } else if kind == EntryKind::Content {
+            if manifest.format_version == 2 {
+                let expected = manifest
+                    .content_hashes
+                    .get(&name)
+                    .ok_or("backup_content_hash_missing")?;
+                let (_, actual) = copy_hashed(&mut entry, &mut io::sink())?;
+                if &actual != expected {
+                    return Err("backup_content_hash_mismatch".into());
+                }
+            }
             content_file_count += 1;
             if content_file_count > MAX_FILES {
                 return Err("backup contains too many content files".to_string());
@@ -324,6 +405,17 @@ fn validate_archive(
     }
     if content_file_count != manifest.content_file_count {
         return Err("backup content count does not match its manifest".to_string());
+    }
+    if manifest.format_version == 2 && manifest.content_hashes.len() != content_file_count {
+        return Err("backup_content_hash_count_mismatch".into());
+    }
+    for dataset in &manifest.managed_datasets {
+        let name = format!("{CONTENT_PREFIX}{}", dataset.relative_path);
+        if !managed_relative(&dataset.relative_path)
+            || manifest.content_hashes.get(&name) != Some(&dataset.sha256)
+        {
+            return Err("backup_managed_dataset_reference_invalid".into());
+        }
     }
     Ok(ArchiveStats {
         database_bytes,
@@ -361,8 +453,12 @@ fn extract_backup(
                 }
                 let mut target = File::create(staging_database)
                     .map_err(|error| format!("create restored database failed: {error}"))?;
-                io::copy(&mut entry, &mut target)
-                    .map_err(|error| format!("extract restored database failed: {error}"))?;
+                let (_, actual) = copy_hashed(&mut entry, &mut target)?;
+                if manifest.format_version == 2
+                    && manifest.database_sha256.as_ref() != Some(&actual)
+                {
+                    return Err("restore_database_hash_mismatch".into());
+                }
                 database_bytes = fs::metadata(staging_database)
                     .map_err(|error| error.to_string())?
                     .len();
@@ -381,11 +477,15 @@ fn extract_backup(
                 }
                 let mut output = File::create(&target)
                     .map_err(|error| format!("create restored content failed: {error}"))?;
+                let name = entry.name().to_string();
+                let (bytes, sha) = copy_hashed(&mut entry, &mut output)?;
+                if manifest.format_version == 2 && manifest.content_hashes.get(&name) != Some(&sha)
+                {
+                    return Err("restore_content_hash_mismatch".into());
+                }
                 content_bytes = content_bytes
-                    .checked_add(
-                        io::copy(&mut entry, &mut output).map_err(|error| error.to_string())?,
-                    )
-                    .ok_or_else(|| "restored content is too large".to_string())?;
+                    .checked_add(bytes)
+                    .ok_or("restored_content_byte_limit")?;
             }
         }
     }
@@ -394,6 +494,12 @@ fn extract_backup(
     }
 
     validate_and_migrate_staged_database(staging_database)?;
+    relocate_managed_datasets(
+        staging_database,
+        staging_content,
+        content_root,
+        &manifest.managed_datasets,
+    )?;
     if let Some(domains_root) = domains_root {
         validate_staged_domain_packages(staging_database, domains_root, app_version, trust_store)?;
     }
@@ -669,12 +775,19 @@ fn read_manifest(archive: &mut ZipArchive<File>) -> Result<BackupManifest, Strin
         .by_name("manifest.json")
         .map_err(|_| "backup manifest is missing".to_string())?;
     let mut bytes = Vec::new();
+    if entry.size() > MAX_MANIFEST_BYTES {
+        return Err("backup_manifest_byte_limit".into());
+    }
     entry
+        .take(MAX_MANIFEST_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|error| format!("read backup manifest failed: {error}"))?;
+    if bytes.len() as u64 > MAX_MANIFEST_BYTES {
+        return Err("backup_manifest_byte_limit".into());
+    }
     let manifest: BackupManifest = serde_json::from_slice(&bytes)
         .map_err(|error| format!("parse backup manifest failed: {error}"))?;
-    if manifest.format_version != FORMAT_VERSION
+    if !matches!(manifest.format_version, 1 | 2)
         || manifest.database_entry != DATABASE_ENTRY
         || manifest.content_prefix != CONTENT_PREFIX
     {
@@ -773,6 +886,135 @@ fn collect_content_files_from(
         files.push((path, format!("{CONTENT_PREFIX}{relative}"), size));
     }
     Ok(())
+}
+
+// Guard only an archive file created by this operation. Existing destinations
+// are rejected by create_new and never removed on a failed attempt.
+struct BackupOutput<'a> {
+    path: &'a Path,
+    completed: bool,
+}
+impl Drop for BackupOutput<'_> {
+    fn drop(&mut self) {
+        if !self.completed {
+            let _ = fs::remove_file(self.path);
+        }
+    }
+}
+fn copy_hashed(
+    source: &mut impl Read,
+    destination: &mut impl Write,
+) -> Result<(u64, String), String> {
+    let mut sha = Sha256::new();
+    let mut bytes = 0u64;
+    let mut buffer = [0u8; 65536];
+    loop {
+        let n = source.read(&mut buffer).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        bytes += n as u64;
+        if bytes > MAX_UNCOMPRESSED_BYTES {
+            return Err("backup_entry_byte_limit".into());
+        }
+        destination
+            .write_all(&buffer[..n])
+            .map_err(|e| e.to_string())?;
+        sha.update(&buffer[..n]);
+    }
+    Ok((bytes, format!("{:x}", sha.finalize())))
+}
+fn file_sha(path: &Path) -> Result<String, String> {
+    Ok(copy_hashed(
+        &mut File::open(path).map_err(|e| e.to_string())?,
+        &mut io::sink(),
+    )?
+    .1)
+}
+fn managed_relative(relative: &str) -> bool {
+    relative.starts_with("objects/material-data/")
+        || relative.starts_with("objects/literature-data/")
+        || relative.starts_with("material-datasets/")
+        || relative.starts_with("research-datasets/")
+}
+fn managed_dataset_sources(
+    c: &Connection,
+    root: &Path,
+    hashes: &std::collections::BTreeMap<String, String>,
+) -> Result<(Vec<ManagedDataset>, usize), String> {
+    if !root.is_dir() {
+        let count: usize = c
+            .query_row("SELECT COUNT(*) FROM steel_datasets", [], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        return Ok((vec![], count));
+    }
+    let canonical = root.canonicalize().map_err(|e| e.to_string())?;
+    let mut stmt = c
+        .prepare("SELECT workspace_id,id,source_path,source_sha256 FROM steel_datasets")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut result = vec![];
+    let mut total = 0;
+    for row in rows {
+        total += 1;
+        let (ws, id, source, sha) = row.map_err(|e| e.to_string())?;
+        let raw = Path::new(&source);
+        let lexical = raw
+            .strip_prefix(root)
+            .ok()
+            .map(|p| p.to_string_lossy().replace('\\', "/"));
+        let actual = raw.canonicalize().ok().and_then(|p| {
+            p.strip_prefix(&canonical)
+                .ok()
+                .map(|p| p.to_string_lossy().replace('\\', "/"))
+        });
+        let relative = actual.or(lexical);
+        if let Some(relative) = relative.filter(|r| managed_relative(r)) {
+            if hashes.get(&format!("{CONTENT_PREFIX}{relative}")) != Some(&sha) {
+                return Err("backup_managed_dataset_missing_or_changed".into());
+            }
+            result.push(ManagedDataset {
+                workspace_id: ws,
+                dataset_id: id,
+                relative_path: relative,
+                sha256: sha,
+            });
+        }
+    }
+    let external = total - result.len();
+    Ok((result, external))
+}
+fn relocate_managed_datasets(
+    db: &Path,
+    staged_root: &Path,
+    target_root: &Path,
+    datasets: &[ManagedDataset],
+) -> Result<(), String> {
+    let mut c = Connection::open(db).map_err(|e| e.to_string())?;
+    let tx = c.transaction().map_err(|e| e.to_string())?;
+    for d in datasets {
+        // validate_entry_name was already checked by the archive validator.
+        validate_entry_name(&format!("{CONTENT_PREFIX}{}", d.relative_path))?;
+        if !managed_relative(&d.relative_path)
+            || file_sha(&staged_root.join(&d.relative_path))? != d.sha256
+        {
+            return Err("restore_managed_dataset_hash_mismatch".into());
+        }
+        let changed=tx.execute("UPDATE steel_datasets SET source_path=?1 WHERE workspace_id=?2 AND id=?3 AND source_sha256=?4",params![target_root.join(&d.relative_path).to_string_lossy(),d.workspace_id,d.dataset_id,d.sha256]).map_err(|e|e.to_string())?;
+        if changed != 1 {
+            return Err("restore_managed_dataset_not_found".into());
+        }
+    }
+    tx.commit().map_err(|e| e.to_string())
 }
 
 fn copy_file(source: &mut File, destination: &mut impl Write) -> io::Result<u64> {

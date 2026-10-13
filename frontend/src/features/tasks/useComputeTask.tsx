@@ -4,7 +4,18 @@ import { Button } from "../../components/ui/button";
 
 export async function waitForComputeResult<T>(id: string, readResult: (id: string) => Promise<T | null>, signal?: AbortSignal, onProgress?: (task: SchedulerProgressEvent) => void): Promise<T> {
   let wake: (() => void) | undefined;
-  const unlisten = await desktop.listenSchedulerProgress((task) => { if (task.id === id) { onProgress?.(task); wake?.(); } });
+  // Event subscription can be unavailable during an IPC reconnect. Persisted
+  // state remains the source of truth and is read by ID without listing history.
+  let unlisten: (() => void) | undefined;
+  const subscribe = async () => {
+    if (unlisten) return;
+    try {
+      unlisten = await desktop.listenSchedulerProgress((task) => {
+        if (task.id === id) { onProgress?.(task); wake?.(); }
+      });
+    } catch { /* Retry subscription on the next persisted-state reconciliation. */ }
+  };
+  await subscribe();
   const abort = () => wake?.();
   signal?.addEventListener("abort", abort);
   try {
@@ -12,9 +23,10 @@ export async function waitForComputeResult<T>(id: string, readResult: (id: strin
       if (signal?.aborted) throw new DOMException("页面已关闭；后台任务继续运行", "AbortError");
       // Reconcile persisted state after reconnect or missed events. Elapsed time
       // is never interpreted as a task failure.
-      let tasks: BackgroundTask[];
-      try { tasks = await desktop.listBackgroundTasks(); }
-      catch {
+      let task: BackgroundTask;
+      try { task = await desktop.getBackgroundTask(id); }
+      catch (reason) {
+        if (String(reason).includes("task_not_found") || String(reason).includes("invalid_task_id")) throw new Error("后台任务不存在");
         // A disconnect does not establish that a durable task failed.
         await new Promise<void>((resolve) => {
           const finish = () => { clearTimeout(timer); signal?.removeEventListener("abort", finish); resolve(); };
@@ -24,8 +36,8 @@ export async function waitForComputeResult<T>(id: string, readResult: (id: strin
         });
         continue;
       }
-      const task = tasks.find((t) => t.id === id);
-      if (!task) throw new Error("后台任务不存在");
+      if (!task || task.id !== id) throw new Error("后台任务不存在");
+      await subscribe();
       onProgress?.(task);
       if (["failed", "cancelled", "interrupted"].includes(task.state)) throw new Error(`任务${task.state === "cancelled" ? "已取消" : "未完成"}：${task.error_code ?? task.state}`);
       if (task.state === "completed") {
@@ -39,7 +51,7 @@ export async function waitForComputeResult<T>(id: string, readResult: (id: strin
         if (signal?.aborted) wake();
       });
     }
-  } finally { unlisten(); signal?.removeEventListener("abort", abort); }
+  } finally { unlisten?.(); signal?.removeEventListener("abort", abort); }
 }
 
 export function useComputeTask<T>(storageKey: string, readResult: (id: string) => Promise<T | null>) {

@@ -1,8 +1,23 @@
+#[path = "support/worker.rs"]
+mod support_worker;
+
+#[test]
+fn native_diagnostics_probes_the_real_worker_and_does_not_report_private_paths() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../compute-worker");
+    let mut cfg = WorkerConfig::new(support_worker::python_executable());
+    cfg.args = vec!["-m".into(), "suna_worker".into()];
+    cfg.working_directory = Some(root.clone());
+    let result = suna::diagnostics::compute::probe(Some(cfg));
+    assert_eq!(result["protocolVersion"], "1.0");
+    assert_eq!(result["features"]["prediction"], true);
+    assert_eq!(result["features"]["microstructure"], true);
+    assert_eq!(result["networkUsed"], false);
+    assert!(!result.to_string().contains(root.to_str().unwrap()));
+}
 use serde_json::json;
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -44,20 +59,7 @@ fn supervisor_skips_progress_notifications_until_matching_response() {
 
 #[test]
 fn supervisor_round_trips_a_real_python_training_worker() {
-    let python = Command::new("where.exe")
-        .arg("python")
-        .output()
-        .expect("Windows Python lookup must be available");
-    assert!(
-        python.status.success(),
-        "python must be installed for the worker contract"
-    );
-    let executable = String::from_utf8_lossy(&python.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
 
     let working_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -111,17 +113,7 @@ fn supervisor_round_trips_a_real_python_training_worker() {
 
 #[test]
 fn supervisor_terminates_a_blocked_worker_when_cancellation_is_requested() {
-    let python = Command::new("where.exe")
-        .arg("python")
-        .output()
-        .expect("Windows Python lookup must be available");
-    assert!(python.status.success());
-    let executable = String::from_utf8_lossy(&python.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
     let script = r#"
 import sys
 import time
@@ -168,17 +160,7 @@ time.sleep(30)
 #[cfg(windows)]
 #[test]
 fn supervisor_cancellation_terminates_worker_descendants() {
-    let python = Command::new("where.exe")
-        .arg("python")
-        .output()
-        .expect("Windows Python lookup must be available");
-    assert!(python.status.success());
-    let executable = String::from_utf8_lossy(&python.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
     let marker = std::env::temp_dir().join(format!(
         "suna-worker-descendant-{}.marker",
         uuid::Uuid::new_v4()
@@ -264,17 +246,7 @@ fn supervisor_rejects_a_response_with_the_wrong_protocol_envelope() {
 
 #[test]
 fn supervisor_kills_a_worker_that_does_not_exit_after_shutdown() {
-    let python = Command::new("where.exe")
-        .arg("python")
-        .output()
-        .expect("Windows Python lookup must be available");
-    assert!(python.status.success());
-    let executable = String::from_utf8_lossy(&python.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
     let script = r#"
 import json
 import sys
@@ -323,17 +295,7 @@ time.sleep(30)
 
 #[test]
 fn supervisor_times_out_when_shutdown_receives_no_response() {
-    let python = Command::new("where.exe")
-        .arg("python")
-        .output()
-        .expect("Windows Python lookup must be available");
-    assert!(python.status.success());
-    let executable = String::from_utf8_lossy(&python.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .expect("Python lookup must return an executable");
+    let executable = support_worker::python_executable();
     let script = r#"
 import sys
 import time

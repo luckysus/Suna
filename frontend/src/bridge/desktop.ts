@@ -1145,6 +1145,7 @@ export interface UpdateCheckResult {
 }
 
 export interface BackupSummary {
+  external_dataset_count?: number|null;
   format_version: number;
   archive_path: string;
   database_bytes: number;
@@ -2061,6 +2062,12 @@ getComputeOptimizationResult: (id: string) =>
   deletePostgresKnowledgeEdge: (edgeId: string) =>
     call<void>("delete_postgres_knowledge_edge", { edgeId }),
   getStorageHealth: () => call<StorageHealth>("get_storage_health"),
+  diagnoseComputeWorker: () => call<{
+    state: "ready" | "degraded" | "unavailable"; errorCode?: string;
+    workerVersion?: string; protocolVersion?: string; networkUsed: boolean;
+    dependencies?: {name:string;status:string;version:string|null;errorCode:string|null}[];
+    features?: Record<string,boolean>;
+  }>("diagnose_compute_worker"),
   getStoragePaths: () => call<StoragePaths>("get_storage_paths"),
   openStoragePath: (kind: keyof StoragePaths) => call<void>("open_storage_path", { kind }),
   clearStorageCache: (kind: "cache" | "temp") => call<number>("clear_storage_cache", { kind }),

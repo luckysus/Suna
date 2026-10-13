@@ -30,7 +30,7 @@ export default function DataLabPage() {
   const [datasets, setDatasets] = useState<SteelDatasetRecord[]>([]);
   const [selected, setSelected] = useState("");
   const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(null);
-  const [tab, setTab] = useState<DataTab>("manage");
+  const [tab, setTab] = useState<DataTab>(()=>{const id=new URLSearchParams(window.location.search).get("tab");return tabs.find(t=>t.id===id)?.id??"manage";});
   const [distributionOrdinal, setDistributionOrdinal] = useState<number | null>(null);
   const [series, setSeries] = useState<DatasetSeries | null>(null);
   const [tableSeries, setTableSeries] = useState<DatasetSeries | null>(null);

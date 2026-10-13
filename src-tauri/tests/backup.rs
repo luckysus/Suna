@@ -14,6 +14,218 @@ use suna::{
 use uuid::Uuid;
 use zip::write::SimpleFileOptions;
 
+#[test]
+fn research_backup_verifies_hashes_and_relocates_managed_dataset_with_images() {
+    use suna::storage::repositories::{
+        industrial_sources as sources, microstructure as images, research_artifacts as artifacts,
+        research_projects as projects, steel,
+    };
+    let root = fixture_root("科研可移植");
+    let content = root.join("原内容");
+    fs::create_dir_all(&content).unwrap();
+    let db = root.join("原.sqlite");
+    let mut c = Connection::open(&db).unwrap();
+    migrate(&mut c).unwrap();
+    let p = projects::save(
+        &mut c,
+        "local",
+        projects::SaveResearchProject {
+            id: None,
+            name: "隔离备份项目".into(),
+            description: "".into(),
+            material_system: None,
+            tags: vec![],
+            expected_updated_at: None,
+        },
+    )
+    .unwrap();
+    let csv = root.join("原合成.csv");
+    fs::write(&csv, "C,HV\n0.2,300\n0.3,320\n").unwrap();
+    let d = sources::file_import(
+        &c,
+        "local",
+        &content,
+        sources::FileImport {
+            project_id: p.id.clone(),
+            source_path: csv.to_string_lossy().into(),
+            adapter_id: "custom_file".into(),
+            software_version: "synthetic".into(),
+            rights_basis: "local fixture".into(),
+            rights_confirmed: true,
+            batch: "A".into(),
+            input_conditions: json!({}),
+            output_units: Default::default(),
+            mappings: vec![],
+        },
+    )
+    .unwrap();
+    // Managed files from earlier measurement feedback and normalization are
+    // included without changing their dataset identity or scientific lineage.
+    for folder in ["research-datasets", "material-datasets"] {
+        fs::create_dir_all(content.join(folder)).unwrap();
+        let file = content.join(folder).join("合成版本.csv");
+        fs::write(
+            &file,
+            format!(
+                "C,HV\n0.1,{}\n0.2,310\n",
+                if folder == "research-datasets" {
+                    300
+                } else {
+                    301
+                }
+            ),
+        )
+        .unwrap();
+        let source = file.to_string_lossy().to_string();
+        let preview = suna::steel::preview_dataset(&suna::steel::DatasetPreviewRequest {
+            source_path: source.clone(),
+            sheet: None,
+        })
+        .unwrap();
+        let sha = suna::steel::hash_dataset_source(&source).unwrap();
+        steel::save_preview(&mut c, "local", &source, &sha, &preview, &[]).unwrap();
+    }
+    let raster = root.join("标定图.png");
+    image::GrayImage::new(10, 10).save(&raster).unwrap();
+    let im = images::import(
+        &c,
+        "local",
+        &content,
+        images::ImportImage {
+            source_path: raster.to_string_lossy().into(),
+            project_id: p.id.clone(),
+            sample_id: "fixture".into(),
+            modality: "OM".into(),
+            source_type: "synthetic".into(),
+            magnification: None,
+            acquired_at: None,
+            notes: "合成夹具".into(),
+        },
+    )
+    .unwrap();
+    let annotation = images::annotate(
+        &c,
+        "local",
+        &im.id,
+        images::Annotation {
+            calibration: None,
+            rois: vec![],
+            threshold: 128,
+            mask_confirmed: false,
+        },
+    )
+    .unwrap();
+    c.execute("INSERT INTO settings VALUES('local','fixture.credential_ref','\"opaque-reference\"','now')",[]).unwrap();
+    let before = artifacts::list(&c, "local", &p.id, 25, 0)
+        .unwrap()
+        .iter()
+        .map(|a| a.content_sha256.clone())
+        .collect::<Vec<_>>();
+    let zip = root.join("备份.suna-backup");
+    let exported = create_backup(&c, &db, &content, &zip).unwrap();
+    assert_eq!(exported.format_version, 2);
+    assert_eq!(exported.content_file_count, 5);
+    assert_eq!(exported.external_dataset_count, Some(0));
+    preview_backup(&zip).unwrap();
+    drop(c);
+    fs::remove_dir_all(&content).unwrap();
+    fs::remove_file(&csv).unwrap();
+    fs::remove_file(&raster).unwrap();
+    let target = root.join("恢复内容");
+    let restored_db = root.join("恢复.sqlite");
+    restore_backup(&zip, &restored_db, &target).unwrap();
+    let c = Connection::open(&restored_db).unwrap();
+    for dataset in steel::list(&c, "local").unwrap() {
+        assert!(std::path::Path::new(&dataset.source_path).starts_with(&target));
+        assert!(std::path::Path::new(&dataset.source_path).is_file());
+    }
+    let restored = steel::get(&c, "local", &d.id).unwrap().unwrap();
+    assert!(std::path::Path::new(&restored.source_path).starts_with(&target));
+    assert_eq!(
+        suna::steel::hash_dataset_source(&restored.source_path).unwrap(),
+        d.source_sha256
+    );
+    assert_eq!(
+        suna::steel::preview_dataset(&suna::steel::DatasetPreviewRequest {
+            source_path: restored.source_path,
+            sheet: None
+        })
+        .unwrap()
+        .row_count,
+        2
+    );
+    assert_eq!(
+        images::latest_annotation(&c, "local", &im.id)
+            .unwrap()
+            .unwrap()
+            .id,
+        annotation.id
+    );
+    let ref_path: String = c
+        .query_row(
+            "SELECT storage_ref FROM microstructure_images WHERE id=?1",
+            [im.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(target.join(ref_path).is_file());
+    assert_eq!(
+        artifacts::list(&c, "local", &p.id, 25, 0)
+            .unwrap()
+            .iter()
+            .map(|a| a.content_sha256.clone())
+            .collect::<Vec<_>>(),
+        before
+    );
+    let reference: String = c
+        .query_row(
+            "SELECT value_json FROM settings WHERE key='fixture.credential_ref'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(reference, "\"opaque-reference\"");
+    drop(c);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn changed_content_with_valid_zip_crc_cannot_preview_or_replace_targets() {
+    let root = fixture_root("hash-corruption");
+    let content = root.join("content");
+    fs::create_dir_all(content.join("objects")).unwrap();
+    fs::write(content.join("objects/sample"), "original").unwrap();
+    let db = root.join("source.sqlite");
+    let mut c = Connection::open(&db).unwrap();
+    migrate(&mut c).unwrap();
+    let zip = root.join("good.suna-backup");
+    create_backup(&c, &db, &content, &zip).unwrap();
+    let corrupt = root.join("corrupt.suna-backup");
+    let mut reader = zip::ZipArchive::new(fs::File::open(&zip).unwrap()).unwrap();
+    let mut writer = zip::ZipWriter::new(fs::File::create(&corrupt).unwrap());
+    for n in 0..reader.len() {
+        let mut entry = reader.by_index(n).unwrap();
+        writer
+            .start_file(entry.name(), SimpleFileOptions::default())
+            .unwrap();
+        if entry.name() == "content/objects/sample" {
+            writer.write_all(b"tampered").unwrap();
+        } else {
+            std::io::copy(&mut entry, &mut writer).unwrap();
+        }
+    }
+    writer.finish().unwrap();
+    assert!(preview_backup(&corrupt)
+        .unwrap_err()
+        .contains("hash_mismatch"));
+    let target = root.join("target.sqlite");
+    fs::write(&target, b"untouched").unwrap();
+    assert!(restore_backup(&corrupt, &target, &root.join("restored")).is_err());
+    assert_eq!(fs::read(&target).unwrap(), b"untouched");
+    drop(c);
+    fs::remove_dir_all(root).unwrap();
+}
+
 fn fixture_root(label: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!("suna-backup-{label}-{}", Uuid::new_v4()))
 }

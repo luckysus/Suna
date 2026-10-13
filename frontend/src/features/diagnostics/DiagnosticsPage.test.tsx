@@ -273,7 +273,7 @@ describe("DiagnosticsPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "diagnosticsBackupExport" }));
 
     await waitFor(() => expect(desktop.createBackup).toHaveBeenCalledWith("C:\\Backups\\steel.suna-backup"));
-    expect(await screen.findByText("diagnosticsBackupCreated")).toBeInTheDocument();
+    expect(await screen.findByText(/diagnosticsBackupCreated/)).toBeInTheDocument();
   });
 
   it("restores a selected backup only after explicit confirmation", async () => {
