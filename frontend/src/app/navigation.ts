@@ -6,6 +6,7 @@ export type { NavigationGroup, SectionId } from "../types/navigation";
 export interface NavigationSection { id: SectionId; label: string; description: string; icon: LucideIcon; group: NavigationGroup; }
 export const primaryNavigationSections: readonly NavigationSection[] = [
   { id: "chat", label: "智能问答", description: "与 Suna 协作完成材料研发任务", icon: MessageSquareText, group: "research" },
+  { id: "projects", label: "科研项目", description: "组织课题、任务与成果来源", icon: Library, group: "research" },
   { id: "knowledge", label: "知识中心", description: "管理知识库、文档和 Wiki", icon: Library, group: "research" },
   { id: "literature", label: "文献研究", description: "检索、阅读和总结科研文献", icon: BookOpen, group: "research" },
   { id: "data", label: "数据实验室", description: "处理数据并生成科研图表", icon: Table2, group: "research" },

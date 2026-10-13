@@ -3,6 +3,7 @@ import type { SectionId } from "./navigation";
 
 /** 第 81 章页面路由：每个功能区一个稳定路径。 */
 export const SECTION_PATHS: Record<SectionId, string> = {
+  projects: "/projects",
   chat: "/chat",
   knowledge: "/knowledge",
   literature: "/literature",

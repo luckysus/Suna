@@ -15,6 +15,7 @@ pub mod memories;
 pub mod permissions;
 pub mod provider_profiles;
 pub mod reports;
+pub mod research_projects;
 pub mod runs;
 pub mod settings;
 pub mod steel;

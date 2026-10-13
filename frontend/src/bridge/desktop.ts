@@ -10,6 +10,13 @@ import {
 } from "@tauri-apps/plugin-dialog";
 import type { AgentEventEnvelope, AgentRunState, PermissionDecision } from "./generated/protocol";
 
+export interface ResearchProject { id: string; name: string; description: string; materialSystem: string | null; status: "active" | "archived"; tags: string[]; createdAt: string; updatedAt: string }
+export interface SaveResearchProject { id?: string; name: string; description: string; materialSystem?: string | null; tags: string[]; expectedUpdatedAt?: string }
+export type ResearchObjectKind = "conversation" | "knowledge_base" | "document" | "dataset" | "model" | "background_task" | "agent_run" | "optimization" | "experiment" | "report" | "artifact";
+export interface ResearchObject { kind: ResearchObjectKind; id: string; title: string; relation: string; availability: "available" | "missing"; createdAt: string }
+export interface ResearchObjectRequest { projectId: string; kind: ResearchObjectKind; id: string; relation?: string }
+export interface ResearchSummary { counts: Record<string, number>; missingSources: number }
+
 export interface Conversation {
   id: string;
   title: string;
@@ -1550,6 +1557,18 @@ function call<T>(command: string, args?: Record<string, unknown>) {
 }
 
 export const desktop = {
+  saveResearchProject: (request: SaveResearchProject) => call<ResearchProject>("save_research_project", { request }),
+  getResearchProject: (id: string) => call<ResearchProject>("get_research_project", { id }),
+  listResearchProjects: (options: { search?: string; status?: string; limit?: number; offset?: number } = {}) => call<ResearchProject[]>("list_research_projects", options),
+  archiveResearchProject: (id: string, archived: boolean) => call<ResearchProject>("archive_research_project", { id, archived }),
+  attachResearchObject: (request: ResearchObjectRequest) => call<void>("attach_research_object", { request }),
+  detachResearchObject: (request: ResearchObjectRequest) => call<void>("detach_research_object", { request }),
+  listResearchProjectObjects: (projectId: string, limit = 50, offset = 0) => call<ResearchObject[]>("list_research_project_objects", { projectId, limit, offset }),
+  listResearchAttachableObjects: (kind: ResearchObjectKind, search = "", limit = 50, offset = 0) => call<ResearchObject[]>("list_research_attachable_objects", { kind, search, limit, offset }),
+  getResearchProjectSummary: (id: string) => call<ResearchSummary>("get_research_project_summary", { id }),
+  getCurrentResearchProject: () => call<ResearchProject | null>("get_current_research_project"),
+  setCurrentResearchProject: (id: string | null) => call<void>("set_current_research_project", { id }),
+
   listenFileDrop: (callback: (event: NativeFileDragEvent) => void) =>
     getCurrentWebview().onDragDropEvent((event) => callback(event.payload)),
   setNativeTheme: (theme: "light" | "dark") => {

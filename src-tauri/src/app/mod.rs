@@ -29,6 +29,7 @@ pub(crate) mod mcp_runtime;
 pub(crate) mod permission_commands;
 pub(crate) mod provider_commands;
 pub(crate) mod report_commands;
+pub(crate) mod research_commands;
 pub(crate) mod secret_commands;
 pub(crate) mod skills_commands;
 pub(crate) mod steel_agent_gateway;

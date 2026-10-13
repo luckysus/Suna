@@ -2,6 +2,17 @@ macro_rules! handler {
     () => {
         tauri::generate_handler![
             crate::db::db_init,
+            crate::app::research_commands::save_research_project,
+            crate::app::research_commands::get_research_project,
+            crate::app::research_commands::list_research_projects,
+            crate::app::research_commands::archive_research_project,
+            crate::app::research_commands::attach_research_object,
+            crate::app::research_commands::detach_research_object,
+            crate::app::research_commands::list_research_project_objects,
+            crate::app::research_commands::list_research_attachable_objects,
+            crate::app::research_commands::get_research_project_summary,
+            crate::app::research_commands::get_current_research_project,
+            crate::app::research_commands::set_current_research_project,
             crate::app::export_commands::save_export_file,
             crate::app::storage_commands::conversations::list_conversations,
             crate::app::storage_commands::conversations::list_archived_conversations,

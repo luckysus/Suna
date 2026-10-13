@@ -6,6 +6,7 @@
  */
 
 export type SectionId =
+  | "projects"
   | "chat"
   | "knowledge"
   | "literature"

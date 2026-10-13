@@ -13,7 +13,7 @@ pub struct MigrationReport {
     pub legacy_cloud_settings: i64,
 }
 
-const MIGRATIONS: &[Migration] = &[
+pub(crate) const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
         sql: include_str!("migrations/0001_initial.sql"),
@@ -153,6 +153,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 35,
         sql: include_str!("migrations/0035_reports.sql"),
+    },
+    Migration {
+        version: 36,
+        sql: include_str!("migrations/0036_research_projects.sql"),
     },
 ];
 
