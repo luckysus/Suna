@@ -44,6 +44,7 @@ export default function ProcessOptimizationPage() {
   const columns = useMemo(() => dataset ? numeric(dataset) : [], [dataset]);
   const multiObjective = objectives.length > 1;
   const computeTask = useComputeTask(`suna.optimization.${datasetId}`, desktop.getComputeOptimizationResult);
+  useEffect(()=>{const id=new URLSearchParams(window.location.search).get("task");if(id)void computeTask.run(id).catch(e=>setError(String(e)));},[]);
   useEffect(() => { if (computeTask.result) { setResult(computeTask.result); setState("idle"); setNotice("优化完成，候选方案已更新"); } }, [computeTask.result]);
 
   const load = async () => {

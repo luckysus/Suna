@@ -117,6 +117,20 @@ pub fn list_background_tasks(
 }
 
 #[tauri::command]
+pub fn get_background_task(
+    db: tauri::State<DbState>,
+    id: String,
+) -> Result<BackgroundTaskResponse, String> {
+    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    with_conn(&db, |c| {
+        repository::get(c, current_workspace_id(), id)
+            .map_err(|e| e.to_string())?
+            .map(background_task_response)
+            .ok_or("task_not_found".into())
+    })
+}
+
+#[tauri::command]
 pub fn cancel_background_task(
     db: tauri::State<DbState>,
     id: String,

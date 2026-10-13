@@ -1,6 +1,6 @@
 {
   "id": "steel",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "compatibility": {
     "min_app_version": "0.1.0",
     "max_app_version": null
@@ -51,7 +51,11 @@
     "steel.list_memory",
     "steel.forget_memory",
     "steel.material_feasibility",
-    "steel.recommend_next_experiments"
+    "steel.recommend_next_experiments",
+    "research.list_projects",
+    "research.get_project_context",
+    "research.attach_result",
+    "research.list_artifacts"
   ],
   "mcp_recommendations": [
     {

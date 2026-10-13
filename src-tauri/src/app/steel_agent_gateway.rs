@@ -72,6 +72,18 @@ impl DesktopSteelAgentGateway {
         submit: impl FnOnce(&Connection) -> Result<crate::tasks::TaskRecord, String>,
     ) -> Result<crate::tasks::TaskRecord, String> {
         let mut connection = self.open()?;
+        let project = if let Some(run) = self.run_id {
+            crate::storage::repositories::research_delivery::context(
+                &connection,
+                &self.workspace_id,
+                &run.to_string(),
+            )?
+        } else {
+            crate::storage::repositories::research_artifacts::current(
+                &connection,
+                &self.workspace_id,
+            )?
+        };
         match (self.run_id, self.tool_call_id) {
             (Some(run_id), Some(tool_call_id)) => crate::tasks::sources::submit_with(
                 &mut connection,
@@ -80,9 +92,19 @@ impl DesktopSteelAgentGateway {
                     run_id,
                     tool_call_id,
                 },
-                submit,
+                |c| {
+                    crate::storage::repositories::research_delivery::scoped(
+                        c,
+                        project.as_deref(),
+                        || submit(c),
+                    )
+                },
             ),
-            _ => submit(&connection),
+            _ => crate::storage::repositories::research_delivery::scoped(
+                &connection,
+                project.as_deref(),
+                || submit(&connection),
+            ),
         }
     }
 
@@ -998,7 +1020,12 @@ impl DesktopSteelAgentGateway {
         }
         let request: OptimizeSteelProcessRequest = serde_json::from_value(arguments)
             .map_err(|error| format!("invalid optimization request: {error}"))?;
-        let training_task_id = if request.objectives.is_empty(){uuid::Uuid::parse_str(&request.training_task_id).map_err(|error|format!("invalid training task ID: {error}"))?}else{uuid::Uuid::nil()};
+        let training_task_id = if request.objectives.is_empty() {
+            uuid::Uuid::parse_str(&request.training_task_id)
+                .map_err(|error| format!("invalid training task ID: {error}"))?
+        } else {
+            uuid::Uuid::nil()
+        };
         let task = self.submit_compute_task(|connection| {
             logic::submit_optimization_on_connection(connection, &request, training_task_id)
         })?;
@@ -1201,6 +1228,19 @@ impl SteelAgentGateway for DesktopSteelAgentGateway {
                 return Err("tool execution was cancelled".to_string());
             }
             match tool_name {
+                "research_list_projects"
+                | "research_get_project_context"
+                | "research_attach_result"
+                | "research_list_artifacts" => {
+                    let mut c = gateway.open()?;
+                    crate::storage::repositories::research_delivery::agent_call(
+                        &mut c,
+                        &gateway.workspace_id,
+                        gateway.run_id.as_ref().map(|id| id.to_string()).as_deref(),
+                        tool_name,
+                        arguments,
+                    )
+                }
                 "knowledge_search" => gateway.knowledge_search(arguments).await,
                 "search_literature" => gateway.search_literature(arguments).await,
                 "read_literature_section" => gateway.read_literature_section(arguments).await,
@@ -1216,17 +1256,60 @@ impl SteelAgentGateway for DesktopSteelAgentGateway {
                 "match_coil" => gateway.match_coil(arguments),
                 "start_training" => gateway.start_training(arguments),
                 "material_feasibility" => {
-                    let c=gateway.open()?;
-                    let project=if let Some(id)=arguments["projectId"].as_str(){id.to_string()}else{crate::storage::repositories::research_artifacts::current(&c,&gateway.workspace_id)?.ok_or("choose_current_research_project_first")?};
-                    let variables=serde_json::from_value(arguments["variables"].clone()).map_err(|e|e.to_string())?;
-                    let selected:Vec<String>=serde_json::from_value(arguments["selected"].clone()).map_err(|e|e.to_string())?;
-                    Ok(json!({"snapshot":crate::storage::repositories::material_rules::compile(&c,&gateway.workspace_id,&project,variables,&selected)?,"availableRules":crate::storage::repositories::material_rules::list(&c,&gateway.workspace_id,&project)?}))
-                },
+                    let c = gateway.open()?;
+                    let project = if let Some(run) = gateway.run_id {
+                        crate::storage::repositories::research_delivery::context(
+                            &c,
+                            &gateway.workspace_id,
+                            &run.to_string(),
+                        )?
+                    } else {
+                        crate::storage::repositories::research_artifacts::current(
+                            &c,
+                            &gateway.workspace_id,
+                        )?
+                    }
+                    .ok_or("choose_current_research_project_first")?;
+                    if arguments["projectId"]
+                        .as_str()
+                        .is_some_and(|id| id != project)
+                    {
+                        return Err("project_outside_agent_context".into());
+                    }
+                    let variables = serde_json::from_value(arguments["variables"].clone())
+                        .map_err(|e| e.to_string())?;
+                    let selected: Vec<String> =
+                        serde_json::from_value(arguments["selected"].clone())
+                            .map_err(|e| e.to_string())?;
+                    Ok(
+                        json!({"snapshot":crate::storage::repositories::material_rules::compile(&c,&gateway.workspace_id,&project,variables,&selected)?,"availableRules":crate::storage::repositories::material_rules::list(&c,&gateway.workspace_id,&project)?}),
+                    )
+                }
                 "recommend_next_experiments" => {
-                    let request=serde_json::from_value(arguments).map_err(|e|e.to_string())?;
-                    let task=gateway.submit_compute_task(|c|crate::storage::repositories::research_feedback::submit(c,&gateway.workspace_id,request))?;
-                    Ok(json!(crate::app::task_commands::tasks::background_task_response(task)))
-                },
+                    if let Some(run) = gateway.run_id {
+                        let c = gateway.open()?;
+                        let p = crate::storage::repositories::research_delivery::context(
+                            &c,
+                            &gateway.workspace_id,
+                            &run.to_string(),
+                        )?
+                        .ok_or("research_project_unassigned")?;
+                        if arguments["projectId"].as_str() != Some(&p) {
+                            return Err("project_outside_agent_context".into());
+                        }
+                    }
+                    let request = serde_json::from_value(arguments).map_err(|e| e.to_string())?;
+                    let task = gateway.submit_compute_task(|c| {
+                        crate::storage::repositories::research_feedback::submit(
+                            c,
+                            &gateway.workspace_id,
+                            request,
+                        )
+                    })?;
+                    Ok(json!(
+                        crate::app::task_commands::tasks::background_task_response(task)
+                    ))
+                }
                 "process_literature" => gateway.process_literature(arguments).await,
                 "export_data" => gateway.export_data(arguments),
                 "remember_memory" => gateway.remember_memory(arguments),
@@ -1674,7 +1757,12 @@ fn has_local_prediction_shape(arguments: &Value) -> bool {
 }
 
 fn has_local_optimization_shape(arguments: &Value) -> bool {
-    if has_keys(arguments,&["datasetId","objectives","variables","trials"]){return true}
+    if has_keys(
+        arguments,
+        &["datasetId", "objectives", "variables", "trials"],
+    ) {
+        return true;
+    }
     has_keys(
         arguments,
         &[

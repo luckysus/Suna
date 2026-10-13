@@ -34,6 +34,9 @@ pub fn atomic<T>(c: &Connection, f: impl FnOnce() -> Result<T, String>) -> Resul
     }
 }
 pub fn current(c: &Connection, ws: &str) -> Result<Option<String>, String> {
+    if let Some(p) = super::research_delivery::scope(c)? {
+        return Ok(p);
+    }
     let saved:Option<String>=c.query_row("SELECT value_json FROM settings WHERE workspace_id=?1 AND key='suna.research.current_project'",[ws],|r|r.get(0)).optional().map_err(err)?;
     saved
         .map(|s| {
@@ -484,7 +487,10 @@ pub fn bind_current(c: &Connection, ws: &str, task: &str) -> Result<(), String> 
         let explicit = payload["_research_project_id"].as_str().map(str::to_string);
         if let Some(p) = match explicit {
             Some(p) => Some(p),
-            None => current(c, ws)?,
+            None => match super::research_delivery::scope(c)? {
+                Some(p) => p,
+                None => current(c, ws)?,
+            },
         } {
             projects::require_active(c, ws, &p)?;
             bind(c, ws, &p, task)?;

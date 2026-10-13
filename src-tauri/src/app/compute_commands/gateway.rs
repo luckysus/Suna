@@ -44,6 +44,18 @@ impl DesktopOptimizationGateway {
             uuid::Uuid::nil()
         };
         let mut connection = self.open()?;
+        let project = if let Some(run) = self.run_id {
+            crate::storage::repositories::research_delivery::context(
+                &connection,
+                crate::db::current_workspace_id(),
+                &run.to_string(),
+            )?
+        } else {
+            crate::storage::repositories::research_artifacts::current(
+                &connection,
+                crate::db::current_workspace_id(),
+            )?
+        };
         let task = match (self.run_id, tool_call_id) {
             (Some(run_id), Some(tool_call_id)) => crate::tasks::sources::submit_with(
                 &mut connection,
@@ -53,10 +65,30 @@ impl DesktopOptimizationGateway {
                     tool_call_id,
                 },
                 |connection| {
-                    logic::submit_optimization_on_connection(connection, &request, training_task_id)
+                    crate::storage::repositories::research_delivery::scoped(
+                        connection,
+                        project.as_deref(),
+                        || {
+                            logic::submit_optimization_on_connection(
+                                connection,
+                                &request,
+                                training_task_id,
+                            )
+                        },
+                    )
                 },
             )?,
-            _ => logic::submit_optimization_on_connection(&connection, &request, training_task_id)?,
+            _ => crate::storage::repositories::research_delivery::scoped(
+                &connection,
+                project.as_deref(),
+                || {
+                    logic::submit_optimization_on_connection(
+                        &connection,
+                        &request,
+                        training_task_id,
+                    )
+                },
+            )?,
         };
         Ok(json!(
             crate::app::task_commands::tasks::background_task_response(task)

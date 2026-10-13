@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use rusqlite::{params, Connection, OptionalExtension};
 use uuid::Uuid;
 
 /// 第 56 / 80 章：科研报告落库（0035 迁移建立 `reports` 表）。
@@ -67,12 +67,22 @@ pub fn create(
     workspace_id: &str,
     report: NewReport<'_>,
 ) -> Result<ReportRecord, String> {
+    super::research_artifacts::atomic(connection, || {
+        create_in_transaction(connection, workspace_id, report)
+    })
+}
+
+pub fn create_in_transaction(
+    connection: &Connection,
+    workspace_id: &str,
+    report: NewReport<'_>,
+) -> Result<ReportRecord, String> {
     let kind = report.kind.trim();
-    if kind.is_empty() || kind.len() > 40 {
+    if kind.is_empty() || kind.chars().count() > 40 {
         return Err("report kind must be 1-40 characters".to_string());
     }
     let title = report.title.trim();
-    if title.is_empty() || title.len() > 200 {
+    if title.is_empty() || title.chars().count() > 200 {
         return Err("report title must be 1-200 characters".to_string());
     }
     if report.topic.len() > 2000 {
@@ -90,12 +100,9 @@ pub fn create(
     validate_json(report.knowledge_base_ids_json, "knowledge_base_ids")?;
     validate_json(report.metadata_json, "metadata")?;
 
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|error| error.to_string())?;
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
-    transaction
+    connection
         .execute(
             "INSERT INTO reports
                (workspace_id, id, kind, title, topic, format, content_markdown,
@@ -116,7 +123,6 @@ pub fn create(
             ],
         )
         .map_err(|error| error.to_string())?;
-    transaction.commit().map_err(|error| error.to_string())?;
     get(connection, workspace_id, &id)?
         .ok_or_else(|| "created report could not be read back".to_string())
 }

@@ -134,6 +134,7 @@ function SunaAppShell() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [chat.onCancel, chat.onNewConversation, chat.onResume, preferences.showAgentPanel, shortcuts, updatePreferences]);
+  useEffect(()=>{const restore=()=>{if(window.location.pathname==='/chat'){const id=new URLSearchParams(window.location.search).get('conversation');if(id)void chat.onSelectConversation(id);}};restore();window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);},[activeSection,chat.onSelectConversation]);
   const active = getNavigationSection(activeSection);
   const activeProfile = chat.chatProfiles.find((profile) => profile.id === chat.activeChatProfileId);
   const modelLabel = activeProfile?.model_id || activeProfile?.display_name || "未配置模型";

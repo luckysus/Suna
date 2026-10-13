@@ -18,7 +18,7 @@ import { Button } from "../../components/ui/button";
 import TrainingEvaluationConfig from "./TrainingEvaluationConfig";
 import BatchPredictionPanel from "./BatchPredictionPanel";
 import { buildShapleyPlan, explainShapleyPlan } from "./sampledShapley";
-import { useComputeTask, ComputeTaskStatus } from "../tasks/useComputeTask";
+import { useComputeTask, ComputeTaskStatus, waitForComputeResult } from "../tasks/useComputeTask";
 
 type RunState = "idle" | "loading" | "running" | "error";
 const numeric = (dataset: SteelDatasetRecord) => dataset.columns.filter((column) => column.inferredType === "number" && !column.duplicate);
@@ -41,6 +41,7 @@ export default function PerformancePredictionPage() {
   const [explainError, setExplainError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sourceSnapshot,setSourceSnapshot]=useState<unknown>(null);
   const [tab, setTab] = useState<"single" | "batch" | "models" | "compare">("single");
   const trainingTask = useComputeTask(`suna.training.${datasetId}`, desktop.getComputeTrainingResult);
   const explanationTask = useComputeTask(`suna.explanation.${datasetId}`, desktop.getComputePredictionResult);
@@ -67,6 +68,24 @@ export default function PerformancePredictionPage() {
     finally { setTraining("idle"); }
   };
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('task');
+    if (!id) return;
+    let active = true;
+    const controller=new AbortController();
+    void desktop.getBackgroundTask(id).then(async task => {
+      if (!active) return;
+      if (task.kind.includes('train')) {
+        const result = await waitForComputeResult(id,desktop.getComputeTrainingResult,controller.signal);
+        if (active) {setSourceSnapshot({taskId:id,datasetId:task.dataset_id,modelType:result.artifact.model_type,featureNames:result.artifact.feature_names,metrics:result.artifact.metrics}); setNotice(`已打开原训练任务 ${id}`);}
+      } else if (task.kind.includes('predict')) {
+        const result = await waitForComputeResult(id,desktop.getComputePredictionResult,controller.signal);
+        if (active) {setSourceSnapshot(result);setNotice(`已打开原预测任务 ${id}`);}
+      } else throw new Error('该任务不是训练或预测任务');
+    }).catch(reason => {if(active)setError(String(reason));});
+    return () => {active=false;controller.abort();};
+  }, []);
+
   useEffect(() => {
     if (!dataset) return;
     const available = numeric(dataset);
@@ -141,7 +160,7 @@ export default function PerformancePredictionPage() {
     if (saved > 0) { setNotice(`已导入 ${saved} 个数据集，请在数据实验室完成列映射并激活`); await load(); }
   };
   return <FileDropZone extensions={["csv", "xlsx", "xls", "json"]} onFiles={(paths) => void importDatasetPaths(paths)} onRejected={(reason) => setNotice(reason)} label="松开即可导入数据集" hint="支持 CSV / Excel / JSON">
-    <section className="suna-prediction-page"><header className="suna-prediction-header"><div><span className="suna-module-kicker">SUNA PERFORMANCE PREDICTION</span><h1><BarChart3 size={24} />性能预测</h1><p>基于机器学习模型，快速预测钢铁材料的力学性能。</p></div><div className="suna-prediction-actions"><Button variant="ghost" onClick={importDataset}><Upload size={15} />导入数据</Button><Button size="icon" onClick={() => void load()} aria-label="刷新数据集"><RefreshCw size={16} /></Button></div></header><nav className="suna-prediction-tabs"><button className={tab === "single" ? "is-active" : ""} onClick={() => setTab("single")}>单点预测</button><button className={tab === "batch" ? "is-active" : ""} onClick={() => setTab("batch")}>批量预测</button><button className={tab === "models" ? "is-active" : ""} onClick={() => setTab("models")}>模型管理</button><button className={tab === "compare" ? "is-active" : ""} onClick={() => setTab("compare")}>模型比较</button></nav>{tab !== "single" && <div className="suna-prediction-notice">{tab === "batch" ? "批量输入按模型特征名称映射，可查看逐行结果并导出。" : tab === "compare" ? "模型比较会用同一组输入训练多个模型并对比预测值、误差与验证指标。" : "模型中心列出全部已注册模型版本，并支持自备 ONNX 模型预测。"}</div>}
+    <section className="suna-prediction-page">{sourceSnapshot!=null&&<details open><summary>原任务结果快照</summary><pre>{JSON.stringify(sourceSnapshot,null,2)}</pre></details>}<header className="suna-prediction-header"><div><span className="suna-module-kicker">SUNA PERFORMANCE PREDICTION</span><h1><BarChart3 size={24} />性能预测</h1><p>基于机器学习模型，快速预测钢铁材料的力学性能。</p></div><div className="suna-prediction-actions"><Button variant="ghost" onClick={importDataset}><Upload size={15} />导入数据</Button><Button size="icon" onClick={() => void load()} aria-label="刷新数据集"><RefreshCw size={16} /></Button></div></header><nav className="suna-prediction-tabs"><button className={tab === "single" ? "is-active" : ""} onClick={() => setTab("single")}>单点预测</button><button className={tab === "batch" ? "is-active" : ""} onClick={() => setTab("batch")}>批量预测</button><button className={tab === "models" ? "is-active" : ""} onClick={() => setTab("models")}>模型管理</button><button className={tab === "compare" ? "is-active" : ""} onClick={() => setTab("compare")}>模型比较</button></nav>{tab !== "single" && <div className="suna-prediction-notice">{tab === "batch" ? "批量输入按模型特征名称映射，可查看逐行结果并导出。" : tab === "compare" ? "模型比较会用同一组输入训练多个模型并对比预测值、误差与验证指标。" : "模型中心列出全部已注册模型版本，并支持自备 ONNX 模型预测。"}</div>}
     {error && <div className="suna-prediction-alert"><AlertTriangle size={16} />{error}</div>}{notice && <div className="suna-prediction-notice"><CheckCircle2 size={16} />{notice}</div>}
     {tab === "models" ? <div className="suna-prediction-modelcenter"><ModelRegistryPanel datasets={datasets} onNotice={setNotice} onError={setError} /><CustomOnnxPanel onNotice={setNotice} onError={setError} /></div> : tab === "batch" ? <BatchPredictionPanel datasetId={datasetId} model={trainingResult} onError={setError} onNotice={setNotice} /> : tab === "compare" ? <ModelComparisonPanel splitPolicy={splitPolicy} datasetId={datasetId} targetColumn={target} featureColumns={featureColumns} featureValues={featureColumns.map((ordinal) => { const column = columns.find((c) => c.ordinal === ordinal); return Number(values[ordinal] ?? (column ? midpoint(column) : 0)); })} onNotice={setNotice} onError={setError} /> : <div className="suna-prediction-layout"><section className="suna-prediction-config"><div className="suna-prediction-section-title"><Database size={17} /><div><h2>预测任务配置</h2><span>选择已激活的数据集和训练目标</span></div></div><label>数据集<Select value={datasetId} onValueChange={(value) => setDatasetId(value)}>
   <SelectTrigger aria-label="数据集"><SelectValue /></SelectTrigger>

@@ -1571,6 +1571,9 @@ export interface MaterialRule { id:string;name:string;severity:'hard'|'soft'|'su
 export interface VersionedMaterialRule {version:number;rule:MaterialRule;}
 export interface MaterialVariable {name:string;fieldId:string;unit:string;min:number;max:number;fixedValue?:number|null;}
 export const desktop = {
+  exportResearchManifest:(projectId:string)=>call<Record<string,unknown>>('export_research_manifest',{projectId}),
+  generateResearchProjectReport:(projectId:string)=>call<ReportRecord>('generate_research_project_report',{projectId}),
+  getResearchRunNavigation:(taskId:string)=>call<{projectId:string;conversationId:string|null;agentRunId:string|null;kind:string}>('get_research_run_navigation',{taskId}),
   createResearchDesignCandidatePlan:(projectId:string,taskId:string,index:number,title:string)=>call<ExperimentPlanRecord>('create_research_design_candidate_plan',{projectId,taskId,index,title}),
   recommendNextResearchExperiments:(request:{projectId:string;datasetId:string;property:string;variables:MaterialVariable[];strategy:'exploitation'|'exploration'|'balanced';budget:number;direction:'maximize'|'minimize';seed:number;minDistance?:number})=>call<BackgroundTask>('recommend_next_research_experiments',{request}),
   getExperimentReplicateStatistics:(projectId:string,planId:string)=>call<{property:string;unit:string;count:number;mean:number;stddev:number}[]>('get_experiment_replicate_statistics',{projectId,planId}),
@@ -1899,6 +1902,7 @@ getComputeOptimizationResult: (id: string) =>
     call<KnowledgeDocumentRaw>("get_postgres_document_raw", { documentId }),
   exportPostgresDocument: (documentId: string, destination: string) =>
     call<void>("export_postgres_document", { documentId, destination }),
+  getBackgroundTask: (id:string) => call<BackgroundTask>("get_background_task",{id}),
   listBackgroundTasks: () => call<BackgroundTask[]>("list_background_tasks"),
   cancelBackgroundTask: (id: string) =>
     call<BackgroundTask>("cancel_background_task", { id }),
