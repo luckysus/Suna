@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CalendarPlus, CheckCircle2, FlaskConical, Trash2 } from "lucide-react";
 import { desktop, type ExperimentPlanRecord } from "../../bridge/desktop";
+import ResearchMeasurementsPanel from "../research/ResearchMeasurementsPanel";
 import ExperimentDesignPanel from "./ExperimentDesignPanel";
 import "./experiment.css";
 import { Button } from "../../components/ui/button";
@@ -74,6 +75,7 @@ export default function ExperimentAssistantPage() {
       </header>
       {notice && <div className="suna-experiment-notice"><CheckCircle2 size={15} />{notice}</div>}
       {error && <div className="suna-experiment-notice"><CheckCircle2 size={15} />{error}</div>}
+      <ResearchMeasurementsPanel />
       <ExperimentDesignPanel datasets={datasets} onNotice={setNotice} onError={setError} />
       <section className="suna-design-panel">
         <div className="suna-experiment-title"><CalendarPlus size={17} /><div><h2>实验计划</h2><span>来自工艺优化候选或实验设计组合</span></div></div>

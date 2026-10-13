@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarPlus, CheckCircle2, Download, Gauge, Loader2, Play, RefreshCw, Upload } from "lucide-react";
 import { desktop, type ComputeTrainingResult, type ComputeOptimizationRequest, type OptimizationObjective, type OptimizationVariable, type ComputeOptimizationResult, type SteelDatasetRecord } from "../../bridge/desktop";
+import { useResearchStore } from "../../stores/researchStore";
 import { OptimizationObjectives } from "./OptimizationObjectives";
 import { useComputeTask, ComputeTaskStatus } from "../tasks/useComputeTask";
 import { Input } from "../../components/ui/input";
@@ -24,6 +25,7 @@ const ALGORITHMS = [
 ] as const;
 
 export default function ProcessOptimizationPage() {
+  const project=useResearchStore(s=>s.currentProject);
   const [datasets, setDatasets] = useState<SteelDatasetRecord[]>([]);
   const [datasetId, setDatasetId] = useState("");
   const [models, setModels] = useState<Record<string, ComputeTrainingResult>>({});
@@ -157,6 +159,12 @@ export default function ProcessOptimizationPage() {
     const recommendation = result.recommendations[index];
     const boundsByName = new Map(columns.map((column) => [column.canonicalField || column.originalName, column]));
     try {
+      if(project && computeTask.task?.id){
+        const artifact=await desktop.findResearchTaskArtifact(project.id,computeTask.task?.id);
+        if(!artifact)throw new Error("当前任务未归入此项目，请在科研项目中关联原任务后重试");
+        await desktop.createResearchCandidatePlan(project.id,artifact,index,`方案 ${index+1}（${dataset.sourceName}）`);
+        setNotice("候选方案已加入当前项目实验计划，保留优化成果溯源");return;
+      }
       await desktop.createExperimentPlan({
         source: "optimization",
         title: `方案 ${String.fromCharCode(65 + (index % 26))}（${dataset.sourceName}）`,

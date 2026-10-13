@@ -16,14 +16,18 @@ pub fn save_preview(
     preview: &DatasetPreview,
     mappings: &[DatasetColumnMapping],
 ) -> Result<SteelDatasetRecord, String> {
+    let transaction=connection.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|e|e.to_string())?;
+    let result=save_preview_on_connection(&transaction,workspace_id,source_path,source_sha256,preview,mappings)?;
+    transaction.commit().map_err(|e|e.to_string())?;
+    Ok(result)
+}
+
+pub fn save_preview_on_connection(connection:&Connection,workspace_id:&str,source_path:&str,source_sha256:&str,preview:&DatasetPreview,mappings:&[DatasetColumnMapping])->Result<SteelDatasetRecord,String>{
     let mappings = normalize_mappings(preview, mappings)?;
     let preview_json = serde_json::to_string(preview).map_err(|error| error.to_string())?;
     let now = Utc::now().to_rfc3339();
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|error| error.to_string())?;
 
-    transaction
+    connection
         .execute(
             "INSERT INTO steel_datasets
                (workspace_id, id, source_name, source_path, source_sha256, format,
@@ -58,7 +62,7 @@ pub fn save_preview(
         )
         .map_err(|error| error.to_string())?;
 
-    let dataset_id: String = transaction
+    let dataset_id: String = connection
         .query_row(
             "SELECT id FROM steel_datasets
              WHERE workspace_id = ?1 AND source_sha256 = ?2 AND selected_sheet = ?3",
@@ -66,7 +70,7 @@ pub fn save_preview(
             |row| row.get(0),
         )
         .map_err(|error| error.to_string())?;
-    transaction
+    connection
         .execute(
             "DELETE FROM steel_dataset_columns
              WHERE workspace_id = ?1 AND dataset_id = ?2",
@@ -76,7 +80,7 @@ pub fn save_preview(
 
     for (ordinal, column) in preview.columns.iter().enumerate() {
         let mapping = mappings.iter().find(|mapping| mapping.ordinal == ordinal);
-        transaction
+        connection
             .execute(
                 "INSERT INTO steel_dataset_columns
                    (workspace_id, dataset_id, ordinal, original_name, duplicate,
@@ -104,8 +108,7 @@ pub fn save_preview(
             )
             .map_err(|error| error.to_string())?;
     }
-    super::research_artifacts::imported_dataset(&transaction, workspace_id, &dataset_id)?;
-    transaction.commit().map_err(|error| error.to_string())?;
+    super::research_artifacts::imported_dataset(&connection, workspace_id, &dataset_id)?;
     get(connection, workspace_id, &dataset_id)?
         .ok_or_else(|| "saved dataset disappeared".to_string())
 }

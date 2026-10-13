@@ -1559,7 +1559,18 @@ function call<T>(command: string, args?: Record<string, unknown>) {
 export interface ResearchArtifact { id:string; projectId:string; kind:string; title:string; schemaVersion:string; contentSha256:string; state:string; sourceRunId:string|null; createdAt:string; payload?:Record<string,unknown>; }
 export interface ResearchRun { id:string; title:string; kind:string; backgroundTaskId:string|null; state:string; progress:number; errorCode:string|null; origin:string; agentRunId:string|null; createdAt:string; }
 export interface ResearchArtifactEdge { fromId:string; toId:string; relation:string; }
+export interface ExperimentMeasurementInput { property:string; value:number; unit:string; method:string; uncertainty?:number|null; repeatCount?:number; measuredAt:string; note?:string; }
+export interface RecordExperimentExecution { projectId:string; planId:string; sampleId:string; heatId?:string|null; batchId?:string|null; actualVariables:Record<string,number>; variableUnits:Record<string,string>; performedAt:string; method:string; sourceType:"measured"|"synthetic"|"literature"; note?:string; measurements:ExperimentMeasurementInput[]; }
+export interface ExperimentExecution extends RecordExperimentExecution { id:string; replicate:number; reviewState:string; planArtifactId:string|null; measurements:(ExperimentMeasurementInput&{id:string})[]; reviews:{state:string;reviewer:string;reason:string;createdAt:string}[]; }
+export interface ExperimentComparison { executionId:string;property:string;unit:string;prediction:number;actual:number;predictionMinusActual:number; }
 export const desktop = {
+  recordExperimentExecution:(request:RecordExperimentExecution)=>call<ExperimentExecution>("record_experiment_execution",{request}),
+  listExperimentExecutions:(projectId:string,limit=25,offset=0)=>call<ExperimentExecution[]>("list_experiment_executions",{projectId,limit,offset}),
+  reviewExperimentExecution:(id:string,state:string,reason:string,expectedState:string)=>call<ExperimentExecution>("review_experiment_execution",{id,state,reason,expectedState}),
+  createResearchCandidatePlan:(projectId:string,artifactId:string,index:number,title:string)=>call<ExperimentPlanRecord>("create_research_candidate_plan",{projectId,artifactId,index,title}),
+  findResearchTaskArtifact:(projectId:string,taskId:string)=>call<string|null>("find_research_task_artifact",{projectId,taskId}),
+  compareExperimentPredictions:(id:string,artifactId:string,candidate:number)=>call<ExperimentComparison[]>("compare_experiment_predictions",{id,artifactId,candidate}),
+  createMeasurementDatasetVersion:(request:{projectId:string;executionIds:string[];features:string[];properties:string[];parentDatasetId?:string|null})=>call<SteelDatasetRecord>("create_measurement_dataset_version",{request}),
   listResearchRuns: (projectId:string,limit=50,offset=0)=>call<ResearchRun[]>("list_research_runs",{projectId,limit,offset}),
   listResearchArtifacts: (projectId:string,limit=50,offset=0)=>call<ResearchArtifact[]>("list_research_artifacts",{projectId,limit,offset}),
   getResearchArtifact: (id:string)=>call<ResearchArtifact>("get_research_artifact",{id}),

@@ -94,6 +94,29 @@ pub fn create(
     workspace_id: &str,
     experiment: NewExperiment<'_>,
 ) -> Result<ExperimentRecord, String> {
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let result = create_on_connection(&transaction, workspace_id, experiment)?;
+    if super::research_artifacts::installed(&transaction) {
+        if let Some(project) = super::research_artifacts::current(&transaction, workspace_id)? {
+            super::experiment_measurements::snapshot_plan(
+                &transaction,
+                workspace_id,
+                &project,
+                &result.id,
+            )?;
+        }
+    }
+    transaction.commit().map_err(|e| e.to_string())?;
+    Ok(result)
+}
+
+pub fn create_on_connection(
+    connection: &Connection,
+    workspace_id: &str,
+    experiment: NewExperiment<'_>,
+) -> Result<ExperimentRecord, String> {
     if experiment.state != "draft" && experiment.state != "proposed" {
         return Err("new experiment plans must start as draft or proposed".to_string());
     }
@@ -112,12 +135,9 @@ pub fn create(
             .map_err(|error| format!("recommendation must be valid JSON: {error}"))?;
     }
 
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|error| error.to_string())?;
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
-    transaction
+    connection
         .execute(
             "INSERT INTO experiments
                (workspace_id, id, conversation_id, run_id, title, objective,
@@ -139,7 +159,6 @@ pub fn create(
             ],
         )
         .map_err(|error| error.to_string())?;
-    transaction.commit().map_err(|error| error.to_string())?;
     get(connection, workspace_id, &id)?
         .ok_or_else(|| "created experiment plan could not be read back".to_string())
 }

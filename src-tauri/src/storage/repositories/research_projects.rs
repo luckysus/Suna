@@ -238,6 +238,7 @@ pub fn attach_in_transaction(
     }
     target_title(conn, ws, kind, id)?.ok_or("research_source_not_found_in_workspace")?;
     let changed=conn.execute("INSERT OR IGNORE INTO research_project_links(workspace_id,project_id,target_kind,target_id,relation,created_at,created_by) VALUES(?1,?2,?3,?4,?5,?6,'local_user')",params![ws,project,kind,id,relation,Utc::now().to_rfc3339()]).map_err(error)?;
+    if kind=="experiment" && conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='experiment_executions')",[],|r|r.get::<_,bool>(0)).unwrap_or(false){super::experiment_measurements::snapshot_plan(conn,ws,project,id)?;}
     if kind=="background_task" && super::research_artifacts::installed(conn){
         super::research_artifacts::bind(conn,ws,project,id)?;
         super::research_artifacts::reconcile_task(conn,ws,id)?;
