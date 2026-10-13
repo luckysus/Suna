@@ -1579,7 +1579,17 @@ export interface ImageAnalysis {id:string;taskId:string;annotationId:string;resu
 
 export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
 export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;source:string;quote:string;location:Record<string,unknown>}
+export interface MaterialComputeAdapter {id:string;label:string;capability:string;mode:'file_import';inputSchemaVersion:string;outputSchemaVersion:string;requiresLicense:boolean;requiresUserApproval:boolean}
+export interface ProductionReadProfile {connectionId:string;database:string;table:string;columns:string[];batchColumn:string;rowLimit:number}
 export const desktop = {
+  listMaterialComputeAdapters:()=>call<MaterialComputeAdapter[]>('list_material_compute_adapters'),
+  importMaterialComputeFile:(request:{projectId:string;sourcePath:string;adapterId:string;softwareVersion:string;rightsBasis:string;rightsConfirmed:boolean;batch:string;inputConditions:Record<string,{value:number;unit:string}>;outputUnits:Record<string,string>})=>call<SteelDatasetRecord>('import_material_compute_file',{request}),
+  saveDatabaseReadProfile:(request:ProductionReadProfile)=>call<string>('save_database_read_profile',{request}),
+  listDatabaseReadProfiles:()=>call<{id:string;profile:ProductionReadProfile}[]>('list_database_read_profiles'),
+  submitProductionDatasetQuery:(projectId:string,profileId:string,batch:string)=>call<BackgroundTask>('submit_production_dataset_query',{projectId,profileId,batch}),
+  importProductionQuerySnapshot:(projectId:string,taskId:string)=>call<SteelDatasetRecord>('import_production_query_snapshot',{projectId,taskId}),
+  getProductionQueryPreview:(id:string)=>call<{taskId:string;rowCount:number;columns:string[];previewRows:(string|null)[][];truncated:boolean;queryTime:string}|null>('get_production_query_preview',{id}),
+
   createLiteratureEvidenceDataset:(projectId:string)=>call<SteelDatasetRecord>("create_literature_evidence_dataset",{projectId}),
   searchPublicLiterature:(request:{query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
   listDiscoveredLiterature:(query:string,offset=0)=>call<DiscoveredLiterature[]>('list_discovered_literature',{query,offset}),

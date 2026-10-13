@@ -458,6 +458,8 @@ fn kind(task: &str) -> Option<(&str, &str)> {
         Some(("prediction", "prediction_result"))
     } else if task == "compute_optimize_constrained" {
         Some(("optimization", "optimization_result"))
+    } else if task == "database_query" {
+        Some(("analysis", "analysis_result"))
     } else if task == "literature_metadata_search" {
         Some(("literature", "analysis_result"))
     } else if task == "compute_analyze_microstructure" {
@@ -646,12 +648,31 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
         let cp: Value =
             serde_json::from_str(checkpoint.as_deref().ok_or("missing_compute_checkpoint")?)
                 .map_err(|e| e.to_string())?;
-        if cp.get("result").is_none() {
+        if cp.get("result").is_none() && task_kind != "database_query" {
             return Err("missing_compute_result".into());
         }
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
         if task_kind == "compute_analyze_microstructure" {
             super::microstructure::record_completed(c, ws, task, &p, &run, &cp["result"])?;
+            continue;
+        }
+        if task_kind == "database_query" {
+            let result = super::database_query_results::get(
+                c,
+                ws,
+                Uuid::parse_str(task).map_err(|e| e.to_string())?,
+            )?
+            .ok_or("missing_query_result")?;
+            create(
+                c,
+                ws,
+                &p,
+                "analysis_result",
+                "生产数据只读查询",
+                task,
+                Some(&run),
+                json!({"connectionRef":result.connection_id,"queryTaskId":task,"queryTemplateSha256":format!("{:x}",Sha256::digest(result.query_text.as_bytes())),"parameterSha256":format!("{:x}",Sha256::digest(payload["parameters"].to_string().as_bytes())),"queryTime":result.created_at,"columns":result.columns,"rowCount":result.row_count,"truncated":result.truncated}),
+            )?;
             continue;
         }
         if task_kind == "literature_metadata_search" {

@@ -46,3 +46,4 @@
 .suna-data-cleaning-summary span{display:inline-flex;align-items:center;gap:5px}
 .suna-data-cleaning-error{margin-top:10px;color:var(--suna-red);font-size:calc(11px * var(--suna-ui-font-scale))}
 .suna-pareto-summary{margin-top:6px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
+.suna-industrial{padding:20px;color:var(--suna-text)}.suna-industrial p{line-height:1.6;overflow-wrap:anywhere}.suna-industrial fieldset{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.suna-industrial label{display:flex;flex-direction:column;gap:6px;max-width:360px}.suna-industrial label:has(input[type=checkbox]){flex-direction:row}.suna-industrial select,.suna-industrial textarea{max-width:100%;padding:8px;background:var(--suna-bg-raised);color:var(--suna-text);border:1px solid var(--suna-line)}.suna-industrial textarea{min-height:100px}.suna-industrial td,.suna-industrial th{padding:8px;border-bottom:1px solid var(--suna-line)}

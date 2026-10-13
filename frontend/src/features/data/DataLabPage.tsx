@@ -3,6 +3,7 @@ import { BarChart3, Database, FileSpreadsheet, Loader2, RefreshCw, Search, Uploa
 import { desktop, type DatasetAnalysis, type DatasetSeries, type MultivariateResult, type SteelDatasetRecord } from "../../bridge/desktop";
 import { Input } from "../../components/ui/input";
 import { DataLabAnalysisPanel, DataLabVisualizePanel } from "./DataLabPanels";
+import IndustrialSourcesPanel from "./IndustrialSourcesPanel";
 import MicrostructurePanel from "./MicrostructurePanel";
 import MaterialMappingPanel from "./MaterialMappingPanel";
 import { DataLabTablePanel } from "./DataLabTablePanel";
@@ -12,7 +13,7 @@ import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 
-type DataTab = "manage" | "analysis" | "visualize" | "table" | "microstructure";
+type DataTab = "manage" | "analysis" | "visualize" | "table" | "microstructure" | "sources";
 
 const tabs: Array<{ id: DataTab; label: string }> = [
   { id: "manage", label: "数据管理" },
@@ -20,6 +21,7 @@ const tabs: Array<{ id: DataTab; label: string }> = [
   { id: "visualize", label: "数据可视化" },
   { id: "table", label: "数据表" },
   { id: "microstructure", label: "显微组织" },
+  { id: "sources", label: "专业数据源" },
 ];
 
 const DATA_EXTENSIONS = ["csv", "xlsx", "xls", "json"];
@@ -192,7 +194,7 @@ export default function DataLabPage() {
 
       {message && <div className="suna-data-message">{message}</div>}
 
-      {tab === "microstructure" ? <MicrostructurePanel/> : <FileDropZone
+      {tab === "microstructure" ? <MicrostructurePanel/> : tab === "sources" ? <IndustrialSourcesPanel onImported={()=>void load()}/> : <FileDropZone
         extensions={DATA_EXTENSIONS}
         onFiles={(paths) => importPaths(paths)}
         onRejected={(reason) => setMessage(reason)}

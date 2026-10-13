@@ -35,3 +35,5 @@ pub mod research_delivery;
 pub mod microstructure;
 
 pub mod literature_discovery;
+
+pub mod industrial_sources;

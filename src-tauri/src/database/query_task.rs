@@ -23,12 +23,20 @@ struct QueryTaskPayload {
     database: Option<String>,
     sql: String,
     row_limit: Option<u64>,
+    #[serde(default)]
+    parameters: Vec<String>,
+    read_profile_id: Option<String>,
 }
 
 fn parse_payload(payload_json: &str) -> Result<QueryTaskPayload, HandlerError> {
     let payload: QueryTaskPayload = serde_json::from_str(payload_json)
         .map_err(|_| HandlerError::permanent("invalid_payload"))?;
-    if payload.connection_id.trim().is_empty() || payload.sql.trim().is_empty() {
+    if payload.connection_id.trim().is_empty()
+        || payload.sql.trim().is_empty()
+        || payload.parameters.len() > 32
+        || payload.parameters.iter().any(|v| v.len() > 1000)
+        || (!payload.parameters.is_empty() && payload.read_profile_id.is_none())
+    {
         return Err(HandlerError::permanent("invalid_payload"));
     }
     Ok(payload)
@@ -73,6 +81,7 @@ async fn run_query(
     database: Option<&str>,
     wrapped: String,
     timeout: Duration,
+    parameters: &[String],
 ) -> Result<catalog::QueryRows, HandlerError> {
     if let Some(name) = database {
         let statement = format!(
@@ -84,7 +93,12 @@ async fn run_query(
             .await
             .map_err(|error| HandlerError::permanent(format!("cannot switch database: {error}")))?;
     }
-    match tokio::time::timeout(timeout, catalog::execute_read(&mut client, &wrapped)).await {
+    match tokio::time::timeout(
+        timeout,
+        catalog::execute_read_with_parameters(&mut client, &wrapped, parameters),
+    )
+    .await
+    {
         Ok(result) => {
             result.map_err(|error| HandlerError::permanent(format!("query_failed: {error}")))
         }
@@ -132,6 +146,28 @@ async fn execute(
     let workspace_id = task.workspace_id.clone();
     let connection = rusqlite::Connection::open(&db_path)
         .map_err(|_| HandlerError::retryable("storage_unavailable"))?;
+    if let Some(profile) = &payload.read_profile_id {
+        let raw: String = connection
+            .query_row(
+                "SELECT profile_json FROM database_read_profiles WHERE workspace_id=?1 AND id=?2",
+                rusqlite::params![workspace_id, profile],
+                |r| r.get(0),
+            )
+            .map_err(|_| HandlerError::permanent("read_profile_not_found"))?;
+        let allowed: crate::storage::repositories::industrial_sources::ReadProfile =
+            serde_json::from_str(&raw)
+                .map_err(|_| HandlerError::permanent("invalid_read_profile"))?;
+        if crate::storage::repositories::industrial_sources::prepare(&allowed)
+            .map_err(HandlerError::permanent)?
+            != normalized
+            || allowed.connection_id != payload.connection_id
+            || payload.parameters.len() != 1
+            || payload.database.as_deref() != Some(&allowed.database)
+            || payload.row_limit != Some(allowed.row_limit)
+        {
+            return Err(HandlerError::permanent("query_outside_read_profile"));
+        }
+    }
     let record = connections_repository::get(&connection, &workspace_id, connection_id)
         .map_err(|_| HandlerError::retryable("storage_unavailable"))?
         .ok_or_else(|| HandlerError::permanent("connection_not_found"))?;
@@ -158,7 +194,7 @@ async fn execute(
     let rows = tokio::select! {
         joined = async {
             match query.await {
-                Ok(client) => run_query(client, payload.database.as_deref(), wrapped, timeout).await,
+                Ok(client) => run_query(client, payload.database.as_deref(), wrapped, timeout,&payload.parameters).await,
                 Err(error) => Err(HandlerError::permanent(format!("connection_failed: {error}"))),
             }
         } => joined?,
@@ -195,7 +231,7 @@ async fn execute(
         .map_err(|_| HandlerError::permanent("result_write_failed"))?;
 
     context
-        .checkpoint(Some(r#"{"stage":"completed"}"#), 100, None)
+        .checkpoint(Some(&serde_json::json!({"stage":"completed","result":{"query_task_id":task.id,"row_count":row_count,"column_count":result.columns.len(),"truncated":truncated}}).to_string()), 100, None)
         .map_err(|_| HandlerError::retryable("checkpoint_failed"))?;
     Ok(HandlerOutcome::Completed)
 }

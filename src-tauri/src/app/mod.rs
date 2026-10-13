@@ -135,3 +135,5 @@ mod tests {
 pub(crate) mod microstructure_commands;
 
 pub(crate) mod literature_discovery;
+
+pub(crate) mod industrial_commands;

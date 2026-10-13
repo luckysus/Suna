@@ -47,67 +47,106 @@ pub struct QueryRows {
 }
 
 pub async fn execute_read(client: &mut SqlClient, sql: &str) -> Result<QueryRows, String> {
+    execute_read_with_parameters(client, sql, &[]).await
+}
+
+pub async fn execute_read_with_parameters(
+    client: &mut SqlClient,
+    sql: &str,
+    parameters: &[String],
+) -> Result<QueryRows, String> {
+    use futures_util::TryStreamExt;
+    let args: Vec<&dyn tiberius::ToSql> = parameters
+        .iter()
+        .map(|s| s as &dyn tiberius::ToSql)
+        .collect();
     let mut stream = client
-        .query(sql, &[])
+        .query(sql, &args)
         .await
-        .map_err(|error| format!("query failed: {error}"))?;
+        .map_err(|_| "query_execution_failed")?;
     let columns: Vec<String> = stream
         .columns()
         .await
-        .map_err(|error| format!("query failed: {error}"))?
-        .map(|metadata| {
-            metadata
-                .iter()
-                .map(|column| column.name().to_string())
-                .collect()
-        })
+        .map_err(|_| "query_metadata_failed")?
+        .map(|c| c.iter().map(|m| m.name().to_string()).collect())
         .unwrap_or_default();
-    let groups = stream
-        .into_results()
-        .await
-        .map_err(|error| format!("query failed: {error}"))?;
-    let rows = groups
-        .into_iter()
-        .flatten()
-        .map(|row| {
-            (0..columns.len())
-                .map(|index| {
-                    row.try_get::<&str, _>(index)
-                        .ok()
-                        .flatten()
-                        .map(str::to_string)
-                        .or_else(|| {
-                            row.try_get::<i64, _>(index)
-                                .ok()
-                                .flatten()
-                                .map(|value| value.to_string())
-                        })
-                        .or_else(|| {
-                            row.try_get::<i32, _>(index)
-                                .ok()
-                                .flatten()
-                                .map(|value| value.to_string())
-                        })
-                        .or_else(|| {
-                            row.try_get::<f64, _>(index)
-                                .ok()
-                                .flatten()
-                                .map(|value| value.to_string())
-                        })
-                        .or_else(|| {
-                            row.try_get::<bool, _>(index).ok().flatten().map(|value| {
-                                if value {
-                                    "1".to_string()
-                                } else {
-                                    "0".to_string()
-                                }
-                            })
-                        })
-                })
-                .collect()
-        })
-        .collect();
+    if columns.len() > 256 {
+        return Err("query_column_limit".into());
+    }
+    let mut rows = vec![];
+    let mut bytes = 0;
+    while let Some(item) = stream.try_next().await.map_err(|_| "query_stream_failed")? {
+        if let tiberius::QueryItem::Row(row) = item {
+            if rows.len() >= 10000 {
+                return Err("query_row_limit".into());
+            }
+            let cells = row
+                .cells()
+                .map(|(_, value)| cell_text(value))
+                .collect::<Result<Vec<_>, _>>()?;
+            bytes += cells
+                .iter()
+                .map(|c| c.as_ref().map_or(0, |s| s.len()))
+                .sum::<usize>();
+            if bytes > 32 * 1024 * 1024 {
+                return Err("query_return_byte_limit".into());
+            }
+            rows.push(cells);
+        }
+    }
     Ok(QueryRows { columns, rows })
+}
+
+/// Preserve SQL numeric precision and sampling timestamps. Unsupported non-null
+/// values fail visibly rather than silently becoming missing measurements.
+fn cell_text(value: &tiberius::ColumnData<'_>) -> Result<Option<String>, String> {
+    use tiberius::{ColumnData as D, FromSql};
+    let v = match value {
+        D::U8(v) => v.map(|v| v.to_string()),
+        D::I16(v) => v.map(|v| v.to_string()),
+        D::I32(v) => v.map(|v| v.to_string()),
+        D::I64(v) => v.map(|v| v.to_string()),
+        D::F32(v) => {
+            if v.is_some_and(|v| !v.is_finite()) {
+                return Err("nonfinite_query_number".into());
+            }
+            v.map(|v| v.to_string())
+        }
+        D::F64(v) => {
+            if v.is_some_and(|v| !v.is_finite()) {
+                return Err("nonfinite_query_number".into());
+            }
+            v.map(|v| v.to_string())
+        }
+        D::Numeric(v) => v.map(|v| v.to_string()),
+        D::Bit(v) => v.map(|v| if v { "1".into() } else { "0".into() }),
+        D::String(v) => v.as_ref().map(|v| v.to_string()),
+        D::Guid(v) => v.map(|v| v.to_string()),
+        D::DateTime(_) | D::SmallDateTime(_) | D::DateTime2(_) => {
+            chrono::NaiveDateTime::from_sql(&match value {
+                D::DateTime(v) => D::DateTime(*v),
+                D::SmallDateTime(v) => D::SmallDateTime(*v),
+                D::DateTime2(v) => D::DateTime2(*v),
+                _ => unreachable!(),
+            })
+            .map_err(|_| "invalid_query_timestamp")?
+            .map(|v| v.format("%Y-%m-%dT%H:%M:%S%.f").to_string())
+        }
+        D::DateTimeOffset(v) => {
+            chrono::DateTime::<chrono::FixedOffset>::from_sql(&D::DateTimeOffset(*v))
+                .map_err(|_| "invalid_query_timestamp")?
+                .map(|v| v.to_rfc3339())
+        }
+        D::Date(v) => chrono::NaiveDate::from_sql(&D::Date(*v))
+            .map_err(|_| "invalid_query_date")?
+            .map(|v| v.to_string()),
+        D::Time(v) => chrono::NaiveTime::from_sql(&D::Time(*v))
+            .map_err(|_| "invalid_query_time")?
+            .map(|v| v.to_string()),
+        D::Binary(None) | D::Xml(None) => None,
+        D::Binary(Some(_)) | D::Xml(Some(_)) => return Err("unsupported_query_column_type".into()),
+    };
+    Ok(v)
 }
 
 /// 最小 CSV 单元格转义;供查询结果缓存文件使用。
@@ -131,6 +170,28 @@ pub fn csv_cell(value: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numeric_and_timestamp_cells_are_preserved_and_unsupported_values_are_visible() {
+        use tiberius::{numeric::Numeric, ColumnData as D, ToSql};
+        assert_eq!(
+            cell_text(&D::Numeric(Some(Numeric::new_with_scale(12345, 2)))).unwrap(),
+            Some("123.45".into())
+        );
+        assert_eq!(cell_text(&D::I16(Some(300))).unwrap(), Some("300".into()));
+        assert_eq!(cell_text(&D::F32(Some(1.25))).unwrap(), Some("1.25".into()));
+        assert_eq!(cell_text(&D::Numeric(None)).unwrap(), None);
+        let when = chrono::NaiveDate::from_ymd_opt(2026, 1, 2)
+            .unwrap()
+            .and_hms_opt(3, 4, 5)
+            .unwrap();
+        assert_eq!(
+            cell_text(&when.to_sql()).unwrap(),
+            Some("2026-01-02T03:04:05".into())
+        );
+        assert!(cell_text(&D::F64(Some(f64::NAN))).is_err());
+        assert!(cell_text(&D::Binary(Some(vec![1].into()))).is_err());
+    }
 
     #[test]
     fn escape_identifier_brackets_and_doubles_closing_brackets() {
