@@ -140,9 +140,31 @@ fn validate(input: &RecordExecution) -> Result<(), String> {
 pub fn record(c: &Connection, ws: &str, input: RecordExecution) -> Result<Execution, String> {
     validate(&input)?;
     projects::require_active(c, ws, &input.project_id)?;
-    let registry=super::material_rules::registry(c,ws,Some(&input.project_id))?;
-    for (name,unit) in &input.variable_units{let suggestions=crate::steel::materials::suggest(&registry,name);if suggestions.len()==1{let field=registry.fields.iter().find(|f|f.id==suggestions[0].field_id).ok_or("field_missing")?;crate::steel::materials::conversion(unit,&field.canonical_unit)?;}}
-    for measurement in &input.measurements{let suggestions=crate::steel::materials::suggest(&registry,&measurement.property);if suggestions.len()==1{let field=registry.fields.iter().find(|f|f.id==suggestions[0].field_id).ok_or("field_missing")?;crate::steel::materials::conversion(&measurement.unit,&field.canonical_unit)?;}else if suggestions.len()>1{return Err("ambiguous_measured_property_requires_canonical_field_id".into())}}
+    let registry = super::material_rules::registry(c, ws, Some(&input.project_id))?;
+    for (name, unit) in &input.variable_units {
+        let suggestions = crate::steel::materials::suggest(&registry, name);
+        if suggestions.len() == 1 {
+            let field = registry
+                .fields
+                .iter()
+                .find(|f| f.id == suggestions[0].field_id)
+                .ok_or("field_missing")?;
+            crate::steel::materials::conversion(unit, &field.canonical_unit)?;
+        }
+    }
+    for measurement in &input.measurements {
+        let suggestions = crate::steel::materials::suggest(&registry, &measurement.property);
+        if suggestions.len() == 1 {
+            let field = registry
+                .fields
+                .iter()
+                .find(|f| f.id == suggestions[0].field_id)
+                .ok_or("field_missing")?;
+            crate::steel::materials::conversion(&measurement.unit, &field.canonical_unit)?;
+        } else if suggestions.len() > 1 {
+            return Err("ambiguous_measured_property_requires_canonical_field_id".into());
+        }
+    }
 
     let plan = experiments::get(c, ws, &input.plan_id)?.ok_or("experiment_plan_not_found")?;
     if plan.state != "accepted" {
@@ -504,7 +526,13 @@ pub fn candidate_plan(
             .ok_or("candidate_values_missing")?;
         let variables: Vec<Value> = values
             .iter()
-            .map(|(name, value)| json!({"name":name,"value":value}))
+            .map(|(name, value)| {
+                let unit = payload["request"]["material_rule_snapshot"]["variables"]
+                    .as_array()
+                    .and_then(|a| a.iter().find(|v| v["name"] == *name))
+                    .and_then(|v| v["unit"].as_str());
+                json!({"name":name,"value":value,"unit":unit})
+            })
             .collect();
         let vars = json!(variables).to_string();
         let rec=json!({"optimization_artifact_id":artifact_id,"candidate_index":index,"candidate":point,"objective_specs":result["objective_specs"],"rule_snapshot":payload["request"]["rule_snapshot"]}).to_string();
@@ -637,8 +665,12 @@ pub fn create_dataset_version(
         .map_err(|e| e.to_string())?;
     let authorized = roots.authorize(&path).map_err(|e| e.to_string())?;
     #[cfg(windows)]
-    roots.verify_opened_file(&authorized, &file).map_err(|e|e.to_string())?;
-    roots.verify_target(&authorized,&path).map_err(|e|e.to_string())?;
+    roots
+        .verify_opened_file(&authorized, &file)
+        .map_err(|e| e.to_string())?;
+    roots
+        .verify_target(&authorized, &path)
+        .map_err(|e| e.to_string())?;
     let result = (|| {
         use std::io::Write;
         file.write_all(&bytes)
@@ -656,19 +688,26 @@ pub fn create_dataset_version(
             .enumerate()
             .map(|(ordinal, name)| super::steel::DatasetColumnMapping {
                 ordinal,
-                canonical_field: Some(if name.bytes().all(|b| b.is_ascii_alphanumeric()||b==b'_'){name.to_ascii_lowercase()}else{format!("measurement_column_{ordinal}")}),
+                canonical_field: Some(
+                    if name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                        name.to_ascii_lowercase()
+                    } else {
+                        format!("measurement_column_{ordinal}")
+                    },
+                ),
                 unit: units.get(name).cloned(),
             })
             .collect();
         artifacts::atomic(c, || {
             projects::require_active(c, ws, &request.project_id)?;
-            let dataset = super::steel::save_preview_on_connection(
+            let dataset = super::steel::save_new_preview_scoped(
                 c,
                 ws,
                 &source_path,
                 &sha,
                 &preview,
                 &mappings,
+                &request.project_id,
             )?;
             projects::attach_in_transaction(
                 c,
@@ -865,6 +904,18 @@ mod tests {
             2
         );
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn reviewed_replicate_statistics_keep_runs_separate() {
+        let (c, p, plan) = setup();
+        for value in [400., 410., 420.] {
+            let e = record(&c, "ws", input(&p, &plan, value)).unwrap();
+            accept(&c, &e.id);
+        }
+        let s = super::super::research_feedback::statistics(&c, "ws", &p, &plan).unwrap();
+        assert_eq!(s[0].count, 3);
+        assert_eq!(s[0].mean, 410.);
+        assert_eq!(s[0].stddev, 10.);
     }
     #[test]
     fn comparison_checks_units_and_defines_prediction_minus_actual() {

@@ -30,3 +30,11 @@ Suna 当前是以 Windows 为主要目标的 Tauri 2 本地桌面应用。默认
 ## 开发与验证
 
 仓库质量检查定义于 `.github/workflows/quality.yml` 和 `scripts/test.ps1`。前端运行 `npm test`、`npm run test:boundaries`、`npm run build`；计算 worker 运行 `uv sync --frozen --extra test` 后 `python -m pytest -q`。Rust 和原生桌面验证使用 `cargo check --locked`、相关测试及 Windows CI。Linux 浏览器测试可验证前端交互；WebView2、Windows 凭据管理、文件对话框和安装包必须在 Windows 另行验证。
+
+## 项目、成果与实验反馈
+
+迁移 0036–0039 在原有业务表之外增加项目/链接、任务映射/成果/血缘、执行/测量/审核、材料字段/规则版本。项目不拥有原业务对象的删除权限，归档和解绑保留旧数据。`research_runs` 从原 `background_tasks` 读取状态，不建立另一个调度状态机；完成事务生成只读成果，来源在提交时冻结。详情按需读取并校验 SHA256，模型 Base64、凭据、原始训练行和绝对文件路径不进入成果快照。
+
+材料字段基包扩展已有钢铁 data-mappings 资源；经过哈希验证的专用领域包与显式项目覆盖构成后续层。输入单位转换生成新文件和映射版本。专业规则仅接受 typed range/linear 表达式，硬约束编译为原联合优化约束，软偏好/支持域分别复核，不能将支持域说成物理可行域。任务保留生效规则与单位版本。
+
+原 `experiments.state` 仍表示计划审批。执行、复测与测量单独留档；审核历史追加写入。只有已接受的真实测量可显式生成新的数据集版本，随后确认映射、激活并手动训练。下一轮推荐复用 design.py 的 GP 代理，提供预算、候选距离去重与专业约束筛选，明确报告不确定性的来源。指定项目的操作不会覆盖全局当前项目配置。

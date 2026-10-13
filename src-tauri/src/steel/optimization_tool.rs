@@ -74,6 +74,27 @@ impl ToolHandler for OptimizeConstrainedTool {
 }
 
 fn validate_optimization_arguments(arguments: &Value) -> Result<(), ToolExecutionError> {
+    if arguments["objectives"]
+        .as_array()
+        .is_some_and(|a| !a.is_empty())
+    {
+        let request: crate::app::compute_commands::logic::OptimizeSteelProcessRequest =
+            serde_json::from_value(arguments.clone()).map_err(|e| {
+                ToolExecutionError::new("steel_optimization_invalid", e.to_string())
+            })?;
+        if request.dataset_id.is_empty()
+            || request.objectives.len() > 4
+            || request.variables.is_empty()
+            || request.variables.len() > 64
+            || !(1..=500).contains(&request.trials)
+        {
+            return Err(ToolExecutionError::new(
+                "steel_optimization_invalid",
+                "invalid named joint optimization shape",
+            ));
+        }
+        return Ok(());
+    }
     #[derive(Debug, Deserialize)]
     struct Shape {
         #[serde(rename = "datasetId")]
@@ -162,6 +183,9 @@ pub fn optimize_constrained_tool(gateway: Arc<dyn OptimizationGateway>) -> ToolR
                     "datasetId": {"type": "string"},
                     "trainingTaskId": {"type": "string"},
                     "direction": {"type": "string", "enum": ["minimize", "maximize"]},
+                    "objectives":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object"}},
+                    "variables":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"object"}},
+                    "algorithm":{"type":"string","enum":["nsga2","grid","tpe"]},
                     "objectiveColumns": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 4},
                     "bounds": {
                         "type": "array",
@@ -182,7 +206,7 @@ pub fn optimize_constrained_tool(gateway: Arc<dyn OptimizationGateway>) -> ToolR
                             "type": "object",
                             "properties": {
                                 "kind": {"type": "string", "enum": ["equality", "inequality"]},
-                                "coefficients": {"type": "array", "items": {"type": "number"}},
+                                "coefficients": {"anyOf":[{"type":"array","items":{"type":"number"}},{"type":"object","additionalProperties":{"type":"number"}}]},
                                 "value": {"type": "number"},
                                 "tolerance": {"type": "number"}
                             },
@@ -193,7 +217,8 @@ pub fn optimize_constrained_tool(gateway: Arc<dyn OptimizationGateway>) -> ToolR
                     "trials": {"type": "integer", "minimum": 1, "maximum": 500},
                     "seed": {"type": "integer"}
                 },
-                "required": ["datasetId", "trainingTaskId", "direction", "objectiveColumns", "bounds", "trials"],
+                "required": ["datasetId", "trials"],
+                "anyOf":[{"required":["trainingTaskId","direction","objectiveColumns","bounds"]},{"required":["objectives","variables"]}],
                 "additionalProperties": false
             }),
             risk: PermissionRisk::ConfirmationRequired,

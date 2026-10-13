@@ -80,12 +80,13 @@ def design_experiments(
         existing = _existing(payload.get("existing"), names)
         if method == "bayesian":
             points, notes = _design_bayesian(
-                variables, existing, direction, count, seed, _report, is_cancelled
+                variables, existing, direction, count, seed, _report, is_cancelled, payload.get("recommendation_policy")
             )
         else:
             points, notes = _design_active_learning(
-                variables, existing, count, seed, _report, is_cancelled
+                variables, existing, count, seed, _report, is_cancelled, payload.get("recommendation_policy")
             )
+    _check_cancel(is_cancelled)
     _report("validated", 99)
 
     return {
@@ -94,6 +95,7 @@ def design_experiments(
         "direction": direction,
         "points": points,
         "notes": notes,
+        **({"recommendation_policy": {"strategy": payload["recommendation_policy"]["strategy"], "budget": count, "min_distance": payload["recommendation_policy"].get("min_distance",0.01), "uncertainty_source": "GP surrogate fitted to measured/source data; not the uncertainty of a Random Forest/SVR/MLP performance model"}, "feedback_source": payload.get("feedback_source",{})} if payload.get("recommendation_policy") is not None else {}),
     }
 
 
@@ -445,6 +447,7 @@ def _design_bayesian(
     seed: int,
     report: Callable[[str, int], None],
     is_cancelled: Callable[[], bool] | None,
+    policy: Mapping[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     import numpy as np
 
@@ -452,6 +455,9 @@ def _design_bayesian(
     _check_cancel(is_cancelled)
     report("modelling", 40)
     candidates = _candidate_matrix(len(variables), seed)
+    if policy is not None:
+        from .recommendation_policy import candidate_pool
+        candidates, _ = candidate_pool(variables, candidates, x_existing, policy)
     mean, std = gp.predict(candidates, return_std=True)
     _check_cancel(is_cancelled)
     report("modelling", 80)
@@ -465,6 +471,10 @@ def _design_bayesian(
     cdf = 0.5 * (1.0 + erf(z / math.sqrt(2.0)))
     expected_improvement = improvement * cdf + sigma * phi
     order = np.argsort(-expected_improvement)[:count]
+    scores = None
+    if policy is not None:
+        from .recommendation_policy import rank_candidates
+        order, scores = rank_candidates(mean, std, candidates, count, direction, policy, expected_improvement)
 
     points = []
     for index in order:
@@ -474,6 +484,7 @@ def _design_bayesian(
                 "expected_improvement": float(expected_improvement[index]),
                 "predicted_mean": float(mean[index]),
                 "predicted_std": float(std[index]),
+                **({"ranking_score": float(scores[index]), "strategy": policy["strategy"], "uncertainty_source": "GP surrogate posterior standard deviation", "feasible": True} if scores is not None else {}),
             }
         )
     notes = [
@@ -491,6 +502,7 @@ def _design_active_learning(
     seed: int,
     report: Callable[[str, int], None],
     is_cancelled: Callable[[], bool] | None,
+    policy: Mapping[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     import numpy as np
 
@@ -498,6 +510,9 @@ def _design_active_learning(
     _check_cancel(is_cancelled)
     report("modelling", 40)
     candidates = _candidate_matrix(len(variables), seed)
+    if policy is not None:
+        from .recommendation_policy import candidate_pool
+        candidates, _ = candidate_pool(variables, candidates, x_existing, policy)
     _mean, std = gp.predict(candidates, return_std=True)
     _check_cancel(is_cancelled)
     report("modelling", 80)
@@ -511,6 +526,12 @@ def _design_active_learning(
             np.min(np.sqrt(((x_existing - point) ** 2).sum(axis=1)))
         )
     ranked = sorted(order, key=lambda index: (-float(std[index]), -gaps[int(index)]))[:count]
+    scores = None
+    if policy is not None:
+        from .recommendation_policy import rank_candidates
+        ranked, scores = rank_candidates(_mean, std, candidates, count, "maximize", policy, std)
+        for index in ranked:
+            gaps[index] = float(np.min(np.linalg.norm(x_existing - candidates[index],axis=1)))
 
     points = []
     for index in ranked:
@@ -519,6 +540,7 @@ def _design_active_learning(
                 "values": _denormalise_point(variables, candidates[index]),
                 "predicted_std": float(std[index]),
                 "coverage_gap": gaps[int(index)],
+                **({"predicted_mean": float(_mean[index]), "ranking_score": float(scores[index]), "strategy": policy["strategy"], "uncertainty_source": "GP surrogate posterior standard deviation", "feasible": True} if scores is not None else {}),
             }
         )
     notes = [

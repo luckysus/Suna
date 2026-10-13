@@ -130,6 +130,22 @@ fn query_schema(required: bool) -> Value {
 pub(crate) fn agent_gateway_tools(gateway: Arc<dyn SteelAgentGateway>) -> Vec<ToolRegistration> {
     vec![
         gateway_tool(
+            "steel.material_feasibility",
+            "material_feasibility",
+            json!({"type":"object","properties":{"projectId":{"type":"string"},"variables":{"type":"array","items":{"type":"object"},"maxItems":24},"selected":{"type":"array","items":{"type":"string"},"maxItems":128}},"required":["variables","selected"],"additionalProperties":false}),
+            PermissionRisk::Automatic,
+            true,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "steel.recommend_next_experiments",
+            "recommend_next_experiments",
+            json!({"type":"object","properties":{"projectId":{"type":"string"},"datasetId":{"type":"string"},"property":{"type":"string"},"variables":{"type":"array","items":{"type":"object"},"minItems":1,"maxItems":12},"strategy":{"type":"string","enum":["exploitation","exploration","balanced"]},"budget":{"type":"integer","minimum":1,"maximum":20},"direction":{"type":"string","enum":["minimize","maximize"]},"seed":{"type":"integer","minimum":0},"minDistance":{"type":"number","minimum":0,"maximum":0.5}},"required":["projectId","datasetId","property","variables","strategy","budget","direction","seed"],"additionalProperties":false}),
+            PermissionRisk::ConfirmationRequired,
+            false,
+            gateway.clone(),
+        ),
+        gateway_tool(
             "steel.knowledge_search",
             "knowledge_search",
             json!({
@@ -302,6 +318,9 @@ pub(crate) fn agent_gateway_tools(gateway: Arc<dyn SteelAgentGateway>) -> Vec<To
                     "datasetId": {"type": "string"},
                     "trainingTaskId": {"type": "string"},
                     "direction": {"type": "string", "enum": ["minimize", "maximize"]},
+                    "objectives":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object"}},
+                    "variables":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"object"}},
+                    "algorithm":{"type":"string","enum":["nsga2","grid","tpe"]},
                     "objectiveColumns": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 4},
                     "dataset_id": {"type": "string"},
                     "training_task_id": {"type": "string"},

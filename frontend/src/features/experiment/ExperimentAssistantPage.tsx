@@ -35,7 +35,7 @@ export default function ExperimentAssistantPage() {
       setError("无法加载实验计划");
     }
   };
-  useEffect(() => { void loadPlans(); }, []);
+  useEffect(() => { void loadPlans();const refresh=()=>{void loadPlans();};window.addEventListener("suna:experiment-plans-updated",refresh);return()=>window.removeEventListener("suna:experiment-plans-updated",refresh); }, []);
   useEffect(() => {
     void (async () => {
       try {

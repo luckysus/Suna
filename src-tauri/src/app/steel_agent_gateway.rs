@@ -998,8 +998,7 @@ impl DesktopSteelAgentGateway {
         }
         let request: OptimizeSteelProcessRequest = serde_json::from_value(arguments)
             .map_err(|error| format!("invalid optimization request: {error}"))?;
-        let training_task_id = uuid::Uuid::parse_str(&request.training_task_id)
-            .map_err(|error| format!("invalid training task ID: {error}"))?;
+        let training_task_id = if request.objectives.is_empty(){uuid::Uuid::parse_str(&request.training_task_id).map_err(|error|format!("invalid training task ID: {error}"))?}else{uuid::Uuid::nil()};
         let task = self.submit_compute_task(|connection| {
             logic::submit_optimization_on_connection(connection, &request, training_task_id)
         })?;
@@ -1216,6 +1215,18 @@ impl SteelAgentGateway for DesktopSteelAgentGateway {
                 "optimize_process" => gateway.optimize_process(arguments),
                 "match_coil" => gateway.match_coil(arguments),
                 "start_training" => gateway.start_training(arguments),
+                "material_feasibility" => {
+                    let c=gateway.open()?;
+                    let project=if let Some(id)=arguments["projectId"].as_str(){id.to_string()}else{crate::storage::repositories::research_artifacts::current(&c,&gateway.workspace_id)?.ok_or("choose_current_research_project_first")?};
+                    let variables=serde_json::from_value(arguments["variables"].clone()).map_err(|e|e.to_string())?;
+                    let selected:Vec<String>=serde_json::from_value(arguments["selected"].clone()).map_err(|e|e.to_string())?;
+                    Ok(json!({"snapshot":crate::storage::repositories::material_rules::compile(&c,&gateway.workspace_id,&project,variables,&selected)?,"availableRules":crate::storage::repositories::material_rules::list(&c,&gateway.workspace_id,&project)?}))
+                },
+                "recommend_next_experiments" => {
+                    let request=serde_json::from_value(arguments).map_err(|e|e.to_string())?;
+                    let task=gateway.submit_compute_task(|c|crate::storage::repositories::research_feedback::submit(c,&gateway.workspace_id,request))?;
+                    Ok(json!(crate::app::task_commands::tasks::background_task_response(task)))
+                },
                 "process_literature" => gateway.process_literature(arguments).await,
                 "export_data" => gateway.export_data(arguments),
                 "remember_memory" => gateway.remember_memory(arguments),
@@ -1663,6 +1674,7 @@ fn has_local_prediction_shape(arguments: &Value) -> bool {
 }
 
 fn has_local_optimization_shape(arguments: &Value) -> bool {
+    if has_keys(arguments,&["datasetId","objectives","variables","trials"]){return true}
     has_keys(
         arguments,
         &[

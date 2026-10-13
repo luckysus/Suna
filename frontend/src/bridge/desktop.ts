@@ -534,6 +534,7 @@ export interface ComputeOptimizationResult {
 
 /** 第 44–46 章：实验设计结果。 */
 export interface ExperimentDesignPoint {
+  uncertainty_source?:string;ranking_score?:number;strategy?:string;
   values: Record<string, number>;
   /** bayesian：期望改进。 */
   expected_improvement?: number;
@@ -1570,6 +1571,9 @@ export interface MaterialRule { id:string;name:string;severity:'hard'|'soft'|'su
 export interface VersionedMaterialRule {version:number;rule:MaterialRule;}
 export interface MaterialVariable {name:string;fieldId:string;unit:string;min:number;max:number;fixedValue?:number|null;}
 export const desktop = {
+  createResearchDesignCandidatePlan:(projectId:string,taskId:string,index:number,title:string)=>call<ExperimentPlanRecord>('create_research_design_candidate_plan',{projectId,taskId,index,title}),
+  recommendNextResearchExperiments:(request:{projectId:string;datasetId:string;property:string;variables:MaterialVariable[];strategy:'exploitation'|'exploration'|'balanced';budget:number;direction:'maximize'|'minimize';seed:number;minDistance?:number})=>call<BackgroundTask>('recommend_next_research_experiments',{request}),
+  getExperimentReplicateStatistics:(projectId:string,planId:string)=>call<{property:string;unit:string;count:number;mean:number;stddev:number}[]>('get_experiment_replicate_statistics',{projectId,planId}),
   getMaterialRegistry:(projectId?:string)=>call<MaterialRegistry>('get_material_registry',{projectId}),
   suggestMaterialFields:(names:string[],projectId?:string)=>call<{fieldId:string;confidence:number;reason:string}[][]>('suggest_material_fields',{names,projectId}),
   listMaterialRules:(projectId:string)=>call<VersionedMaterialRule[]>('list_material_rules',{projectId}),

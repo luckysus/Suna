@@ -15,6 +15,8 @@ test.beforeEach(async ({ page }) => {
       if(command==="plugin:event|listen")return 1;
       if(command==="plugin:event|unlisten"||command==="db_init"||command==="set_setting")return null;
       if(command==="get_setting")return null;
+      if(command==="get_current_research_project")return null;
+      if(command==="list_research_projects")return [];
       if(command==="list_steel_datasets")return [dataset];
       if(command==="list_background_tasks")return [...trainings,...(submitted?[{id:"optimization",kind:"compute_optimize_constrained",state:"completed",progress:100,error_code:null}]:[]),...Array.from(predictions.keys()).map((id)=>({id,kind:"compute_predict_trained",state:"completed",progress:100,error_code:null}))];
       if(command==="get_compute_training_result")return artifact(String(args?.id),args?.id==="hardness"?["temperature","C"]:["C","temperature"]);

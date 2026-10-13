@@ -16,13 +16,48 @@ pub fn save_preview(
     preview: &DatasetPreview,
     mappings: &[DatasetColumnMapping],
 ) -> Result<SteelDatasetRecord, String> {
-    let transaction=connection.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|e|e.to_string())?;
-    let result=save_preview_on_connection(&transaction,workspace_id,source_path,source_sha256,preview,mappings)?;
-    transaction.commit().map_err(|e|e.to_string())?;
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let result = save_preview_on_connection(
+        &transaction,
+        workspace_id,
+        source_path,
+        source_sha256,
+        preview,
+        mappings,
+    )?;
+    transaction.commit().map_err(|e| e.to_string())?;
     Ok(result)
 }
 
-pub fn save_preview_on_connection(connection:&Connection,workspace_id:&str,source_path:&str,source_sha256:&str,preview:&DatasetPreview,mappings:&[DatasetColumnMapping])->Result<SteelDatasetRecord,String>{
+pub fn save_preview_on_connection(
+    connection: &Connection,
+    workspace_id: &str,
+    source_path: &str,
+    source_sha256: &str,
+    preview: &DatasetPreview,
+    mappings: &[DatasetColumnMapping],
+) -> Result<SteelDatasetRecord, String> {
+    save_preview_scoped(
+        connection,
+        workspace_id,
+        source_path,
+        source_sha256,
+        preview,
+        mappings,
+        None,
+    )
+}
+pub fn save_preview_scoped(
+    connection: &Connection,
+    workspace_id: &str,
+    source_path: &str,
+    source_sha256: &str,
+    preview: &DatasetPreview,
+    mappings: &[DatasetColumnMapping],
+    project: Option<&str>,
+) -> Result<SteelDatasetRecord, String> {
     let mappings = normalize_mappings(preview, mappings)?;
     let preview_json = serde_json::to_string(preview).map_err(|error| error.to_string())?;
     let now = Utc::now().to_rfc3339();
@@ -108,7 +143,25 @@ pub fn save_preview_on_connection(connection:&Connection,workspace_id:&str,sourc
             )
             .map_err(|error| error.to_string())?;
     }
-    super::research_artifacts::imported_dataset(&connection, workspace_id, &dataset_id)?;
+    if let Some(project) = project {
+        super::research_projects::require_active(connection, workspace_id, project)?;
+        super::research_projects::attach_in_transaction(
+            connection,
+            workspace_id,
+            project,
+            "dataset",
+            &dataset_id,
+            "attached",
+        )?;
+        super::research_artifacts::dataset_snapshot(
+            connection,
+            workspace_id,
+            project,
+            &dataset_id,
+        )?;
+    } else {
+        super::research_artifacts::imported_dataset(&connection, workspace_id, &dataset_id)?;
+    }
     get(connection, workspace_id, &dataset_id)?
         .ok_or_else(|| "saved dataset disappeared".to_string())
 }
@@ -350,7 +403,9 @@ fn normalize_mappings(
             .map(str::to_string);
         if let Some(field) = canonical_field.as_deref() {
             if !is_canonical_field(field) {
-                return Err(format!("canonical field {field} must use lower snake_case or namespace.field"));
+                return Err(format!(
+                    "canonical field {field} must use lower snake_case or namespace.field"
+                ));
             }
             if !canonical_fields.insert(field.to_ascii_lowercase()) {
                 return Err(format!(
@@ -385,8 +440,41 @@ fn is_canonical_field(field: &str) -> bool {
     let mut characters = field.chars();
     matches!(characters.next(), Some(character) if character.is_ascii_lowercase())
         && characters.all(|character| {
-            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '_' || character == '.'
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || character == '_'
+                || character == '.'
         })
-        && !field.ends_with('_') && !field.ends_with('.') && !field.contains("..")
+        && !field.ends_with('_')
+        && !field.ends_with('.')
+        && !field.contains("..")
         && !field.contains("__")
+}
+
+/// Immutable version writers never invoke the legacy import/upsert path for an existing hash.
+pub fn save_new_preview_scoped(
+    connection: &Connection,
+    workspace_id: &str,
+    source_path: &str,
+    source_sha256: &str,
+    preview: &DatasetPreview,
+    mappings: &[DatasetColumnMapping],
+    project: &str,
+) -> Result<SteelDatasetRecord, String> {
+    let exists:bool=connection.query_row("SELECT EXISTS(SELECT 1 FROM steel_datasets WHERE workspace_id=?1 AND source_sha256=?2 AND selected_sheet=?3)",params![workspace_id,source_sha256,preview.selected_sheet],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if exists {
+        return Err(
+            "identical_dataset_version_already_exists: existing data and mappings were preserved"
+                .into(),
+        );
+    }
+    save_preview_scoped(
+        connection,
+        workspace_id,
+        source_path,
+        source_sha256,
+        preview,
+        mappings,
+        Some(project),
+    )
 }

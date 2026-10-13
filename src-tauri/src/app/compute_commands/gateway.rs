@@ -37,8 +37,12 @@ impl DesktopOptimizationGateway {
     ) -> Result<Value, String> {
         let request: OptimizeSteelProcessRequest = serde_json::from_value(arguments)
             .map_err(|error| format!("invalid optimization request: {error}"))?;
-        let training_task_id = uuid::Uuid::parse_str(&request.training_task_id)
-            .map_err(|error| format!("invalid training task ID: {error}"))?;
+        let training_task_id = if request.objectives.is_empty() {
+            uuid::Uuid::parse_str(&request.training_task_id)
+                .map_err(|error| format!("invalid training task ID: {error}"))?
+        } else {
+            uuid::Uuid::nil()
+        };
         let mut connection = self.open()?;
         let task = match (self.run_id, tool_call_id) {
             (Some(run_id), Some(tool_call_id)) => crate::tasks::sources::submit_with(
@@ -78,5 +82,43 @@ impl OptimizationGateway for DesktopOptimizationGateway {
             uuid::Uuid::parse_str(task_id).map_err(|error| format!("invalid task ID: {error}"))?;
         let connection = self.open()?;
         logic::optimization_task_status_on_connection(&connection, id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn agent_gateway_accepts_named_joint_models_without_legacy_training_id() {
+        let path = std::env::temp_dir().join(format!(
+            "suna-joint-gateway-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let (c, _) = crate::storage::database::open(&path).unwrap();
+        let mut ids = vec![];
+        for kind in [
+            "compute_train_linear_regression",
+            "compute_train_sklearn_model",
+        ] {
+            let t = crate::tasks::repository::create(
+                &c,
+                crate::tasks::NewTask {
+                    workspace_id: crate::db::current_workspace_id().into(),
+                    kind: kind.into(),
+                    payload_json: json!({"payload":{"dataset_id":"synthetic"}}).to_string(),
+                    checkpoint_json: None,
+                    next_run_at: None,
+                    progress: 0,
+                },
+            )
+            .unwrap();
+            c.execute("UPDATE background_tasks SET state='completed',progress=100,checkpoint_json=?1 WHERE id=?2",rusqlite::params![json!({"result":{"artifact":{"feature_names":["C"]}}}).to_string(),t.id.to_string()]).unwrap();
+            ids.push(t.id.to_string());
+        }
+        drop(c);
+        let gateway = DesktopOptimizationGateway::new(path.clone());
+        let result=gateway.submit(json!({"datasetId":"synthetic","trials":20,"variables":[{"name":"C","min":0,"max":1}],"objectives":[{"name":"HV","source":"prediction_model","modelId":ids[0],"direction":"maximize","unit":"HV"},{"name":"J","source":"prediction_model","modelId":ids[1],"direction":"maximize","unit":"J"}]})).unwrap();
+        assert_eq!(result["kind"], "compute_optimize_constrained");
+        std::fs::remove_file(path).unwrap();
     }
 }

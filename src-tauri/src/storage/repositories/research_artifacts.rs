@@ -47,7 +47,66 @@ pub fn current(c: &Connection, ws: &str) -> Result<Option<String>, String> {
 // prompts, credentials, filesystem paths and raw training rows never enter snapshots.
 pub fn safe_metadata(value: &Value) -> Value {
     const KEYS: &[&str] = &[
-        "material_rule_snapshot", "material_assessment", "compiled", "projectId", "fieldId", "canonicalUnit", "schemaVersion", "ruleSetHash", "ruleId", "sourceRef", "sourceVersion", "provenance", "type", "reviewed", "demonstration", "enabled", "hardFeasible", "softPenalty", "supportRisk", "satisfied", "margin", "version", "values", "prediction", "deterministic_seed", "notes", "featureNames", "canonicalField", "originalName", "inferredType", "targetName", "dataVersion", "artifact",
+        "environment",
+        "python",
+        "numpy",
+        "sklearn",
+        "worker_version",
+        "lock_sha256",
+        "artifact_version",
+        "model_type",
+        "feature_schema",
+        "preprocessing",
+        "means",
+        "scales",
+        "applicability_range",
+        "recommendation_policy",
+        "feedback_source",
+        "measurement_ids",
+        "target",
+        "uncertainty_source",
+        "ranking_score",
+        "predicted_std",
+        "predicted_mean",
+        "expected_improvement",
+        "coverage_gap",
+        "budget",
+        "strategy",
+        "min_distance",
+        "supportAssessed",
+        "material_rule_snapshot",
+        "material_assessment",
+        "compiled",
+        "projectId",
+        "fieldId",
+        "canonicalUnit",
+        "schemaVersion",
+        "ruleSetHash",
+        "ruleId",
+        "sourceRef",
+        "sourceVersion",
+        "provenance",
+        "type",
+        "reviewed",
+        "demonstration",
+        "enabled",
+        "hardFeasible",
+        "softPenalty",
+        "supportRisk",
+        "satisfied",
+        "margin",
+        "version",
+        "values",
+        "prediction",
+        "deterministic_seed",
+        "notes",
+        "featureNames",
+        "canonicalField",
+        "originalName",
+        "inferredType",
+        "targetName",
+        "dataVersion",
+        "artifact",
         "dataset_id",
         "data_version",
         "source_sha256",
@@ -414,7 +473,19 @@ pub fn bind_current(c: &Connection, ws: &str, task: &str) -> Result<(), String> 
         )
         .map_err(err)?;
     if kind(&task_kind).is_some() {
-        if let Some(p) = current(c, ws)? {
+        let raw: String = c
+            .query_row(
+                "SELECT payload_json FROM background_tasks WHERE workspace_id=?1 AND id=?2",
+                params![ws, task],
+                |r| r.get(0),
+            )
+            .map_err(err)?;
+        let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        let explicit = payload["_research_project_id"].as_str().map(str::to_string);
+        if let Some(p) = match explicit {
+            Some(p) => Some(p),
+            None => current(c, ws)?,
+        } {
             projects::require_active(c, ws, &p)?;
             bind(c, ws, &p, task)?;
         }
@@ -567,20 +638,37 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
             return Err("missing_compute_result".into());
         }
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-        let mut frozen=json!({"request":safe_request(&payload["payload"]),"result":safe_metadata(&cp["result"]),"producer":{"app_version":env!("CARGO_PKG_VERSION"),"worker_protocol":"1.0"}});
-        if let Some(raw)=payload["payload"].get("material_rule_snapshot") {let snapshot:super::material_rules::RuleSnapshot=serde_json::from_value(raw.clone()).map_err(|e|e.to_string())?;frozen["request"]["material_rule_snapshot"]=json!(snapshot);frozen["result"]["material_rule_snapshot"]=raw.clone();}
+        let mut frozen = json!({"request":safe_request(&payload["payload"]),"result":safe_metadata(&cp["result"]),"producer":{"app_version":env!("CARGO_PKG_VERSION"),"worker_protocol":"1.0"}});
+        if artifact_kind == "model_snapshot" {
+            if let Some(model) = cp["result"].get("artifact") {
+                frozen["result"]["model_sha256"] = json!(format!(
+                    "{:x}",
+                    Sha256::digest(model.to_string().as_bytes())
+                ));
+            }
+        }
+        if let Some(raw) = payload["payload"].get("material_rule_snapshot") {
+            let snapshot: super::material_rules::RuleSnapshot =
+                serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?;
+            frozen["request"]["material_rule_snapshot"] = json!(snapshot);
+            frozen["result"]["material_rule_snapshot"] = raw.clone();
+        }
         let existing:Option<String>=c.query_row("SELECT id FROM research_artifacts WHERE workspace_id=?1 AND project_id=?2 AND kind=?3 AND source_key=?4",params![ws,p,artifact_kind,task],|r|r.get(0)).optional().map_err(err)?;
-        let output = if let Some(id)=existing{get(c,ws,&id)?;id}else{
-        create(
-            c,
-            ws,
-            &p,
-            artifact_kind,
-            &task_kind,
-            task,
-            Some(&run),
-            frozen,
-        )?};
+        let output = if let Some(id) = existing {
+            get(c, ws, &id)?;
+            id
+        } else {
+            create(
+                c,
+                ws,
+                &p,
+                artifact_kind,
+                &task_kind,
+                task,
+                Some(&run),
+                frozen,
+            )?
+        };
         let mut sources=c.prepare("SELECT artifact_id,relation FROM research_run_sources WHERE workspace_id=?1 AND run_id=?2").map_err(err)?;
         let inputs = sources
             .query_map(params![ws, run], |r| {

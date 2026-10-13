@@ -170,6 +170,34 @@ mod tests {
     }
 
     #[test]
+    fn research_professional_tools_use_existing_permission_controls() {
+        let tools = SteelToolExecutor::with_agent_gateways(
+            Arc::new(FakeOptimizationGateway),
+            Arc::new(FakeAgentGateway),
+            true,
+        );
+        let read = tools
+            .registrations()
+            .iter()
+            .find(|r| r.spec.id == "steel.material_feasibility")
+            .unwrap();
+        assert_eq!(
+            read.spec.risk,
+            crate::agent::protocol::PermissionRisk::Automatic
+        );
+        assert!(read.read_only);
+        let submit = tools
+            .registrations()
+            .iter()
+            .find(|r| r.spec.id == "steel.recommend_next_experiments")
+            .unwrap();
+        assert_eq!(
+            submit.spec.risk,
+            crate::agent::protocol::PermissionRisk::ConfirmationRequired
+        );
+        assert!(!submit.read_only);
+    }
+    #[test]
     fn steel_agent_tools_expose_web_parity_names() {
         let tools = SteelToolExecutor::with_agent_gateways(
             Arc::new(FakeOptimizationGateway),

@@ -421,8 +421,14 @@ pub fn normalize_dataset(
         })?;
         let hash = crate::steel::hash_dataset_source(&source)?;
         artifacts::atomic(c, || {
-            let output = super::steel::save_preview_on_connection(
-                c, ws, &source, &hash, &preview, &mapping,
+            let output = super::steel::save_new_preview_scoped(
+                c,
+                ws,
+                &source,
+                &hash,
+                &preview,
+                &mapping,
+                &input.project_id,
             )?;
             projects::attach_in_transaction(
                 c,
@@ -525,7 +531,7 @@ pub fn annotate_result(result: &mut Value, payload: &Value) -> Result<(), String
         return Ok(());
     };
     let snapshot: RuleSnapshot = serde_json::from_value(raw.clone()).map_err(|e| e.to_string())?;
-    for key in ["recommendations", "pareto_front"] {
+    for key in ["recommendations", "pareto_front", "points"] {
         if let Some(points) = result[key].as_array_mut() {
             for point in points {
                 let values: BTreeMap<String, f64> =
