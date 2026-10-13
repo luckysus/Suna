@@ -38,3 +38,6 @@ pub use series::{
     dataset_series, numeric_matrix, DatasetSeries, DatasetSeriesColumn, DatasetSeriesRequest,
 };
 pub use tool::{carbon_equivalent_tool, SteelToolExecutor};
+
+
+pub mod materials;

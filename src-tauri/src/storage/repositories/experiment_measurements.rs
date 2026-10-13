@@ -140,6 +140,10 @@ fn validate(input: &RecordExecution) -> Result<(), String> {
 pub fn record(c: &Connection, ws: &str, input: RecordExecution) -> Result<Execution, String> {
     validate(&input)?;
     projects::require_active(c, ws, &input.project_id)?;
+    let registry=super::material_rules::registry(c,ws,Some(&input.project_id))?;
+    for (name,unit) in &input.variable_units{let suggestions=crate::steel::materials::suggest(&registry,name);if suggestions.len()==1{let field=registry.fields.iter().find(|f|f.id==suggestions[0].field_id).ok_or("field_missing")?;crate::steel::materials::conversion(unit,&field.canonical_unit)?;}}
+    for measurement in &input.measurements{let suggestions=crate::steel::materials::suggest(&registry,&measurement.property);if suggestions.len()==1{let field=registry.fields.iter().find(|f|f.id==suggestions[0].field_id).ok_or("field_missing")?;crate::steel::materials::conversion(&measurement.unit,&field.canonical_unit)?;}else if suggestions.len()>1{return Err("ambiguous_measured_property_requires_canonical_field_id".into())}}
+
     let plan = experiments::get(c, ws, &input.plan_id)?.ok_or("experiment_plan_not_found")?;
     if plan.state != "accepted" {
         return Err("experiment_plan_requires_acceptance".into());

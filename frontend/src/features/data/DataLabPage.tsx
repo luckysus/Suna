@@ -3,6 +3,7 @@ import { BarChart3, Database, FileSpreadsheet, Loader2, RefreshCw, Search, Uploa
 import { desktop, type DatasetAnalysis, type DatasetSeries, type MultivariateResult, type SteelDatasetRecord } from "../../bridge/desktop";
 import { Input } from "../../components/ui/input";
 import { DataLabAnalysisPanel, DataLabVisualizePanel } from "./DataLabPanels";
+import MaterialMappingPanel from "./MaterialMappingPanel";
 import { DataLabTablePanel } from "./DataLabTablePanel";
 import { FileDropZone } from "../../components/common/FileDropZone";
 import "./data-lab.css";
@@ -257,6 +258,7 @@ export default function DataLabPage() {
             </div>
           )}
 
+          {tab === "manage" && dataset && <MaterialMappingPanel dataset={dataset} onSaved={()=>void load()}/>}
           {tab === "table" && <DataLabTablePanel series={tableSeries} datasetName={dataset?.sourceName} busy={tableBusy} />}
 
           {tab === "analysis" && analysis && (

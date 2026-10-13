@@ -160,6 +160,7 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
     },
     Migration {version:37,sql:include_str!("migrations/0037_research_artifacts.sql")},
     Migration {version:38,sql:include_str!("migrations/0038_experiment_measurements.sql")},
+    Migration {version:39,sql:include_str!("migrations/0039_material_rules.sql")},
 ];
 
 pub fn latest_version() -> u32 {

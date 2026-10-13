@@ -350,7 +350,7 @@ fn normalize_mappings(
             .map(str::to_string);
         if let Some(field) = canonical_field.as_deref() {
             if !is_canonical_field(field) {
-                return Err(format!("canonical field {field} must use lower snake_case"));
+                return Err(format!("canonical field {field} must use lower snake_case or namespace.field"));
             }
             if !canonical_fields.insert(field.to_ascii_lowercase()) {
                 return Err(format!(
@@ -385,8 +385,8 @@ fn is_canonical_field(field: &str) -> bool {
     let mut characters = field.chars();
     matches!(characters.next(), Some(character) if character.is_ascii_lowercase())
         && characters.all(|character| {
-            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '_'
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '_' || character == '.'
         })
-        && !field.ends_with('_')
+        && !field.ends_with('_') && !field.ends_with('.') && !field.contains("..")
         && !field.contains("__")
 }

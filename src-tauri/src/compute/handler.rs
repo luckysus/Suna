@@ -433,6 +433,7 @@ fn run_task(
         }
     } else if expected_operation == "optimize_constrained" {
         validate_optimization_result(&result)?;
+        crate::storage::repositories::material_rules::annotate_result(&mut result,&payload.payload).map_err(|_|HandlerError::permanent("material_candidate_recheck_failed"))?;
     } else if expected_operation == "design_experiments" {
         validate_design_result(&result)?;
     } else if expected_operation == "export_linear_onnx" {

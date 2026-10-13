@@ -5,15 +5,449 @@
       "id": "production",
       "description": "Optional user-owned CSV/XLSX production dataset mapping preset.",
       "fields": {
-        "heat_id": {"canonical": "heat_id", "type": "string", "required": true},
-        "steel_grade": {"canonical": "steel_grade", "type": "string", "required": false},
-        "temperature": {"canonical": "temperature_c", "type": "number", "unit": "celsius", "required": false},
-        "carbon": {"canonical": "carbon_pct", "type": "number", "unit": "percent_mass", "required": false},
-        "silicon": {"canonical": "silicon_pct", "type": "number", "unit": "percent_mass", "required": false},
-        "manganese": {"canonical": "manganese_pct", "type": "number", "unit": "percent_mass", "required": false},
-        "phosphorus": {"canonical": "phosphorus_pct", "type": "number", "unit": "percent_mass", "required": false},
-        "sulfur": {"canonical": "sulfur_pct", "type": "number", "unit": "percent_mass", "required": false}
+        "heat_id": {
+          "canonical": "heat_id",
+          "type": "string",
+          "required": true
+        },
+        "steel_grade": {
+          "canonical": "steel_grade",
+          "type": "string",
+          "required": false
+        },
+        "temperature": {
+          "canonical": "temperature_c",
+          "type": "number",
+          "unit": "celsius",
+          "required": false
+        },
+        "carbon": {
+          "canonical": "carbon_pct",
+          "type": "number",
+          "unit": "percent_mass",
+          "required": false
+        },
+        "silicon": {
+          "canonical": "silicon_pct",
+          "type": "number",
+          "unit": "percent_mass",
+          "required": false
+        },
+        "manganese": {
+          "canonical": "manganese_pct",
+          "type": "number",
+          "unit": "percent_mass",
+          "required": false
+        },
+        "phosphorus": {
+          "canonical": "phosphorus_pct",
+          "type": "number",
+          "unit": "percent_mass",
+          "required": false
+        },
+        "sulfur": {
+          "canonical": "sulfur_pct",
+          "type": "number",
+          "unit": "percent_mass",
+          "required": false
+        }
       }
     }
-  ]
+  ],
+  "materials_schema": {
+    "schemaVersion": "materials-schema.v1",
+    "materialSystem": "steel",
+    "fields": [
+      {
+        "id": "chem.c",
+        "aliases": [
+          "C",
+          "碳",
+          "碳含量",
+          "carbon_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.mn",
+        "aliases": [
+          "Mn",
+          "锰",
+          "锰含量",
+          "manganese_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.cr",
+        "aliases": [
+          "Cr",
+          "铬",
+          "铬含量",
+          "chromium_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.ni",
+        "aliases": [
+          "Ni",
+          "镍",
+          "镍含量",
+          "nickel_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.si",
+        "aliases": [
+          "Si",
+          "硅",
+          "硅含量",
+          "silicon_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.mo",
+        "aliases": [
+          "Mo",
+          "钼",
+          "钼含量",
+          "molybdenum_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.p",
+        "aliases": [
+          "P",
+          "磷",
+          "磷含量",
+          "phosphorus_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.s",
+        "aliases": [
+          "S",
+          "硫",
+          "硫含量",
+          "sulfur_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "chem.fe",
+        "aliases": [
+          "Fe",
+          "铁",
+          "铁含量",
+          "iron_pct"
+        ],
+        "role": "composition",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "process.quench_temperature",
+        "aliases": [
+          "淬火温度",
+          "quench_temp"
+        ],
+        "role": "process",
+        "canonicalUnit": "degC",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "process.temper_temperature",
+        "aliases": [
+          "回火温度",
+          "temper_temp"
+        ],
+        "role": "process",
+        "canonicalUnit": "degC",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "process.hold_time",
+        "aliases": [
+          "保温时间",
+          "hold_time"
+        ],
+        "role": "process",
+        "canonicalUnit": "min",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "process.cooling_rate",
+        "aliases": [
+          "冷却速率",
+          "cooling_rate"
+        ],
+        "role": "process",
+        "canonicalUnit": "K/s",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "process.reduction",
+        "aliases": [
+          "压下率",
+          "reduction"
+        ],
+        "role": "process",
+        "canonicalUnit": "%",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.hardness_hv",
+        "aliases": [
+          "HV",
+          "硬度"
+        ],
+        "role": "property",
+        "canonicalUnit": "HV",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.hardness_hrc",
+        "aliases": [
+          "HRC",
+          "硬度"
+        ],
+        "role": "property",
+        "canonicalUnit": "HRC",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.hardness_hb",
+        "aliases": [
+          "HB",
+          "硬度"
+        ],
+        "role": "property",
+        "canonicalUnit": "HB",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.yield_strength",
+        "aliases": [
+          "YS",
+          "屈服强度"
+        ],
+        "role": "property",
+        "canonicalUnit": "MPa",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.tensile_strength",
+        "aliases": [
+          "TS",
+          "抗拉强度"
+        ],
+        "role": "property",
+        "canonicalUnit": "MPa",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.elongation",
+        "aliases": [
+          "EL",
+          "延伸率"
+        ],
+        "role": "property",
+        "canonicalUnit": "%",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.impact_energy",
+        "aliases": [
+          "J",
+          "冲击功"
+        ],
+        "role": "property",
+        "canonicalUnit": "J",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "property.r_value",
+        "aliases": [
+          "r_value",
+          "塑性应变比"
+        ],
+        "role": "property",
+        "canonicalUnit": "1",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "microstructure.grain_size",
+        "aliases": [
+          "grain_size",
+          "晶粒尺寸"
+        ],
+        "role": "microstructure",
+        "canonicalUnit": "um",
+        "valueType": "float",
+        "nullable": true
+      },
+      {
+        "id": "microstructure.region_fraction",
+        "aliases": [
+          "region_fraction",
+          "区域占比"
+        ],
+        "role": "microstructure",
+        "canonicalUnit": "%",
+        "valueType": "float",
+        "nullable": true,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "sample.sample_id",
+        "aliases": [
+          "样品编号",
+          "sample_id"
+        ],
+        "role": "sample_metadata",
+        "canonicalUnit": "1",
+        "valueType": "string",
+        "nullable": true
+      },
+      {
+        "id": "sample.heat_id",
+        "aliases": [
+          "炉次",
+          "heat_id"
+        ],
+        "role": "sample_metadata",
+        "canonicalUnit": "1",
+        "valueType": "string",
+        "nullable": true
+      },
+      {
+        "id": "sample.batch_id",
+        "aliases": [
+          "批次",
+          "batch_id"
+        ],
+        "role": "sample_metadata",
+        "canonicalUnit": "1",
+        "valueType": "string",
+        "nullable": true
+      },
+      {
+        "id": "sample.experiment_date",
+        "aliases": [
+          "实验日期",
+          "experiment_date"
+        ],
+        "role": "sample_metadata",
+        "canonicalUnit": "1",
+        "valueType": "string",
+        "nullable": true
+      },
+      {
+        "id": "sample.test_standard",
+        "aliases": [
+          "试验标准",
+          "test_standard"
+        ],
+        "role": "sample_metadata",
+        "canonicalUnit": "1",
+        "valueType": "string",
+        "nullable": true
+      },
+      {
+        "id": "derived.carbon_equivalent",
+        "aliases": [
+          "碳当量",
+          "carbon_equivalent"
+        ],
+        "role": "derived",
+        "canonicalUnit": "wt%",
+        "valueType": "float",
+        "nullable": true
+      }
+    ],
+    "templates": [
+      {
+        "id": "demo-quench",
+        "name": "演示：淬火温度范围（非推荐工艺）",
+        "severity": "hard",
+        "enabled": false,
+        "provenance": {
+          "type": "user",
+          "sourceRef": "synthetic-demo",
+          "sourceVersion": "1",
+          "reviewed": false,
+          "demonstration": true
+        },
+        "expression": {
+          "kind": "range",
+          "fieldId": "process.quench_temperature",
+          "unit": "degC",
+          "min": 800,
+          "max": 900
+        }
+      }
+    ]
+  }
 }

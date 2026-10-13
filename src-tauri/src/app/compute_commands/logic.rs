@@ -1359,6 +1359,7 @@ pub fn submit_optimization_on_connection(
     if !request.objectives.is_empty() {
         return super::joint::submit_joint_optimization(connection, request);
     }
+    if let Some(project)=crate::storage::repositories::research_artifacts::current(connection,current_workspace_id())?{if crate::storage::repositories::material_rules::list(connection,current_workspace_id(),&project)?.iter().any(|r|r.rule.enabled){return Err("active_material_rules_require_named_joint_optimization_protocol".into())}}
     let workspace_id = current_workspace_id();
     let training_task = task_repository::get(connection, workspace_id, training_task_id)
         .map_err(|error| error.to_string())?

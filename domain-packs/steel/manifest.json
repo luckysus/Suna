@@ -1,6 +1,6 @@
 {
   "id": "steel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "compatibility": {
     "min_app_version": "0.1.0",
     "max_app_version": null
@@ -19,7 +19,10 @@
     "continuous_casting": "Process that solidifies molten steel into a semi-finished strand such as slab, bloom, or billet."
   },
   "retrieval": {
-    "required_tags": ["steel", "materials"],
+    "required_tags": [
+      "steel",
+      "materials"
+    ],
     "citation_required": true,
     "max_evidence_items": 12
   },
@@ -114,7 +117,7 @@
     {
       "path": "assets/data-mappings.json",
       "kind": "data_mapping",
-      "sha256": "3a2523d7d91ad7bf83ad84b9b484557ea2b115dd760efc4f1044bd574ef44833"
+      "sha256": "0611589e31a1d2f62d55da57c8995d6fec673070cf47b9520a1da935619def4b"
     },
     {
       "path": "evaluations/steel-qa.jsonl",

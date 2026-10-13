@@ -25,3 +25,5 @@ pub mod turn_snapshots;
 pub mod research_artifacts;
 
 pub mod experiment_measurements;
+
+pub mod material_rules;

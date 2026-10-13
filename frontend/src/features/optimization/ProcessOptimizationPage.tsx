@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarPlus, CheckCircle2, Download, Gauge, Loader2, Play, RefreshCw, Upload } from "lucide-react";
 import { desktop, type ComputeTrainingResult, type ComputeOptimizationRequest, type OptimizationObjective, type OptimizationVariable, type ComputeOptimizationResult, type SteelDatasetRecord } from "../../bridge/desktop";
 import { useResearchStore } from "../../stores/researchStore";
+import MaterialConstraintsPanel from "./MaterialConstraintsPanel";
 import { OptimizationObjectives } from "./OptimizationObjectives";
 import { useComputeTask, ComputeTaskStatus } from "../tasks/useComputeTask";
 import { Input } from "../../components/ui/input";
@@ -91,7 +92,7 @@ export default function ProcessOptimizationPage() {
       const column = columns.find((c) => (c.canonicalField || c.originalName) === name);
       const trained = Object.values(models).find((m) => m.artifact.feature_names.includes(name));
       const range = trained?.artifact.applicability_range[trained.artifact.feature_names.indexOf(name)];
-      return { name, min: column?.min ?? range?.min ?? 0, max: column?.max ?? range?.max ?? 1, fixedValue: null };
+      return { name, unit:column?.unit??undefined, fieldId:column?.canonicalField?.includes(".")?column.canonicalField:undefined, min: column?.min ?? range?.min ?? 0, max: column?.max ?? range?.max ?? 1, fixedValue: null };
     }));
     setConstraints((current) => current.map((c) => ({ ...c, coefficients: Object.fromEntries(Object.entries(c.coefficients).filter(([name]) => inputNames.includes(name))) })));
   }, [objectives, models, columns, additionalVariables]);
@@ -228,6 +229,7 @@ export default function ProcessOptimizationPage() {
               ))}
             </SelectContent>
           </Select></label>
+          <MaterialConstraintsPanel variables={variables} onChange={setVariables}/>
           <OptimizationObjectives objectives={objectives} setObjectives={setObjectives} models={models} variables={variables} setVariables={setVariables} constraints={constraints} setConstraints={setConstraints} availableVariables={columns.map((c) => ({ name: c.canonicalField || c.originalName, min: c.min ?? 0, max: c.max ?? 1 }))} additionalVariables={additionalVariables} onAddVariable={(name) => setAdditionalVariables((current) => [...current, name])} onRemoveVariable={(name) => { setAdditionalVariables((current) => current.filter((n) => n !== name)); setObjectives((current) => current.map((o) => o.source === "formula" ? { ...o, coefficients: Object.fromEntries(Object.entries(o.coefficients ?? {}).filter(([n]) => n !== name)) } : o)); }} />
           <ComputeTaskStatus {...computeTask} />
           <label>搜索次数<Input type="number" min="10" max="500" step="10" value={trials} onChange={(event) => setTrials(Number(event.target.value))} /></label>
@@ -249,6 +251,7 @@ export default function ProcessOptimizationPage() {
                 <div className="suna-optimization-row" key={index}>
                   <span>方案 {String.fromCharCode(65 + (index % 26))}</span>
                   <span>{recommendation.prediction.toFixed(3)}</span>
+                  {recommendation.material_assessment&&<span>硬约束通过 · 软惩罚 {recommendation.material_assessment.softPenalty} · {!recommendation.material_assessment.supportAssessed?"未配置支持域":recommendation.material_assessment.supportRisk?"支持域外推风险":"通过已配置支持域"}</span>}
                   <span>{recommendation.objectives.map((value) => value.toFixed(3)).join(" / ")}</span>
                   <span className="suna-optimization-values">{result.feature_names.map((name) => `${name}=${recommendation.values[name]?.toFixed(2) ?? "-"}`).join("，")}</span>
                   <span className="suna-optimization-actions-cell"><Button variant="ghost" onClick={() => void addToPlan(index)}><CalendarPlus size={13} />加入实验计划</Button></span>

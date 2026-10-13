@@ -482,7 +482,7 @@ export interface OptimizationObjective {
   coefficients?: Record<string, number>;
   intercept?: number;
 }
-export interface OptimizationVariable { name: string; min: number; max: number; fixedValue?: number | null }
+export interface OptimizationVariable { fieldId?:string;unit?:string; name: string; min: number; max: number; fixedValue?: number | null }
 
 export interface ComputeOptimizationRequest {
   datasetId: string;
@@ -506,6 +506,7 @@ export interface ComputeOptimizationRequest {
 }
 
 export interface ComputeOptimizationRecommendation {
+  material_assessment?:{hardFeasible:boolean;softPenalty:number;supportRisk:boolean;supportAssessed:boolean};
   values: Record<string, number>;
   objectives: number[];
   prediction: number;
@@ -1563,7 +1564,19 @@ export interface ExperimentMeasurementInput { property:string; value:number; uni
 export interface RecordExperimentExecution { projectId:string; planId:string; sampleId:string; heatId?:string|null; batchId?:string|null; actualVariables:Record<string,number>; variableUnits:Record<string,string>; performedAt:string; method:string; sourceType:"measured"|"synthetic"|"literature"; note?:string; measurements:ExperimentMeasurementInput[]; }
 export interface ExperimentExecution extends RecordExperimentExecution { id:string; replicate:number; reviewState:string; planArtifactId:string|null; measurements:(ExperimentMeasurementInput&{id:string})[]; reviews:{state:string;reviewer:string;reason:string;createdAt:string}[]; }
 export interface ExperimentComparison { executionId:string;property:string;unit:string;prediction:number;actual:number;predictionMinusActual:number; }
+export interface MaterialField { id:string;aliases:string[];role:string;canonicalUnit:string;valueType:string;nullable:boolean;min?:number|null;max?:number|null; }
+export interface MaterialRegistry { schemaVersion:string;materialSystem:string;fields:MaterialField[];templates:unknown[]; }
+export interface MaterialRule { id:string;name:string;severity:'hard'|'soft'|'support';enabled:boolean;penalty:number;provenance:{type:string;sourceRef:string;sourceVersion:string;reviewed:boolean;demonstration?:boolean};expression:{kind:'range';fieldId:string;unit:string;min?:number|null;max?:number|null}|{kind:'linear';coefficients:Record<string,number>;units:Record<string,string>;operator:'ge'|'le'|'eq';value:number}; }
+export interface VersionedMaterialRule {version:number;rule:MaterialRule;}
+export interface MaterialVariable {name:string;fieldId:string;unit:string;min:number;max:number;fixedValue?:number|null;}
 export const desktop = {
+  getMaterialRegistry:(projectId?:string)=>call<MaterialRegistry>('get_material_registry',{projectId}),
+  suggestMaterialFields:(names:string[],projectId?:string)=>call<{fieldId:string;confidence:number;reason:string}[][]>('suggest_material_fields',{names,projectId}),
+  listMaterialRules:(projectId:string)=>call<VersionedMaterialRule[]>('list_material_rules',{projectId}),
+  saveMaterialRule:(projectId:string,rule:MaterialRule,expectedVersion:number)=>call<VersionedMaterialRule>('save_material_rule',{projectId,rule,expectedVersion}),
+  previewMaterialRules:(projectId:string,variables:MaterialVariable[],selected:string[])=>call<Record<string,unknown>>('preview_material_rules',{projectId,variables,selected}),
+  saveMaterialSchemaOverlay:(projectId:string,fields:MaterialField[],overrides:string[])=>call<number>('save_material_schema_overlay',{projectId,fields,overrides}),
+  normalizeMaterialDataset:(request:{projectId:string;datasetId:string;mappings:{ordinal:number;fieldId:string;sourceUnit:string}[]})=>call<SteelDatasetRecord>('normalize_material_dataset',{request}),
   recordExperimentExecution:(request:RecordExperimentExecution)=>call<ExperimentExecution>("record_experiment_execution",{request}),
   listExperimentExecutions:(projectId:string,limit=25,offset=0)=>call<ExperimentExecution[]>("list_experiment_executions",{projectId,limit,offset}),
   reviewExperimentExecution:(id:string,state:string,reason:string,expectedState:string)=>call<ExperimentExecution>("review_experiment_execution",{id,state,reason,expectedState}),
