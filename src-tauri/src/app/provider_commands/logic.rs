@@ -323,7 +323,9 @@ pub(crate) async fn probe_provider(
     let started = Instant::now();
     let result = async {
         if matches!(profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) {
-            if let Some(capability @ (ProviderCapability::Embedding | ProviderCapability::Rerank)) = capability {
+            if let Some(capability @ (ProviderCapability::Embedding | ProviderCapability::Rerank)) =
+                capability
+            {
                 return crate::providers::probe_retrieval(profile, credential, capability)
                     .await
                     .map_err(ProbeFailure::from);

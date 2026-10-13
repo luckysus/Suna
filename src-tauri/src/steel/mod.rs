@@ -39,5 +39,4 @@ pub use series::{
 };
 pub use tool::{carbon_equivalent_tool, SteelToolExecutor};
 
-
 pub mod materials;

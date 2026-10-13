@@ -181,7 +181,14 @@ fn two_models_five_suggestions_two_measurements_new_version_retrain_next_round()
     let result = wait(&mut scheduler, &c, optimization.id);
     assert!(result["recommendations"].as_array().unwrap().len() >= 5);
     let _five_suggestions = &result["recommendations"].as_array().unwrap()[..5];
-    assert!(result["recommendations"].as_array().unwrap().iter().all(|p|{let t=p["values"]["temperature"].as_f64().unwrap();(820.0-1e-7..=880.0+1e-7).contains(&t)}));
+    assert!(result["recommendations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|p| {
+            let t = p["values"]["temperature"].as_f64().unwrap();
+            (820.0 - 1e-7..=880.0 + 1e-7).contains(&t)
+        }));
     let opt_artifact = artifacts::list(&c, "local", &p, 100, 0)
         .unwrap()
         .into_iter()

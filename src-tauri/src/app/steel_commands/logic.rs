@@ -150,7 +150,12 @@ pub fn analyze_steel_dataset(
                 column.unit = saved.unit.clone();
             }
         }
-        crate::storage::repositories::research_artifacts::record_analysis(connection,workspace_id,&request.dataset_id,serde_json::to_value(&analysis).map_err(|e|e.to_string())?)?;
+        crate::storage::repositories::research_artifacts::record_analysis(
+            connection,
+            workspace_id,
+            &request.dataset_id,
+            serde_json::to_value(&analysis).map_err(|e| e.to_string())?,
+        )?;
         Ok(analysis)
     })
 }

@@ -8,8 +8,15 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 pub fn create(conn: &Connection, task: NewTask) -> Result<TaskRecord, TaskError> {
-    let mut original_error=None;
-    crate::storage::repositories::research_artifacts::atomic(conn, || create_inner(conn, task).map_err(|e| { let message=e.to_string(); original_error=Some(e); message })).map_err(|e| original_error.unwrap_or_else(||TaskError::new("storage_error", e)))
+    let mut original_error = None;
+    crate::storage::repositories::research_artifacts::atomic(conn, || {
+        create_inner(conn, task).map_err(|e| {
+            let message = e.to_string();
+            original_error = Some(e);
+            message
+        })
+    })
+    .map_err(|e| original_error.unwrap_or_else(|| TaskError::new("storage_error", e)))
 }
 
 fn create_inner(conn: &Connection, task: NewTask) -> Result<TaskRecord, TaskError> {
@@ -33,7 +40,12 @@ fn create_inner(conn: &Connection, task: NewTask) -> Result<TaskRecord, TaskErro
         ],
     )
     .map_err(storage_error)?;
-    crate::storage::repositories::research_artifacts::bind_current(conn, &task.workspace_id, &id.to_string()).map_err(|e| TaskError::new("research_binding_failed",e))?;
+    crate::storage::repositories::research_artifacts::bind_current(
+        conn,
+        &task.workspace_id,
+        &id.to_string(),
+    )
+    .map_err(|e| TaskError::new("research_binding_failed", e))?;
     get(conn, &task.workspace_id, id)?
         .ok_or_else(|| TaskError::new("storage_error", "created task could not be read back"))
 }
@@ -334,7 +346,12 @@ pub fn transition(
         )
         .map_err(storage_error)
         .and_then(decode_task)?;
-    crate::storage::repositories::research_artifacts::reconcile_task(&transaction, workspace_id, &id.to_string()).map_err(|e| TaskError::new("research_snapshot_failed",e))?;
+    crate::storage::repositories::research_artifacts::reconcile_task(
+        &transaction,
+        workspace_id,
+        &id.to_string(),
+    )
+    .map_err(|e| TaskError::new("research_snapshot_failed", e))?;
     transaction.commit().map_err(storage_error)?;
     Ok(record)
 }

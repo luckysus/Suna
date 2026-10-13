@@ -32,7 +32,22 @@ fn production_scheduler_registers_mineru_ingest_handler() {
     std::fs::create_dir_all(&root).expect("create handler root");
     let handlers = rag_task_handlers_with_compute(root.join("suna.sqlite3"), root.clone(), None);
 
-    assert_eq!(handlers.len(), 11);
+    assert_eq!(
+        handlers.len(),
+        crate::compute::handler::compute_task_handlers(None).len() + 3
+    );
+    assert!(handlers
+        .iter()
+        .any(|handler| handler.kind() == "compute_analyze_microstructure"));
+    let kinds = handlers
+        .iter()
+        .map(|handler| handler.kind())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        kinds.len(),
+        handlers.len(),
+        "duplicate task handler registration"
+    );
     assert!(handlers
         .iter()
         .any(|handler| handler.kind() == crate::compute::handler::COMPUTE_DESIGN_EXPERIMENTS_KIND));

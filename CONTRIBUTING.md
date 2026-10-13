@@ -34,3 +34,5 @@ From `suna/compute-worker`: `uv sync --frozen --extra packaging`, `python -m pyt
   受限标准文本、授权数据集或任何形式的遥测。
 - Features that require a Suna-hosted backend, account, or private cloud.
   任何依赖 Suna 托管后端、账号或私有云的功能。
+
+推送后核对对应提交 SHA 的 GitHub Actions，运行结束后读取失败步骤并处理；不要将本地通过写成 CI 通过。API 不可用时可用 `python scripts/check-actions.py --sha <提交SHA>` 读取公开 Actions 状态，并在继续开发一段时间后复查。取消的旧运行与实际失败分别记录。

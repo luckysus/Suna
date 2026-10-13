@@ -170,10 +170,18 @@ pub fn submit_joint_optimization(
         .map_err(|e| e.to_string())?;
         artifacts.insert(id.to_string(), checkpoint["result"]["artifact"].clone());
     }
-    let mut effective=request.clone();
-    let snapshot=crate::storage::repositories::material_rules::optimization_rules(connection,workspace,&mut effective)?;
+    let mut effective = request.clone();
+    let snapshot = crate::storage::repositories::material_rules::optimization_rules(
+        connection,
+        workspace,
+        &mut effective,
+    )?;
     let mut payload = build_joint_payload(&effective, &artifacts)?;
-    if let Some(snapshot)=snapshot{crate::steel::materials::verify_worker_system(&payload["payload"])?;payload["payload"]["material_rule_snapshot"]=serde_json::to_value(snapshot).map_err(|e|e.to_string())?;}
+    if let Some(snapshot) = snapshot {
+        crate::steel::materials::verify_worker_system(&payload["payload"])?;
+        payload["payload"]["material_rule_snapshot"] =
+            serde_json::to_value(snapshot).map_err(|e| e.to_string())?;
+    }
 
     let payload_json = super::logic::serialize_compute_task_payload(&payload)?;
     let task = repository::create(

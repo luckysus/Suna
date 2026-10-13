@@ -1248,7 +1248,10 @@ fn prepare_embedding_provider(
     secrets: &dyn SecretStore,
     plan: SiliconFlowPlan,
 ) -> Result<ConfiguredEmbeddingProvider, String> {
-    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) {
+    if !matches!(
+        record.profile.kind,
+        ProviderKind::SiliconFlow | ProviderKind::Qwen
+    ) {
         return Err("configured embedding provider is not supported".to_string());
     }
     let model = record
@@ -1279,7 +1282,10 @@ fn prepare_reranker(
         };
     };
     let profile_id = Some(record.profile.id.to_string());
-    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) {
+    if !matches!(
+        record.profile.kind,
+        ProviderKind::SiliconFlow | ProviderKind::Qwen
+    ) {
         return PreparedReranker {
             profile_id,
             model_id: record.profile.model_id,

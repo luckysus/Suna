@@ -68,7 +68,10 @@ pub(crate) fn configured_data_directory(
 }
 
 pub(crate) fn app_data_directory(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app.state::<crate::storage::data_directory::DataDirectoryState>().root.clone())
+    Ok(app
+        .state::<crate::storage::data_directory::DataDirectoryState>()
+        .root
+        .clone())
 }
 
 pub(crate) fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {

@@ -164,7 +164,10 @@ mod tests {
         updated.name = "再次改名".to_string();
         upsert(&connection, "ws", &updated).expect("update override");
         assert_eq!(count(&connection, "ws").expect("count"), 1);
-        assert_eq!(list_overrides(&connection, "ws").expect("relist")[0].name, "再次改名");
+        assert_eq!(
+            list_overrides(&connection, "ws").expect("relist")[0].name,
+            "再次改名"
+        );
 
         delete(&connection, "ws", &profile.id).expect("delete override");
         assert_eq!(count(&connection, "ws").expect("count"), 0);

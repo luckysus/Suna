@@ -182,7 +182,6 @@ macro_rules! handler {
             crate::app::microstructure_commands::list_microstructure_analyses,
             crate::app::microstructure_commands::review_microstructure_analysis,
             crate::app::microstructure_commands::get_microstructure_task_result,
-
             crate::app::task_commands::tasks::cancel_background_task,
             crate::app::task_commands::tasks::retry_background_task,
             crate::diagnostics::get_storage_health,

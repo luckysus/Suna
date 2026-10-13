@@ -2114,7 +2114,11 @@ async fn embed_postgres_document_inner(
         )
     })?
     .ok_or_else(|| "Embedding provider 不存在".to_string())?;
-    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) || !record.profile.enabled {
+    if !matches!(
+        record.profile.kind,
+        ProviderKind::SiliconFlow | ProviderKind::Qwen
+    ) || !record.profile.enabled
+    {
         return Err("当前 Embedding provider 不可用".to_string());
     }
     let model = record
@@ -2670,7 +2674,11 @@ pub async fn rerank_postgres_knowledge(
         )
     })?
     .ok_or_else(|| "Reranker provider 不存在".to_string())?;
-    if !matches!(record.profile.kind, ProviderKind::SiliconFlow | ProviderKind::Qwen) || !record.profile.enabled {
+    if !matches!(
+        record.profile.kind,
+        ProviderKind::SiliconFlow | ProviderKind::Qwen
+    ) || !record.profile.enabled
+    {
         return Err("当前 Reranker provider 不可用".to_string());
     }
     let model = record
@@ -3258,7 +3266,8 @@ fn authorize_postgres_content_file(
     let root = database
         .parent()
         .ok_or_else(|| "解析本地内容目录失败".to_string())?;
-    let stored_path = app.state::<crate::storage::data_directory::DataDirectoryState>()
+    let stored_path = app
+        .state::<crate::storage::data_directory::DataDirectoryState>()
         .relocate(std::path::Path::new(stored_path));
     authorize_postgres_content_path(root, &stored_path)
 }
