@@ -6,6 +6,7 @@ unknown/pending exits 2. Use after pushing and again after doing other work.
 import argparse
 import json
 import re
+import time
 import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import quote
@@ -19,6 +20,7 @@ class Steps(HTMLParser):
             self.steps.append({'name':attrs.get('data-name'),'conclusion':attrs.get('data-conclusion')})
 
 def read(url):
+    url += ('&' if '?' in url else '?') + '_suna_refresh=' + str(int(time.time() // 60))
     request=urllib.request.Request(url,headers={'User-Agent':'Suna-actions-status/1.0'})
     with urllib.request.urlopen(request,timeout=20) as response:
         return response.read(4*1024*1024+1).decode('utf-8')
@@ -29,11 +31,12 @@ def inspect(repo,sha):
     runs=[]
     for block in blocks:
         if not re.search(r'/commit/'+re.escape(sha),block):continue
-        match=re.search(r'href="(/[^"]+/actions/runs/\d+)"[^>]*aria-label="([a-z_]+):',block)
+        match=re.search(r'href="(/[^"]+/actions/runs/\d+)"[^>]*aria-label="([a-z_ ]+):',block)
         if not match:continue
         url='https://github.com'+match.group(1)
         if any(r['url']==url for r in runs):continue
-        state=match.group(2)
+        state=match.group(2).strip().replace(" ","_")
+        if state=="currently_running":state="in_progress"
         if state in {'completed','success','successful','passed'} and 'color-fg-success' in block:state='success'
         run={'url':url,'state':state,'failedSteps':[]}
         if run['state']=='failed':

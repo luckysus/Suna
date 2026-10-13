@@ -73,6 +73,9 @@
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "katex": "$katex"
+    "katex": "$katex",
+    "pptxgenjs": {
+      "image-size": "2.0.4"
+    }
   }
 }
