@@ -170,8 +170,45 @@ fn seed_database_at_version(connection: &mut Connection, version: u32) {
             35,
             include_str!("../src/storage/migrations/0035_reports.sql"),
         ),
+        (
+            36,
+            include_str!("../src/storage/migrations/0036_research_projects.sql"),
+        ),
+        (
+            37,
+            include_str!("../src/storage/migrations/0037_research_artifacts.sql"),
+        ),
+        (
+            38,
+            include_str!("../src/storage/migrations/0038_experiment_measurements.sql"),
+        ),
+        (
+            39,
+            include_str!("../src/storage/migrations/0039_material_rules.sql"),
+        ),
+        (
+            40,
+            include_str!("../src/storage/migrations/0040_research_agent_context.sql"),
+        ),
+        (
+            41,
+            include_str!("../src/storage/migrations/0041_microstructure.sql"),
+        ),
+        (
+            42,
+            include_str!("../src/storage/migrations/0042_literature_discovery.sql"),
+        ),
+        (
+            43,
+            include_str!("../src/storage/migrations/0043_industrial_sources.sql"),
+        ),
     ];
 
+    assert_eq!(
+        migrations.len(),
+        latest_version() as usize,
+        "migration upgrade fixture must include every supported schema version"
+    );
     for (migration_version, sql) in migrations.into_iter().take(version as usize) {
         connection
             .execute_batch(sql)
@@ -467,7 +504,7 @@ fn current_database_migration_is_idempotent() {
 #[test]
 fn version_twelve_database_receives_summary_source_backfill() {
     let mut conn = Connection::open_in_memory().expect("open memory database");
-    migrate(&mut conn).expect("create current schema");
+    seed_database_at_version(&mut conn, 12);
     conn.execute_batch(
         r#"
         INSERT INTO conversations
@@ -483,37 +520,9 @@ fn version_twelve_database_receives_summary_source_backfill() {
           (id, workspace_id, conversation_id, summary, covered_message_id,
            source_message_ids_json, created_at, updated_at)
           VALUES ('s-v12', 'local', 'c-v12', 'summary', 'm-v12-1', '[]', 't2', 't2');
-        DROP TABLE steel_dataset_columns;
-        DROP TABLE steel_datasets;
-        DROP TABLE steel_models;
-        DROP TABLE mcp_servers;
-        DROP TABLE database_connections;
-        DROP TABLE database_query_results;
-        DROP TABLE cron_outbox;
-        DROP TABLE cron_jobs;
-        DROP INDEX idx_agent_task_sources_task;
-        DROP INDEX idx_agent_runs_workspace_id;
-        DROP INDEX idx_background_tasks_workspace_id;
-        DROP TABLE agent_task_sources;
-        DROP INDEX idx_background_tasks_claim_token;
-        DROP TABLE task_claim_tokens;
-        DROP TABLE experiments;
-        DROP TABLE optimization_tasks;
-        DROP TABLE prediction_tasks;
-        DROP TABLE skills;
-        DROP TABLE tools;
-        DROP TABLE agents;
-        DROP TABLE reports;
-        ALTER TABLE background_tasks DROP COLUMN lease_expires_at;
-        ALTER TABLE background_tasks DROP COLUMN claim_token;
-        ALTER TABLE background_tasks DROP COLUMN owner;
-        ALTER TABLE background_tasks DROP COLUMN started_at;
-        ALTER TABLE background_tasks DROP COLUMN finished_at;
-        DELETE FROM schema_migrations WHERE version > 12;
-        PRAGMA user_version = 12;
         "#,
     )
-    .expect("simulate version twelve database");
+    .expect("seed actual version twelve data");
 
     let report = migrate(&mut conn).expect("apply post-v12 migrations");
 

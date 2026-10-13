@@ -15,3 +15,5 @@
 修复前后实际执行 `cargo audit --ignore RUSTSEC-2023-0071 --json`：5条漏洞→0条。`cargo fmt --all -- --check`通过。完整 `cargo test --locked --lib -- --test-threads=1`：364通过、2真实PostgreSQL/文献环境测试跳过。新增图像处理器导致的旧注册数量断言一并更新，并校验处理器存在及去重。尚未用本地结果宣称Windows流水线成功。
 
 第二次实际核查：[195](https://github.com/luckysus/Suna/actions/runs/38358898275) 的 Rust advisory scan 已成功，随后 npm audit 报 image-size 的 JXL/HEIF/ICNS 无限循环高危公告（GHSA-5p2g-fcmc-qvqq、GHSA-w3rx-r6r6-pgpr）。上游已发布2.0.4，但PptxGenJS仍约束1.x，因此仅覆盖该依赖到修复版2.0.4，保留报告导出。npm audit复查0漏洞，真实DOCX/PPTX包和PNG图表嵌入回归通过。公开页面存在缓存且进行中标签含空格，状态核查脚本补充分钟缓存刷新和进行中识别。
+
+第三次核查：[db52c68对应运行](https://github.com/luckysus/Suna/actions/runs/38360065977) 的Rust依赖策略、Rust公告、npm审计、Worker、契约和前端步骤均成功，`Run deterministic Rust suite`失败，后续步骤跳过。公开页面只有失败步骤及退出码，完整日志受访问限制。本地补跑迁移集成测试实际复现两项失败：升级夹具仍只包含0035，而当前已有0043；v12回填测试从最新版反向删表，遗留0036之后的科研表。修复为完整版本夹具和真实v12初始化，保留升级断言并增加夹具完整性检查；修复后11/11通过。完整Rust集成套件继续检查，尚不能据此宣布Windows流水线通过。
