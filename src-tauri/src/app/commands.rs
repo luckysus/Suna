@@ -2,6 +2,7 @@ macro_rules! handler {
     () => {
         tauri::generate_handler![
             crate::db::db_init,
+            crate::app::export_commands::save_export_file,
             crate::app::storage_commands::conversations::list_conversations,
             crate::app::storage_commands::conversations::list_archived_conversations,
             crate::app::storage_commands::conversations::create_conversation,

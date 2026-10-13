@@ -286,18 +286,13 @@ export async function saveReportBlob(
   description: string,
 ): Promise<boolean> {
   const safeTopic = topic.replace(/[\\/:*?"<>|]/g, "_");
-  const path = await import("../../bridge/desktop").then((module) =>
-    module.desktop.saveFileDialog({
-      defaultPath: `${safeTopic}.${extension}`,
-      filters: [{ name: description, extensions: [extension] }],
-    }),
-  );
-  if (!path) return false;
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = path.split(/[\\/]/).pop() || `report.${extension}`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-  return true;
+  const { desktop } = await import("../../bridge/desktop");
+  const buffer = typeof blob.arrayBuffer === "function" ? await blob.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+  const saved = await desktop.saveExportFile(`${safeTopic}.${extension}`, Array.from(new Uint8Array(buffer)));
+  return saved !== null;
 }

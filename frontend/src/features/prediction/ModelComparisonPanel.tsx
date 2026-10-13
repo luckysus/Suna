@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2, Play, Table2 } from "lucide-react";
-import { desktop, type ComputeModelMetrics, type SteelTrainingAlgorithm } from "../../bridge/desktop";
+import { desktop, type ComputeModelMetrics, type SteelTrainingAlgorithm, type TrainingSplitPolicy } from "../../bridge/desktop";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { TRAINING_ALGORITHMS, algorithmLabel } from "./predictionModel";
@@ -8,6 +8,8 @@ import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 
 /** 第 36 章：多个模型同时训练并预测，用表格对比预测值、误差与指标。 */
+
+import { waitForComputeResult } from "../tasks/useComputeTask";
 
 type ComparisonRow = {
   algorithm: SteelTrainingAlgorithm;
@@ -27,6 +29,7 @@ function formatMetric(value: number | null | undefined, digits = 4) {
 }
 
 export default function ModelComparisonPanel({
+  splitPolicy,
   datasetId,
   targetColumn,
   featureColumns,
@@ -34,6 +37,7 @@ export default function ModelComparisonPanel({
   onNotice,
   onError,
 }: {
+  splitPolicy: TrainingSplitPolicy;
   datasetId: string;
   targetColumn: number;
   featureColumns: number[];
@@ -66,28 +70,18 @@ export default function ModelComparisonPanel({
           targetColumn,
           featureColumns,
           algorithm,
-          splitPolicy: { kind: "random", validationFraction: 0.2, seed: 42 },
+          splitPolicy,
         });
-        let trained = null;
-        for (let attempt = 0; attempt < 90 && !trained; attempt += 1) {
-          trained = await desktop.getComputeTrainingResult(task.id);
-          if (!trained) await new Promise((resolve) => window.setTimeout(resolve, 800));
-        }
-        if (!trained) throw new Error("模型训练超时，请在运行记录中查看任务状态");
+        const trained = await waitForComputeResult(task.id, desktop.getComputeTrainingResult);
         const predictionTask = await desktop.predictSteelModel({
           datasetId,
           trainingTaskId: trained.task_id,
           featureValues,
         });
-        let predicted = null;
-        for (let attempt = 0; attempt < 60 && !predicted; attempt += 1) {
-          predicted = await desktop.getComputePredictionResult(predictionTask.id);
-          if (!predicted) await new Promise((resolve) => window.setTimeout(resolve, 600));
-        }
-        if (!predicted) throw new Error("预测任务超时，请在运行记录中查看状态");
+        const predicted = await waitForComputeResult(predictionTask.id, desktop.getComputePredictionResult);
         next.push({
           algorithm,
-          metrics: trained.artifact.metrics.validation ?? null,
+          metrics: trained.artifact.metrics.test ?? trained.artifact.metrics.validation ?? null,
           prediction: predicted.predictions[0] ?? null,
         });
         setRows([...next]);

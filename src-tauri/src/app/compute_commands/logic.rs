@@ -31,7 +31,10 @@ pub struct TrainSteelDatasetRequest {
 pub struct PredictSteelModelRequest {
     pub dataset_id: String,
     pub training_task_id: String,
+    #[serde(default)]
     pub feature_values: Vec<f64>,
+    #[serde(default)]
+    pub feature_rows: Vec<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -43,13 +46,21 @@ pub struct PredictOnnxModelRequest {
     pub features: Vec<Vec<f64>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OptimizeSteelProcessRequest {
     pub dataset_id: String,
+    #[serde(default)]
+    pub objectives: Vec<Value>,
+    #[serde(default)]
+    pub variables: Vec<Value>,
+    #[serde(default)]
     pub training_task_id: String,
+    #[serde(default)]
     pub direction: String,
+    #[serde(default)]
     pub objective_columns: Vec<usize>,
+    #[serde(default)]
     pub bounds: Vec<Value>,
     #[serde(default)]
     pub fixed_values: Vec<Option<f64>>,
@@ -351,6 +362,27 @@ pub fn build_linear_regression_payload(
         })
         .collect::<serde_json::Map<_, _>>();
 
+    let policy = request.split_policy.clone().unwrap_or_else(|| json!({}));
+    let kind = policy["kind"].as_str().unwrap_or("random");
+    let auxiliary = if kind == "group" {
+        policy["groupColumn"].as_u64()
+    } else if kind == "time" {
+        policy["timeColumn"].as_u64()
+    } else {
+        None
+    };
+    if (kind == "group" || kind == "time") && auxiliary.is_none() {
+        return Err("group/time split requires a source column".into());
+    }
+    if auxiliary.is_some_and(|i| {
+        i as usize >= columns.len()
+            || i as usize == request.target_column
+            || request.feature_columns.contains(&(i as usize))
+    }) {
+        return Err("group/time column must exist and be excluded from target/features".into());
+    }
+    let mut auxiliary_values = Vec::new();
+    let mut source_rows = Vec::new();
     let mut features = Vec::new();
     let mut targets = Vec::new();
     for (row_index, row) in table.rows.iter().enumerate() {
@@ -384,6 +416,27 @@ pub fn build_linear_regression_payload(
                 feature_row.push(json!(value));
             }
         }
+        source_rows.push(row_index + 2);
+        if let Some(ordinal) = auxiliary {
+            let value = row
+                .get(ordinal as usize)
+                .map(String::as_str)
+                .unwrap_or("")
+                .trim();
+            if value.is_empty() {
+                return Err(format!(
+                    "group/time value missing at source row {}",
+                    row_index + 2
+                ));
+            }
+            auxiliary_values.push(if kind == "time" {
+                parse_finite(value)
+                    .map(|v| json!(v))
+                    .unwrap_or_else(|| json!(value))
+            } else {
+                json!(value)
+            });
+        }
         features.push(Value::Array(feature_row));
         targets.push(json!(target));
     }
@@ -391,18 +444,25 @@ pub fn build_linear_regression_payload(
         return Err("training requires at least two rows with a valid target".to_string());
     }
 
-    Ok(json!({
-        "dataset_id": request.dataset_id,
-        "features": features,
-        "targets": targets,
-        "feature_names": feature_names,
-        "field_mapping": field_mapping,
-        "split_policy": request.split_policy.clone().unwrap_or_else(|| json!({
-            "kind": "random",
-            "validation_fraction": 0.2,
-            "seed": 0,
-        })),
-    }))
+    let mut payload = json!({
+        "dataset_id": request.dataset_id, "features": features, "targets": targets,
+        "feature_names": feature_names, "field_mapping": field_mapping, "source_rows": source_rows,
+        "seed": policy.get("seed").cloned().unwrap_or(json!(0)),
+        "split_policy": {"kind": kind, "validation_fraction": policy.get("validationFraction").or_else(|| policy.get("validation_fraction")).cloned().unwrap_or(json!(0.2)), "seed": policy.get("seed").cloned().unwrap_or(json!(0))}
+    });
+    if kind == "group" {
+        payload["groups"] = json!(auxiliary_values);
+    }
+    if kind == "time" {
+        payload["timestamps"] = json!(auxiliary_values);
+    }
+    if policy.get("folds").is_some()
+        || policy.get("testFraction").is_some()
+        || policy.get("calibrationFraction").is_some()
+    {
+        payload["evaluation"] = json!({"folds": policy.get("folds").cloned().unwrap_or(json!(0)), "test_fraction": policy.get("testFraction").cloned().unwrap_or(json!(0.0)), "calibration_fraction": policy.get("calibrationFraction").cloned().unwrap_or(json!(0.0)), "search_trials": policy.get("searchTrials").cloned().unwrap_or(json!(0)), "learning_curve": policy.get("learningCurve").cloned().unwrap_or(json!(false))});
+    }
+    Ok(payload)
 }
 
 fn parse_finite(value: &str) -> Option<f64> {
@@ -414,7 +474,7 @@ fn parse_finite(value: &str) -> Option<f64> {
 
 const COMPUTE_FRAME_SAFETY_MARGIN_BYTES: usize = 64 * 1024;
 
-fn serialize_compute_task_payload(payload: &Value) -> Result<String, String> {
+pub(super) fn serialize_compute_task_payload(payload: &Value) -> Result<String, String> {
     let request = crate::compute::protocol::WorkerRequest::new(
         "payload-size-check",
         "submit",
@@ -454,6 +514,7 @@ pub fn build_linear_regression_prediction_payload(
     }
     if artifact["artifact_version"] != "linear-regression.v1"
         && artifact["artifact_version"] != "sklearn-pickle.v1"
+        && artifact["artifact_version"] != "transformer.v1"
     {
         return Err("unsupported training model artifact".to_string());
     }
@@ -835,19 +896,10 @@ pub fn train_steel_dataset_on_connection(
     } else {
         "train_sklearn_model"
     };
-    let task_payload = json!({
-        "operation": operation,
-        "payload": {
-            "dataset_id": payload["dataset_id"],
-            "data_version": dataset.source_sha256,
-            "features": payload["features"],
-            "targets": payload["targets"],
-            "feature_names": payload["feature_names"],
-            "field_mapping": payload["field_mapping"],
-            "split_policy": payload["split_policy"],
-            "algorithm": algorithm,
-        }
-    });
+    let mut compute_payload = payload;
+    compute_payload["data_version"] = json!(dataset.source_sha256);
+    compute_payload["algorithm"] = json!(algorithm);
+    let task_payload = json!({ "operation": operation, "payload": compute_payload });
     let task_kind = if algorithm == "linear_regression" {
         crate::compute::handler::COMPUTE_TRAIN_LINEAR_REGRESSION_KIND
     } else {
@@ -944,8 +996,28 @@ pub fn predict_steel_model_on_connection(
         &request.dataset_id,
         &request.training_task_id,
         &artifact,
-        &request.feature_values,
+        request
+            .feature_rows
+            .first()
+            .unwrap_or(&request.feature_values),
     )?;
+    if !request.feature_rows.is_empty() {
+        if request.feature_rows.len() > 10000 {
+            return Err("batch prediction supports at most 10000 rows".into());
+        }
+        let count = artifact["feature_names"]
+            .as_array()
+            .ok_or("feature names missing")?
+            .len();
+        if request
+            .feature_rows
+            .iter()
+            .any(|r| r.len() != count || r.iter().any(|v| !v.is_finite()))
+        {
+            return Err("batch rows must contain finite numbers in model feature order".into());
+        }
+        payload["payload"]["features"] = json!(request.feature_rows);
+    }
     let task_kind = match artifact["artifact_version"].as_str() {
         Some("linear-regression.v1") => {
             crate::compute::handler::COMPUTE_PREDICT_LINEAR_REGRESSION_KIND
@@ -1267,8 +1339,12 @@ pub(crate) fn optimize_steel_process(
     db: tauri::State<DbState>,
     request: OptimizeSteelProcessRequest,
 ) -> Result<BackgroundTaskResponse, String> {
-    let training_task_id = uuid::Uuid::parse_str(&request.training_task_id)
-        .map_err(|error| format!("invalid training task ID: {error}"))?;
+    let training_task_id = if request.objectives.is_empty() {
+        uuid::Uuid::parse_str(&request.training_task_id)
+            .map_err(|error| format!("invalid training task ID: {error}"))?
+    } else {
+        uuid::Uuid::nil()
+    };
     with_conn_mut(&db, |connection| {
         submit_optimization_on_connection(connection, &request, training_task_id)
             .map(background_task_response)
@@ -1280,6 +1356,9 @@ pub fn submit_optimization_on_connection(
     request: &OptimizeSteelProcessRequest,
     training_task_id: uuid::Uuid,
 ) -> Result<crate::tasks::model::TaskRecord, String> {
+    if !request.objectives.is_empty() {
+        return super::joint::submit_joint_optimization(connection, request);
+    }
     let workspace_id = current_workspace_id();
     let training_task = task_repository::get(connection, workspace_id, training_task_id)
         .map_err(|error| error.to_string())?
@@ -1827,6 +1906,8 @@ mod tests {
         });
         let request = OptimizeSteelProcessRequest {
             dataset_id: "dataset-1".to_string(),
+            objectives: vec![],
+            variables: vec![],
             training_task_id: "task-1".to_string(),
             direction: "minimize".to_string(),
             objective_columns: vec![0],
@@ -1875,6 +1956,8 @@ mod tests {
         });
         let base = OptimizeSteelProcessRequest {
             dataset_id: "dataset-1".to_string(),
+            objectives: vec![],
+            variables: vec![],
             training_task_id: "task-1".to_string(),
             direction: "minimize".to_string(),
             objective_columns: vec![0],
@@ -2046,5 +2129,60 @@ mod tests {
         let expected = format!("{:x}", Sha256::digest(b"onnx-fixture"));
         assert_eq!(hash, expected);
         let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod scientific_split_binding_tests {
+    use super::*;
+    #[test]
+    fn missing_targets_do_not_shift_group_metadata_or_feature_order() {
+        let table = DatasetTable {
+            source_name: "heats.csv".into(),
+            format: "csv".into(),
+            sheets: vec!["CSV".into()],
+            selected_sheet: "CSV".into(),
+            headers: vec!["heat".into(), "C".into(), "HV".into()],
+            rows: vec![
+                vec!["A".into(), "0.2".into(), "300".into()],
+                vec!["B".into(), "0.3".into(), "".into()],
+                vec!["C".into(), "0.4".into(), "350".into()],
+            ],
+            row_count: 3,
+            truncated: false,
+            warnings: vec![],
+        };
+        let columns = table
+            .headers
+            .iter()
+            .enumerate()
+            .map(|(ordinal, name)| SteelDatasetColumnRecord {
+                ordinal,
+                original_name: name.clone(),
+                duplicate: false,
+                inferred_type: "number".into(),
+                canonical_field: Some(name.clone()),
+                unit: None,
+                non_empty_count: 3,
+                missing_count: 0,
+                invalid_count: 0,
+                min: None,
+                max: None,
+            })
+            .collect::<Vec<_>>();
+        let request = TrainSteelDatasetRequest {
+            dataset_id: "data".into(),
+            target_column: 2,
+            feature_columns: vec![1],
+            algorithm: None,
+            split_policy: Some(
+                json!({"kind":"group","groupColumn":0,"validationFraction":0.3,"seed":7,"folds":3,"testFraction":0.2}),
+            ),
+        };
+        let payload = build_linear_regression_payload(&table, &columns, &request).unwrap();
+        assert_eq!(payload["groups"], json!(["A", "C"]));
+        assert_eq!(payload["source_rows"], json!([2, 4]));
+        assert_eq!(payload["split_policy"]["validation_fraction"], json!(0.3));
+        assert_eq!(payload["evaluation"]["folds"], json!(3));
     }
 }

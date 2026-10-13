@@ -50,3 +50,8 @@
 .suna-onnx-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .suna-onnx-result{display:grid;gap:10px}
 .suna-onnx-warning{margin:0;color:var(--suna-warning);font-size:calc(12px * var(--suna-ui-font-scale))}
+
+.suna-scientific-config { margin-top: 16px; padding: 12px; border: 1px solid var(--suna-line); border-radius: 8px; }
+.suna-scientific-config label { display: grid; gap: 6px; margin: 10px 0; }
+.suna-scientific-config select { width: 100%; padding: 8px; background: var(--suna-bg-raised); color: var(--suna-text); border: 1px solid var(--suna-line); border-radius: 6px; }
+.suna-scientific-config p { font-size: 12px; line-height: 1.6; color: var(--suna-text-muted); }

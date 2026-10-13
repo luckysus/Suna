@@ -104,6 +104,8 @@ fn completed_sklearn_training_task(connection: &mut Connection) -> uuid::Uuid {
 
 fn optimization_request(training_task_id: uuid::Uuid) -> OptimizeSteelProcessRequest {
     OptimizeSteelProcessRequest {
+        objectives: vec![],
+        variables: vec![],
         dataset_id: "dataset-1".to_string(),
         training_task_id: training_task_id.to_string(),
         direction: "minimize".to_string(),
@@ -245,6 +247,41 @@ fn gateway_submission_accepts_a_completed_sklearn_training_task() {
     );
     assert_eq!(payload["payload"]["artifact"]["model_type"], "elasticnet");
 
+    drop(connection);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn joint_submission_loads_both_models_and_persists_named_objectives() {
+    let (path, mut connection) = migrated_database();
+    let hardness = completed_training_task(&mut connection);
+    let toughness = completed_sklearn_training_task(&mut connection);
+    let request: OptimizeSteelProcessRequest=serde_json::from_value(json!({
+        "datasetId":"dataset-1", "trials":20,"seed":42,
+        "variables":[{"name":"carbon","min":0,"max":1},{"name":"temperature","min":0,"max":1000}],
+        "objectives":[{"name":"HV","source":"prediction_model","modelId":hardness,"direction":"maximize","unit":"HV"},{"name":"J","source":"prediction_model","modelId":toughness,"direction":"minimize","unit":"J"}]
+    })).unwrap();
+    let mut mismatched = request.clone();
+    mismatched.dataset_id = "another-dataset".into();
+    assert!(
+        submit_optimization_on_connection(&connection, &mismatched, uuid::Uuid::nil())
+            .unwrap_err()
+            .contains("dataset")
+    );
+    let task = submit_optimization_on_connection(&connection, &request, uuid::Uuid::nil()).unwrap();
+    let payload: serde_json::Value = serde_json::from_str(&task.payload_json).unwrap();
+    assert_eq!(
+        payload["payload"]["objective_specs"][0]["artifact"]["model_type"],
+        "linear_regression"
+    );
+    assert_eq!(
+        payload["payload"]["objective_specs"][1]["artifact"]["model_type"],
+        "elasticnet"
+    );
+    assert_eq!(
+        payload["payload"]["feature_names"],
+        json!(["carbon", "temperature"])
+    );
     drop(connection);
     let _ = std::fs::remove_file(path);
 }

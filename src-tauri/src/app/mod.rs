@@ -18,6 +18,7 @@ pub mod domain_commands;
 pub(crate) mod domain_removal;
 pub(crate) mod event_sink;
 pub(crate) mod experiment_commands;
+pub(crate) mod export_commands;
 pub(crate) mod identity;
 pub(crate) mod knowledge_api;
 pub(crate) mod knowledge_commands;
@@ -67,8 +68,10 @@ pub fn run() {
         .manage(SchedulerState::default())
         .manage(agent_automation::AgentAutomationState::default())
         .setup(|app| {
-            app.manage(crate::storage::data_directory::DataDirectoryState::initialize(app.handle())
-                .map_err(std::io::Error::other)?);
+            app.manage(
+                crate::storage::data_directory::DataDirectoryState::initialize(app.handle())
+                    .map_err(std::io::Error::other)?,
+            );
             Ok(())
         })
         .invoke_handler(commands::handler!())

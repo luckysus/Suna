@@ -358,10 +358,14 @@ export interface ShapValue {
   value: number;
   contribution: number;
   share: number;
+  standardError?: number;
 }
 
 export interface ShapExplanation {
   modelType: string;
+  method?: "baseline_shapley_exact" | "baseline_shapley_sampled";
+  baseline?: "training_mean";
+  permutationCount?: number;
   baseValue: number;
   prediction: number;
   values: ShapValue[];
@@ -379,15 +383,21 @@ export type SteelTrainingAlgorithm =
   | "mlp"
   | "transformer";
 
+export interface TrainingSplitPolicy {
+  kind: "random" | "group" | "time";
+  validationFraction: number;
+  seed?: number;
+  groupColumn?: number;
+  timeColumn?: number;
+  folds?: number;
+  testFraction?: number;
+  calibrationFraction?: number;
+  searchTrials?: number;
+  learningCurve?: boolean;
+}
 export interface TrainSteelDatasetRequest {
-  datasetId: string;
-  targetColumn: number;
-  featureColumns: number[];
-  splitPolicy?: {
-    kind: "random" | "group" | "time";
-    validationFraction: number;
-    seed?: number;
-  };
+  datasetId: string; targetColumn: number; featureColumns: number[];
+  splitPolicy?: TrainingSplitPolicy;
   algorithm?: SteelTrainingAlgorithm;
 }
 
@@ -406,7 +416,9 @@ export interface ComputeTrainingResult {
     model_id: string;
     model_type: string;
     feature_names: string[];
-    metrics: { train?: ComputeModelMetrics; validation?: ComputeModelMetrics };
+    preprocessing?: { means: number[]; scales: number[] };
+    metrics: { train?: ComputeModelMetrics; validation?: ComputeModelMetrics; test?: ComputeModelMetrics };
+    evaluation?: { folds: Array<ComputeModelMetrics & { train_indices: number[]; validation_indices: number[] }>; learning_curve: Array<{ training_fraction: number; mean_rmse: number; mean_train_count: number }>; test_interval_coverage: number | null; test_extrapolation_count: number; calibration_count: number; interval_status: string; split_kind: string; selected_parameters: Record<string, number> };
     feature_importance?: number[];
     applicability_range: Array<{ min: number | null; max: number | null }>;
   };
@@ -442,6 +454,7 @@ export interface ComputePredictionResult {
   applicability_range: Array<{ min: number | null; max: number | null }>;
   applicability_warnings: Array<{
     code: string;
+    row_index?: number;
     feature: string;
     index: number;
     value: number;
@@ -452,16 +465,30 @@ export interface ComputePredictionResult {
   constraints: unknown[];
 }
 
+export interface OptimizationObjective {
+  name: string;
+  source: "prediction_model" | "formula";
+  modelId?: string;
+  direction: "maximize" | "minimize";
+  weight?: number;
+  unit: string;
+  coefficients?: Record<string, number>;
+  intercept?: number;
+}
+export interface OptimizationVariable { name: string; min: number; max: number; fixedValue?: number | null }
+
 export interface ComputeOptimizationRequest {
   datasetId: string;
-  trainingTaskId: string;
-  direction: "minimize" | "maximize";
-  objectiveColumns: number[];
-  bounds: Array<{ min: number; max: number }>;
-  fixedValues: Array<number | null>;
+  trainingTaskId?: string;
+  direction?: "minimize" | "maximize";
+  objectiveColumns?: number[];
+  bounds?: Array<{ min: number; max: number }>;
+  fixedValues?: Array<number | null>;
+  objectives?: OptimizationObjective[];
+  variables?: OptimizationVariable[];
   constraints: Array<{
     kind: "equality" | "inequality";
-    coefficients: number[];
+    coefficients: number[] | Record<string, number>;
     value: number;
     tolerance?: number;
   }>;
@@ -485,6 +512,8 @@ export interface ComputeOptimizationResult {
   method: string;
   direction: "minimize" | "maximize";
   objectives: string[];
+  directions?: Array<"maximize" | "minimize">;
+  objective_specs?: OptimizationObjective[];
   feature_names: string[];
   model_id: string;
   model_type: string;
@@ -1533,6 +1562,7 @@ export const desktop = {
   },
   getSetting: (key: string) => call<string | null>("get_setting", { key }),
   openFileDialog: (options?: FileDialogOptions) => openNativeDialog(options),
+  saveExportFile: (filename: string, bytes: number[]) => call<{ path: string; bytes: number } | null>("save_export_file", { filename, bytes }),
   saveFileDialog: (options?: SaveFileDialogOptions) => saveNativeDialog(options),
   setSetting: (key: string, valueJson: string) =>
     call<void>("set_setting", { key, valueJson }),
@@ -1662,7 +1692,8 @@ export const desktop = {
   predictSteelModel: (request: {
     datasetId: string;
     trainingTaskId: string;
-    featureValues: number[];
+    featureValues?: number[];
+    featureRows?: number[][];
   }) => call<BackgroundTask>("predict_steel_model", { request }),
   getComputePredictionResult: (id: string) =>
     call<ComputePredictionResult | null>("get_compute_prediction_result", { id }),

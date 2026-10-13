@@ -1,42 +1,32 @@
 # Suna 系统架构
 
-## 默认分层
+Suna 当前是以 Windows 为主要目标的 Tauri 2 本地桌面应用。默认工作流不依赖账户、FastAPI 研究服务或 PostgreSQL 主库。
 
-1.  **Tauri 2 Desktop**：窗口、文件对话框、桌面权限和打包。
-2.  **React + TypeScript + Vite**：页面、交互、表单、状态呈现。
-3.  **Rust Core**：任务生命周期、Agent
-    Loop、调度、工具权限、事件与运行上下文。
-4.  **Python FastAPI Research
-    Service**：文档解析、Embedding、数据分析、机器学习预测和优化算法。
-5.  **PostgreSQL**：会话、消息、任务、事件、配置、文档元数据与运行记录。
-6.  **File
-    Storage**：本地可配置目录存储原文件；数据库保存元数据、哈希和状态。
-7.  **pgvector adapter**：提供可替换的向量检索接口。
+## 运行组件与数据流
 
-## 边界
+1. `frontend/`：React、TypeScript 和 Vite。负责科研表单、展示、用户确认，通过 `bridge/desktop.ts` 调用 Tauri 命令；不直接加载模型 pickle 或写任意路径。
+2. `src-tauri/`：Rust Agent Runtime。负责会话、权限、文件解析、知识检索、任务调度、计算任务与模型产物校验。
+3. `compute-worker/`：Python stdio 计算 worker。Rust 使用版本化、长度分帧的 JSON-RPC 协议请求训练、预测、约束优化和实验设计。它不是 HTTP 服务；进度、取消和结果由 Rust 任务系统接管。
+4. 本地 SQLite：应用数据目录内的 `suna.sqlite3`，存储会话、知识元数据、设置、任务及科研记录。原文件、索引、模型与缓存位于应用数据目录对应子目录。数据库迁移必须版本化。
+5. 可选外部连接：用户可配置模型服务、Embedding、重排、MinerU、MCP，以及 PostgreSQL 知识库 / SQL Server 数据源适配器。它们是扩展连接，不是默认主存储。API 密钥通过系统凭据服务管理。
 
-UI 不直接实现复杂规划、文件解析或科研算法。Domain 不依赖 React
-或具体模型
-SDK。模型、Embedding、VectorStore、Parser、预测器、优化算法均通过接口隔离。
+主通信路径：React → Tauri 命令 → Rust 本地任务 / Agent Runtime → Python stdio 或用户配置的外部服务 → 持久化结果。Rust `scheduler:progress` 事件推送任务状态；前端定期对账处理断线或漏事件，不将固定轮询次数耗尽当成失败。任务 ID 保留用于页面恢复，任务系统提供取消、失败状态与重试。
 
-## 通信
+## 科研计算契约
 
-选择并记录一条主通信路径。推荐 UI → Tauri/应用 API → Rust Core；Rust
-Core 通过版本化 HTTP API 或定义清楚的 IPC 调用 Python
-服务；任务事件由统一事件模型桥接到 UI。不要无理由重复实现
-REST、SSE、WebSocket 三套通道。
+- 训练输入特征顺序以模型 `feature_names` 为准；数据集原始列序号仅用于导入 / 训练选择。优化按名称映射每个模型的输入，不将预测目标列误当输入维度。
+- 联合优化的各个性能目标指定独立模型、方向和单位；线性公式可表示成本。NSGA-II 使用每个目标独立的符号方向求非支配解，不以权重合并性能。变量范围、固定值、等式 / 不等式约束在候选评估时验证。
+- 训练可选择随机、分组或时间划分，分组使用 Group K-Fold，时间使用前向验证。拟合预处理仅使用训练数据。调参使用开发数据交叉验证，独立测试和校准数据不参与调参。
+- 95% 预测区间只在独立校准集提供有限样本 split conformal 分位数时展示，并报告独立测试覆盖率；分组和时间数据的可交换性不能默认成立。旧模型不再从 RMSE 推导置信区间。
+- 固定其他输入、只变化一个变量的曲线标记为 ICE。线性模型的精确 SHAP、模型特征重要性与 ICE 各自展示，不混用名称。非线性模型使用训练均值基线的模型无关置换 Shapley：四个特征以内枚举全部排列，其余使用固定种子采样 32 个排列并报告贡献标准误；不称为 TreeSHAP / KernelSHAP，也不解释为因果效应。
+- 文献证据记录保留 DOI（缺失明确标注）、文档 / 版本 / 片段、位置、原文、提取字段、AI 结论与人工审核状态。AI 提取的引文必须逐字存在于检索证据中。只有审核后的记录可导出 / 加入数据实验室。
 
-## 目录建议
+## 文件与权限
 
-`src/` 前端；`src-tauri/` Rust/Tauri；`research_service/`
-Python；`migrations/` 数据库迁移；`docs/` 文档与 ADR；`tests/` 测试。
+科研报告、优化结果和批量预测通过 Rust 原生导出命令保存。路径由该命令的系统保存对话框选择，覆盖需确认；Rust 验证路径、写入并校验内容后返回成功。前端不再使用浏览器下载模拟指定绝对路径的写盘。
 
-## 安全与数据
+原文件读取、执行工具和外部请求遵循统一权限模型。路径必须规范化，拒绝相对路径、设备路径和未授权目标；SQL 参数化，日志脱敏。用户关闭页面不会隐式取消正在运行的后台计算任务。
 
-迁移必须版本化，不得静默清空旧数据。路径要规范化，防止路径穿越；SQL
-参数化；密钥使用安全存储或加密方案，日志脱敏。所有耗时任务有超时、取消和错误状态。
+## 开发与验证
 
-## 架构决策
-
-重要变更写入
-`docs/adr/`，说明背景、决定、替代方案与影响。先审计现有项目再实施，不要为了符合新项目模板而重写已有代码。
+仓库质量检查定义于 `.github/workflows/quality.yml` 和 `scripts/test.ps1`。前端运行 `npm test`、`npm run test:boundaries`、`npm run build`；计算 worker 运行 `uv sync --frozen --extra test` 后 `python -m pytest -q`。Rust 和原生桌面验证使用 `cargo check --locked`、相关测试及 Windows CI。Linux 浏览器测试可验证前端交互；WebView2、Windows 凭据管理、文件对话框和安装包必须在 Windows 另行验证。

@@ -3,8 +3,8 @@ import type { ShapExplanation } from "../../bridge/desktop";
 /**
  * SHAP 贡献条形图（第 37 章）。
  *
- * 数值来自后端对线性模型产物的**精确 SHAP**（满足效率性：基准值 + 各贡献 = 预测值）。
- * 前端不做近似，也不把特征重要性当作 SHAP。
+ * 展示线性精确 SHAP 或明确标记的基线置换 Shapley。
+ * 两者均满足效率性，不把特征重要性当作 Shapley 贡献。
  */
 export default function ShapBarChart({ explanation }: { explanation: ShapExplanation }) {
   const maxAbs = explanation.values.reduce((max, item) => Math.max(max, Math.abs(item.contribution)), 0);
@@ -38,7 +38,7 @@ export default function ShapBarChart({ explanation }: { explanation: ShapExplana
         })}
       </ul>
       <p className="suna-correlation-legend">
-        精确 SHAP：各特征贡献之和加上基准值等于模型预测值。仅支持线性模型；其他模型族会明确提示不支持。
+        {explanation.method ? "模型无关基线 Shapley：各贡献之和加上基线预测等于当前预测。结果依赖基线，不能视为因果效应；采样标准误不含训练数据或模型不确定性。" : "精确 SHAP：各特征贡献之和加上基准值等于模型预测值。"}
       </p>
     </div>
   );

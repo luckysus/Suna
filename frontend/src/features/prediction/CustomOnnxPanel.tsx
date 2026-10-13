@@ -15,6 +15,8 @@ import { Button } from "../../components/ui/button";
  * 提交特征行 → 展示预测值与适用范围告警。
  */
 
+import { waitForComputeResult } from "../tasks/useComputeTask";
+
 const splitNumbers = (value: string): number[] =>
   value
     .split(/[,\s]+/)
@@ -137,12 +139,7 @@ export default function CustomOnnxPanel({
     setRunning(true);
     try {
       const task = await desktop.predictOnnxModel({ modelPath, modelSha256, manifest, features: rows });
-      let completed: ComputeOnnxPredictionResult | null = null;
-      for (let attempt = 0; attempt < 60 && !completed; attempt += 1) {
-        completed = await desktop.getComputeOnnxPredictionResult(task.id);
-        if (!completed) await new Promise((resolve) => window.setTimeout(resolve, 600));
-      }
-      if (!completed) throw new Error("预测任务超时，请在运行记录中查看状态");
+      const completed = await waitForComputeResult(task.id, desktop.getComputeOnnxPredictionResult);
       setResult(completed);
       onNotice("自定义 ONNX 模型预测完成");
     } catch (reason) {

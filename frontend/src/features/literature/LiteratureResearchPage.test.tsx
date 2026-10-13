@@ -49,7 +49,7 @@ describe("LiteratureResearchPage", () => {
     vi.mocked(desktop.listKnowledgeBases).mockResolvedValue(bases);
     vi.mocked(desktop.listKnowledgeDocuments).mockResolvedValue(documents);
     vi.mocked(desktop.searchLiterature).mockResolvedValue({ success: true, literature_results: hits });
-    vi.mocked(desktop.desktopAgentChat).mockResolvedValue({ run_id: "run", session_id: "s", status: "completed", answer: "热点集中在耐磨钢热处理。" });
+    vi.mocked(desktop.desktopAgentChat).mockResolvedValue({ run_id: "run", session_id: "s", status: "completed", answer: "热点集中在耐磨钢热处理。[E1]" });
     vi.mocked(desktop.movePostgresDocument).mockResolvedValue({} as never);
   });
 
@@ -76,7 +76,7 @@ describe("LiteratureResearchPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /分析趋势/ }));
     await waitFor(() => expect(desktop.desktopAgentChat).toHaveBeenCalled());
     expect(vi.mocked(desktop.desktopAgentChat).mock.calls[0][0].message).toContain("研究趋势");
-    expect(await screen.findByText(/热点集中在耐磨钢热处理/)).toBeInTheDocument();
+    expect(await screen.findByText(/热点集中在耐磨钢热处理/, { selector: "p" })).toBeInTheDocument();
   });
 
   it("综述支持 10 / 20 / 50 篇选择（第 29 章）", async () => {

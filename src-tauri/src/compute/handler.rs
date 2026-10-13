@@ -409,10 +409,10 @@ fn run_task(
     if !valid_result {
         return Err(HandlerError::permanent("compute_worker_invalid_result"));
     }
-    if expected_operation == "predict_linear_regression" {
+    if expected_operation == "predict_linear_regression"
+        || expected_operation == "predict_trained_model"
+    {
         result = annotate_prediction_result(result, &payload.payload)?;
-    } else if expected_operation == "predict_trained_model" {
-        attach_prediction_interval(&mut result, &payload.payload["artifact"]);
     } else if expected_operation == "predict_onnx" {
         if result.get("model_sha256").and_then(Value::as_str).is_none()
             || result.get("predictions").is_none()
@@ -472,22 +472,34 @@ fn annotate_prediction_result(mut result: Value, payload: &Value) -> Result<Valu
     }
 
     let mut warnings = Vec::new();
-    for (index, value) in input.iter().enumerate() {
-        let Some(number) = value.as_f64() else {
-            continue;
-        };
-        let range = &ranges[index];
-        let min = range.get("min").and_then(Value::as_f64);
-        let max = range.get("max").and_then(Value::as_f64);
-        if min.is_some_and(|bound| number < bound) || max.is_some_and(|bound| number > bound) {
-            warnings.push(json!({
-                "feature": names[index],
-                "index": index,
-                "value": number,
-                "min": min,
-                "max": max,
-                "code": "outside_applicability_range",
-            }));
+    for (row_index, row) in payload["features"]
+        .as_array()
+        .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_payload"))?
+        .iter()
+        .enumerate()
+    {
+        let row = row
+            .as_array()
+            .filter(|r| r.len() == names.len())
+            .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_payload"))?;
+        for (index, value) in row.iter().enumerate() {
+            let Some(number) = value.as_f64() else {
+                continue;
+            };
+            let range = &ranges[index];
+            let min = range.get("min").and_then(Value::as_f64);
+            let max = range.get("max").and_then(Value::as_f64);
+            if min.is_some_and(|bound| number < bound) || max.is_some_and(|bound| number > bound) {
+                warnings.push(json!({
+                    "row_index": row_index,
+                    "feature": names[index],
+                    "index": index,
+                    "value": number,
+                    "min": min,
+                    "max": max,
+                    "code": "outside_applicability_range",
+                }));
+            }
         }
     }
     result["input_values"] = Value::Array(input.clone());
@@ -499,21 +511,19 @@ fn annotate_prediction_result(mut result: Value, payload: &Value) -> Result<Valu
     Ok(result)
 }
 
-/// 第 37 章 Prediction Interval：用验证集残差（RMSE）给出 95% 预测区间。
+/// Intervals are available only after independent split-conformal calibration.
 fn attach_prediction_interval(result: &mut Value, artifact: &Value) {
-    const Z_95: f64 = 1.959_963_984_540_054;
-    let rmse = artifact["metrics"]["validation"]["rmse"]
+    let radius = artifact["conformal"]["radius"]
         .as_f64()
-        .filter(|value| value.is_finite() && *value > 0.0);
+        .filter(|v| v.is_finite() && *v >= 0.0);
     let Some(predictions) = result.get("predictions").and_then(Value::as_array) else {
         result["prediction_interval"] = Value::Null;
         return;
     };
-    let Some(rmse) = rmse else {
+    let Some(margin) = radius else {
         result["prediction_interval"] = Value::Null;
         return;
     };
-    let margin = Z_95 * rmse;
     let intervals = predictions
         .iter()
         .map(|value| match value.as_f64() {
@@ -521,7 +531,7 @@ fn attach_prediction_interval(result: &mut Value, artifact: &Value) {
                 "lower": center - margin,
                 "upper": center + margin,
                 "confidence": 0.95,
-                "basis": "validation_rmse",
+                "basis": "split_conformal",
             }),
             None => Value::Null,
         })
@@ -663,5 +673,45 @@ mod tests {
             validate_export_result(&result).is_err(),
             "export result must bind its hash to the decoded model bytes"
         );
+    }
+}
+
+#[cfg(test)]
+mod scientific_interval_tests {
+    use super::*;
+    #[test]
+    fn legacy_rmse_is_not_a_calibrated_interval() {
+        let mut result = json!({"predictions":[100.0]});
+        attach_prediction_interval(
+            &mut result,
+            &json!({"metrics":{"validation":{"rmse":10.0}}}),
+        );
+        assert!(result["prediction_interval"].is_null());
+    }
+    #[test]
+    fn independently_calibrated_intervals_cover_every_batch_row() {
+        let mut result = json!({"predictions":[100.0,200.0]});
+        attach_prediction_interval(
+            &mut result,
+            &json!({"conformal":{"method":"split_conformal","radius":7.0}}),
+        );
+        assert_eq!(result["prediction_interval"][0]["lower"], json!(93.0));
+        assert_eq!(result["prediction_interval"][1]["upper"], json!(207.0));
+        assert_eq!(result["prediction_interval"][0]["basis"], "split_conformal");
+    }
+}
+
+#[cfg(test)]
+mod batch_applicability_tests {
+    use super::*;
+    #[test]
+    fn every_row_is_checked_and_bad_width_cannot_panic() {
+        let payload = json!({"artifact":{"feature_names":["C"],"applicability_range":[{"min":0,"max":1}]},"features":[[0.5],[2.0]]});
+        let result =
+            annotate_prediction_result(json!({"predictions":[1.0,2.0]}), &payload).unwrap();
+        assert_eq!(result["applicability_warnings"][0]["row_index"], json!(1));
+        let mut bad = payload;
+        bad["features"][1] = json!([2.0, 3.0]);
+        assert!(annotate_prediction_result(json!({"predictions":[1.0,2.0]}), &bad).is_err());
     }
 }

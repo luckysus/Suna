@@ -569,6 +569,12 @@ def _required_number(value: Any, label: str) -> float:
 
 
 def _split_indices(row_count: int, payload: Mapping[str, Any]) -> dict[str, Any]:
+    if "split_indices" in payload:
+        split = payload["split_indices"]
+        tr, va = split["train_indices"], split["validation_indices"]
+        if not tr or not va or len(set(tr+va)) != row_count or set(tr+va) != set(range(row_count)):
+            raise ValueError("explicit split must partition every row without overlap")
+        return {"kind": "explicit", "train_indices": tr, "validation_indices": va}
     policy_value = payload.get("split_policy", {})
     if not isinstance(policy_value, Mapping):
         raise ValueError("split_policy must be an object")
@@ -589,8 +595,15 @@ def _split_indices(row_count: int, payload: Mapping[str, Any]) -> dict[str, Any]
         raise ValueError("training requires at least two rows")
 
     if kind == "time":
-        train_indices = list(range(row_count - validation_count))
-        validation_indices = list(range(row_count - validation_count, row_count))
+        timestamps = payload.get("timestamps", list(range(row_count)))
+        if len(timestamps) != row_count or any(v is None or v == "" for v in timestamps):
+            raise ValueError("time split requires a timestamp for every row")
+        ordered = sorted(range(row_count), key=lambda i: timestamps[i])
+        boundary = timestamps[ordered[-validation_count]]
+        train_indices = [i for i in ordered if timestamps[i] < boundary]
+        validation_indices = [i for i in ordered if timestamps[i] >= boundary]
+        if not train_indices:
+            raise ValueError("time split requires at least two distinct times")
         return {
             "kind": kind,
             "seed": seed_value,

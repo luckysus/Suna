@@ -18,3 +18,9 @@
 /* 第 80 章：历史优化任务（optimization_tasks 表） */
 .suna-optimization-history{margin-top:18px;padding:16px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
 .suna-optimization-history h2{display:flex;align-items:center;gap:7px;margin:0 0 12px;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
+
+.suna-optimization-config fieldset label { display: grid; gap: 6px; margin: 8px 0; font-size: 12px; }
+.suna-optimization-config fieldset select { width: 100%; }
+.suna-optimization-config fieldset > div { padding: 10px 0; border-bottom: 1px solid var(--suna-line); }
+.suna-optimization-config fieldset p { font-size: 12px; line-height: 1.6; color: var(--suna-text-muted); }
+.suna-optimization-row { grid-template-columns: 80px 100px minmax(150px,1fr) minmax(180px,1fr) 120px; min-width: 650px; }

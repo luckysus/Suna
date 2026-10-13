@@ -7,11 +7,13 @@ import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 
 /**
- * 第 37 章 Partial Dependence。
+ * Individual Conditional Expectation for the current sample.
  *
  * 让某个特征在其取值范围内取网格点，其余特征保持当前输入，逐点预测并画出
- * 平均响应曲线。这里复用既有的单点预测任务，因此对**所有模型族**都成立。
+ * 个体响应曲线。这里复用既有的单点预测任务，因此对**所有模型族**都成立。
  */
+import { waitForComputeResult } from "../tasks/useComputeTask";
+
 const GRID_STEPS = 8;
 
 export default function PredictionPdpPanel({
@@ -39,7 +41,7 @@ export default function PredictionPdpPanel({
     const min = range?.min ?? fallback;
     const max = range?.max ?? fallback;
     if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
-      onError("该特征的取值范围无效，无法计算 Partial Dependence");
+      onError("该特征的取值范围无效，无法计算 ICE（个体条件期望）");
       return;
     }
     setBusy(true);
@@ -50,17 +52,12 @@ export default function PredictionPdpPanel({
         const value = min + (max - min) * (step / GRID_STEPS);
         const row = featureValues.map((item, position) => (position === index ? value : item));
         const task = await desktop.predictSteelModel({ datasetId, trainingTaskId, featureValues: row });
-        let result = null;
-        for (let attempt = 0; attempt < 60 && !result; attempt += 1) {
-          result = await desktop.getComputePredictionResult(task.id);
-          if (!result) await new Promise((resolve) => window.setTimeout(resolve, 400));
-        }
-        if (!result) throw new Error("Partial Dependence 预测超时");
+        const result = await waitForComputeResult(task.id, desktop.getComputePredictionResult);
         points.push({ feature: value, prediction: Number(result.predictions[0] ?? 0) });
         setCurve([...points]);
       }
     } catch (reason) {
-      onError(errorMessage(reason, "Partial Dependence 计算失败"));
+      onError(errorMessage(reason, "ICE（个体条件期望） 计算失败"));
     } finally {
       setBusy(false);
     }
@@ -70,19 +67,19 @@ export default function PredictionPdpPanel({
     <div className="suna-prediction-pdp">
       <div className="suna-prediction-section-title">
         <div>
-          <h3>Partial Dependence</h3>
+          <h3>ICE（个体条件期望）</h3>
           <span>固定其余输入，观察单个特征变化对预测值的影响</span>
         </div>
         <div className="suna-prediction-pdp-controls">
           <Select value={String(index)} onValueChange={(value) => { setIndex(Number(value)); setCurve([]); }}>
-            <SelectTrigger aria-label="PDP 特征"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="ICE 特征"><SelectValue /></SelectTrigger>
             <SelectContent>
               {featureNames.map((name, position) => <SelectItem value={String(position)} key={`${name}-${position}`}>{name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button variant="ghost" onClick={() => void compute()} disabled={busy}>
             {busy ? <Loader2 className="suna-spin" size={14} /> : <Play size={14} />}
-            {busy ? "计算中..." : "计算 PDP"}
+            {busy ? "计算中..." : "计算 ICE"}
           </Button>
         </div>
       </div>
@@ -97,7 +94,7 @@ export default function PredictionPdpPanel({
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <p className="suna-prediction-muted">选择特征后点击「计算 PDP」。其余输入沿用上方填写值。</p>
+        <p className="suna-prediction-muted">选择特征后点击「计算 ICE」。其余输入沿用上方填写值。</p>
       )}
     </div>
   );

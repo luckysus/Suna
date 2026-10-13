@@ -134,7 +134,8 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
                 return False
             _write(output, _progress(task_id, 10, "training"))
             try:
-                artifact = train_linear_regression(payload)
+                from .evaluation import train_evaluated
+                artifact = train_evaluated(payload, linear=True)
             except ValueError as error:
                 _write(output, _error(request_id, "invalid_payload", str(error)))
             else:
@@ -153,7 +154,8 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
                 return False
             _write(output, _progress(task_id, 10, "training"))
             try:
-                artifact = train_sklearn_model(payload)
+                from .evaluation import train_evaluated
+                artifact = train_evaluated(payload)
             except ValueError as error:
                 _write(output, _error(request_id, "invalid_payload", str(error)))
             else:

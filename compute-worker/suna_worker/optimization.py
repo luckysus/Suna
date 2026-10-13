@@ -1,7 +1,8 @@
 """受约束的工艺优化引擎（第 38–43 章）。
 
-在本地模型 artifact 上做搜索：目标 0 永远是模型预测值，附加目标取各自
-特征值，从而在"性能 ↔ 工艺设定"之间形成真实的权衡面。
+新任务通过 objective_specs 进入 joint_optimization：每个性能目标独立指定
+模型与方向，按名称映射输入，并可加入线性成本函数。以下单模型与特征目标
+协议仅用于兼容历史任务，不由新版多性能优化页面生成。
 
 支持五种可选拨索算法（第 41 章）：
 
@@ -63,6 +64,10 @@ def optimize_constrained(
     if not isinstance(payload, Mapping):
         raise OptimizationError("invalid_payload", "optimization payload must be an object")
 
+    if payload.get("objective_specs") is not None:
+        from .joint_optimization import optimize_joint
+
+        return optimize_joint(payload, report, is_cancelled)
     model = _model(payload.get("artifact"))
     feature_names = model["feature_names"]
     bounds = _bounds(payload.get("bounds"), len(feature_names))
@@ -131,7 +136,7 @@ def optimize_constrained(
 
     if multi:
         front = _non_dominated_indices(
-            [recommendation["objectives"] for recommendation in recommendations]
+            [[value if direction == "minimize" else -value for value in recommendation["objectives"]] for recommendation in recommendations]
         )
     else:
         front = sorted(
@@ -985,10 +990,13 @@ def _project_equalities(
     rows: list[list[float]] = []
     targets: list[float] = []
     for constraint in equalities:
-        row = [float(constraint["coefficients"].get(name, 0.0)) for name in names]
+        row = [0.0 if name in fixed else float(constraint["coefficients"].get(name, 0.0)) for name in names]
         rows.append(row)
         current = sum(coefficient * projected[name] for name, coefficient in constraint["coefficients"].items())
         targets.append(constraint["value"] - current)
+
+    if all(abs(target) <= constraint["tolerance"] for target, constraint in zip(targets, equalities)):
+        return projected, False
 
     # Normal equations A A^T delta = targets give the minimum-norm step A^T delta.
     count = len(rows)

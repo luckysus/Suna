@@ -26,7 +26,7 @@ const columns: DataTableColumn<ComputeTaskRecord>[] = [
     value: (task) => new Date(task.created_at).toLocaleString("zh-CN"),
   },
   { id: "dataset", header: "数据集", value: (task) => task.dataset_id ?? "—" },
-  { id: "direction", header: "方向", value: (task) => (task.direction === "minimize" ? "最小化" : task.direction === "maximize" ? "最大化" : "—") },
+  { id: "direction", header: "首目标方向", value: (task) => (task.direction === "minimize" ? "最小化" : task.direction === "maximize" ? "最大化" : "—") },
   { id: "method", header: "算法", value: (task) => task.method ?? "自动" },
   { id: "trials", header: "搜索次数", value: (task) => task.trials_requested ?? 0, align: "right" },
   { id: "state", header: "状态", value: (task) => STATE_LABELS[task.state] ?? task.state },

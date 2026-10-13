@@ -10,6 +10,9 @@ import { FileDropZone } from "../../components/common/FileDropZone";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
 
+import LiteratureEvidenceTable from "./LiteratureEvidenceTable";
+import { evidenceRecords, evidencePrompt, bindConclusions, applyEvidenceExtraction, type LiteratureEvidenceRecord } from "./evidence";
+
 type Status = "idle" | "loading" | "error";
 const settingKey = "suna.literature.favorites";
 
@@ -54,6 +57,7 @@ function typeOf(hit: LiteratureSearchHit) {
 }
 
 export default function LiteratureResearchPage() {
+  const [evidence, setEvidence] = useState<LiteratureEvidenceRecord[]>([]);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState<LiteratureSearchHit[]>([]);
@@ -87,6 +91,14 @@ export default function LiteratureResearchPage() {
 
   useEffect(() => { desktop.getSetting(settingKey).then((value) => { if (value) { try { setFavorites(JSON.parse(value)); } catch { /* ignore malformed local preference */ } } }).catch(() => undefined); }, []);
   useEffect(() => { void desktop.listKnowledgeBases().then(setBases).catch(() => setBases([])); }, []);
+  useEffect(() => { void desktop.getSetting("suna.literature.evidence").then((value) => { if (value) { try { setEvidence(JSON.parse(value)); } catch { /* malformed saved draft */ } } }).catch(() => undefined); }, []);
+  const saveEvidence = async (records: LiteratureEvidenceRecord[]) => { setEvidence(records); await desktop.setSetting("suna.literature.evidence", JSON.stringify(records)); };
+  const extractEvidence = async () => {
+    try {
+      const response = await desktop.desktopAgentChat({ message: `提取可审核的成分、热处理、显微组织和性能数据。仅返回 JSON 数组，每项包含 evidenceId、quote（逐字原文）、field、value、unit、conclusion（均为字符串）。无证据不提取。\n${evidencePrompt(evidence)}`, smartSearchEnabled: false });
+      await saveEvidence(applyEvidenceExtraction(evidence,response.answer));
+    } catch (e) { setError(errorMessage(e,"证据数据提取失败")); }
+  };
   const selected = results.find((item) => item.document_id === selectedId) ?? results[0];
   const compareItems = results.filter((item) => compareIds.includes(item.document_id ?? item.source_name));
   const sources = useMemo(() => Array.from(new Set(results.map((item) => item.source_name).filter(Boolean))), [results]);
@@ -139,9 +151,10 @@ export default function LiteratureResearchPage() {
     if (pool.length < 2) { setNotice("生成综述需要至少 2 篇文献，请先检索或选择文献"); return; }
     setReviewStatus("loading"); setReview("");
     try {
-      const evidence = pool.map((item, index) => `文献${index + 1}：${titleOf(item)}\n来源：${item.source_name}\n证据：${excerptOf(item)}`).join("\n\n");
-      const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献生成结构化综述，依次输出：研究背景、研究现状、研究方法、研究结论、争议、研究空白、未来方向、参考文献。参考文献需列出这 ${pool.length} 篇文献的标题与来源。在段落末使用“文献1”等标记对应来源。不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
-      setReview(response.answer); setReviewStatus("idle");
+      const records = evidenceRecords(pool, documentMetadata);
+      const evidence = evidencePrompt(records);
+      const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献生成结构化综述，依次输出：研究背景、研究现状、研究方法、研究结论、争议、研究空白、未来方向、参考文献。参考文献需列出这 ${pool.length} 篇文献的标题与来源。每项结论使用 [E1] 等证据编号关联原文。不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
+      await saveEvidence(bindConclusions(records, response.answer)); setReview(response.answer); setReviewStatus("idle");
     } catch (reason) { setReviewStatus("error"); setError(errorMessage(reason, "综述生成失败")); }
   };
   const generateTrends = async () => {
@@ -149,18 +162,20 @@ export default function LiteratureResearchPage() {
     if (pool.length === 0) { setNotice("请先检索文献，再分析研究趋势"); return; }
     setTrendsStatus("loading"); setTrends("");
     try {
-      const evidence = pool.map((item, index) => `文献${index + 1}：${titleOf(item)}\n来源：${item.source_name}\n年份：${yearOf(item, metadataOf(item))}\n证据：${excerptOf(item)}`).join("\n\n");
-      const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献分析研究趋势，依次输出：热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。使用文献1、文献2标记来源，不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
-      setTrends(response.answer); setTrendsStatus("idle");
+      const records = evidenceRecords(pool, documentMetadata);
+      const evidence = evidencePrompt(records);
+      const response = await desktop.desktopAgentChat({ message: `请基于以下 ${pool.length} 篇钢铁材料文献分析研究趋势，依次输出：热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。使用 [E1]、[E2] 等证据编号标记来源，不要展示思考过程。\n\n${evidence}`, smartSearchEnabled: false });
+      await saveEvidence(bindConclusions(records, response.answer)); setTrends(response.answer); setTrendsStatus("idle");
     } catch (reason) { setTrendsStatus("error"); setError(errorMessage(reason, "研究趋势分析失败")); }
   };
   const generateComparison = async () => {
     if (compareItems.length < 2) { setNotice("对比分析需要先选择至少 2 篇文献"); return; }
     setCompareStatus("loading"); setCompareSummary("");
     try {
-      const evidence = compareItems.map((item, index) => `文献${index + 1}：${titleOf(item)}\n${excerptOf(item)}`).join("\n\n");
-      const response = await desktop.desktopAgentChat({ message: `请对比以下文献，并只输出一张 Markdown 表格，表头依次为：文献 | 研究材料 | 成分 | 工艺 | 组织 | 性能 | 研究结论 | 差异。每篇文献占一行；证据不足的单元格填写“未记录”。表格之后用一段话说明主要差异与证据不足的字段。\n\n${evidence}`, smartSearchEnabled: false });
-      setCompareSummary(response.answer); setCompareStatus("idle");
+      const records = evidenceRecords(compareItems, documentMetadata);
+      const evidence = evidencePrompt(records);
+      const response = await desktop.desktopAgentChat({ message: `请对比以下文献，并只输出一张 Markdown 表格，表头依次为：文献 | 研究材料 | 成分 | 工艺 | 组织 | 性能 | 研究结论 | 差异。每篇文献占一行并引用 [E1] 等证据编号；证据不足的单元格填写“未记录”。表格之后用一段话说明主要差异与证据不足的字段。\n\n${evidence}`, smartSearchEnabled: false });
+      await saveEvidence(bindConclusions(records, response.answer)); setCompareSummary(response.answer); setCompareStatus("idle");
     } catch (reason) { setCompareStatus("error"); setError(errorMessage(reason, "文献对比失败")); }
   };
   const copyCitation = async (target: LiteratureSearchHit) => {
@@ -171,8 +186,9 @@ export default function LiteratureResearchPage() {
     if (!target) return;
     setSummaryStatus("loading"); setSummary("");
     try {
-      const response = await desktop.desktopAgentChat({ message: `请基于文献“${titleOf(target)}”的证据片段，输出研究目的、材料与工艺、组织与性能、结论、局限和可复现实验线索。只给出研究摘要，不展示思考过程。\n\n${excerptOf(target)}`, smartSearchEnabled: false });
-      setSummary(response.answer); setSummaryStatus("idle");
+      const records = evidenceRecords([target], documentMetadata);
+      const response = await desktop.desktopAgentChat({ message: `请基于文献“${titleOf(target)}”的证据片段，输出研究目的、材料与工艺、组织与性能、结论、局限和可复现实验线索。只给出研究摘要，不展示思考过程。\n\n${evidencePrompt(records)}`, smartSearchEnabled: false });
+      await saveEvidence(bindConclusions(records, response.answer)); setSummary(response.answer); setSummaryStatus("idle");
     } catch (reason) { setSummaryStatus("error"); setError(errorMessage(reason, "总结生成失败")); }
   };
   const importDocument = async () => {
@@ -244,6 +260,8 @@ export default function LiteratureResearchPage() {
     {activeTab === "review" && <div className="suna-literature-review"><div><strong>文献综述</strong><span>当前将综述 {poolSize} 篇（对比选中优先，否则取前 {reviewCount} 篇）</span></div>{reviewStatus === "loading" ? <p>正在生成综述…</p> : review ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={review} literatureResults={[]} /></div> : <p>选择 10 / 20 / 50 篇后点击右上角“生成综述”。</p>}</div>}
     {activeTab === "trends" && <div className="suna-literature-review"><div><strong>研究趋势</strong><span>基于当前 {Math.min(visibleResults.length, 50)} 篇检索结果</span><Button variant="ghost" onClick={() => void generateTrends()} disabled={trendsStatus === "loading"}><TrendingUp size={15} />{trendsStatus === "loading" ? "分析中..." : "分析趋势"}</Button></div>{trends ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={trends} literatureResults={[]} /></div> : <p>分析热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。</p>}</div>}
     {compareItems.length > 0 && <div className="suna-literature-compare"><div className="suna-literature-compare-head"><div><strong>文献对比</strong><span>已选择 {compareItems.length} 篇</span></div><div className="suna-literature-compare-actions"><Button variant="ghost" onClick={() => void generateComparison()} disabled={compareStatus === "loading"}>{compareStatus === "loading" ? "分析中..." : "生成差异分析"}</Button><button onClick={() => setCompareIds([])} aria-label="清空对比"><X size={16} /></button></div></div><div className="suna-literature-compare-table"><div className="suna-literature-compare-row"><strong>研究对象</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{titleOf(item)}</span>)}</div><div className="suna-literature-compare-row"><strong>期刊</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{journalOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>年份</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{yearOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>证据位置</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{sourceLocation(item)}</span>)}</div></div>{compareSummary && <div className="suna-literature-ai-result"><strong>AI 差异分析</strong><AIAnswerRenderer answer={compareSummary} literatureResults={[]} /></div>}</div>}
+    <LiteratureEvidenceTable records={evidence} onChange={(records) => { void saveEvidence(records).catch((e) => setError(errorMessage(e,"保存证据失败"))); }} onExtract={extractEvidence} onError={setError} onNotice={setNotice} />
+    {error && status !== "error" && <div role="alert">{error}</div>}
     {libraryTarget && <Dialog open onOpenChange={(open) => { if (!open) setLibraryTarget(null); }}><DialogContent className="suna-literature-library-modal" aria-label="加入知识库"><DialogHeader><DialogTitle>加入知识库</DialogTitle></DialogHeader><label>目标知识库<Select value={libraryBaseId} onValueChange={(value) => setLibraryBaseId(value)}>
   <SelectTrigger aria-label="目标知识库"><SelectValue /></SelectTrigger>
   <SelectContent>{bases.filter((base) => base.id !== libraryTarget.knowledge_base_id).map((base) => <SelectItem value={base.id} key={base.id}>{base.name}</SelectItem>)}
