@@ -33,3 +33,5 @@ pub mod research_feedback;
 pub mod research_delivery;
 
 pub mod microstructure;
+
+pub mod literature_discovery;

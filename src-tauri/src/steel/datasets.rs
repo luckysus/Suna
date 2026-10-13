@@ -1,4 +1,5 @@
 mod csv;
+mod json;
 mod xlsx;
 
 use crate::permissions::path::authorize_existing_file_with_handle;
@@ -72,6 +73,7 @@ pub fn read_dataset_table(request: &DatasetPreviewRequest) -> Result<DatasetTabl
     let path = authorized.canonical_path();
     let format = format_for_path(path)?;
     match format {
+        SourceFormat::Json => json::read_dataset_table(file, path, request.sheet.as_deref()),
         SourceFormat::Csv => csv::read_dataset_table(file, path, request.sheet.as_deref()),
         SourceFormat::Xlsx => xlsx::read_dataset_table(file, path, request.sheet.as_deref()),
         SourceFormat::Xls => Err(
@@ -214,6 +216,7 @@ fn format_for_path(path: &Path) -> Result<SourceFormat, String> {
         .as_deref()
     {
         Some("csv") => Ok(SourceFormat::Csv),
+        Some("json") => Ok(SourceFormat::Json),
         Some("xlsx") => Ok(SourceFormat::Xlsx),
         Some(extension) => Err(format!("unsupported dataset format: {extension}")),
         None => Err("dataset file extension is required".to_string()),

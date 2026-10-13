@@ -178,6 +178,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 41,
         sql: include_str!("migrations/0041_microstructure.sql"),
     },
+    Migration {
+        version: 42,
+        sql: include_str!("migrations/0042_literature_discovery.sql"),
+    },
 ];
 
 pub fn latest_version() -> u32 {

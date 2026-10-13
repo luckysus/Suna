@@ -34,11 +34,14 @@ fn production_scheduler_registers_mineru_ingest_handler() {
 
     assert_eq!(
         handlers.len(),
-        crate::compute::handler::compute_task_handlers(None).len() + 3
+        crate::compute::handler::compute_task_handlers(None).len() + 4
     );
     assert!(handlers
         .iter()
         .any(|handler| handler.kind() == "compute_analyze_microstructure"));
+    assert!(handlers
+        .iter()
+        .any(|handler| handler.kind() == "literature_metadata_search"));
     let kinds = handlers
         .iter()
         .map(|handler| handler.kind())

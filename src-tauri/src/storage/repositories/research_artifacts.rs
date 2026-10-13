@@ -458,6 +458,8 @@ fn kind(task: &str) -> Option<(&str, &str)> {
         Some(("prediction", "prediction_result"))
     } else if task == "compute_optimize_constrained" {
         Some(("optimization", "optimization_result"))
+    } else if task == "literature_metadata_search" {
+        Some(("literature", "analysis_result"))
     } else if task == "compute_analyze_microstructure" {
         Some(("analysis", "analysis_result"))
     } else if task == "compute_design_experiments" {
@@ -650,6 +652,23 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
         if task_kind == "compute_analyze_microstructure" {
             super::microstructure::record_completed(c, ws, task, &p, &run, &cp["result"])?;
+            continue;
+        }
+        if task_kind == "literature_metadata_search" {
+            let records = cp["result"]["records"]
+                .as_array()
+                .ok_or("missing_literature_result")?;
+            let sources=records.iter().map(|r|json!({"literatureId":r["id"],"revisionId":r["revisionId"],"metadataSha256":r["revisionSha256"]})).collect::<Vec<_>>();
+            create(
+                c,
+                ws,
+                &p,
+                "analysis_result",
+                "公开元数据检索清单",
+                task,
+                Some(&run),
+                json!({"provider":"crossref","querySha256":format!("{:x}",Sha256::digest(payload["query"].to_string().as_bytes())),"fromYear":payload["fromYear"],"toYear":payload["toYear"],"sampleScope":"user_search_results","records":sources}),
+            )?;
             continue;
         }
         let mut frozen = json!({"request":safe_request(&payload["payload"]),"result":safe_metadata(&cp["result"]),"producer":{"app_version":env!("CARGO_PKG_VERSION"),"worker_protocol":"1.0"}});

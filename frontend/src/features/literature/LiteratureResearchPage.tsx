@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "../../components/ui/button";
 
 import LiteratureEvidenceTable from "./LiteratureEvidenceTable";
+import LiteratureDiscoveryPanel from "./LiteratureDiscoveryPanel";
 import { evidenceRecords, evidencePrompt, bindConclusions, applyEvidenceExtraction, type LiteratureEvidenceRecord } from "./evidence";
 
 type Status = "idle" | "loading" | "error";
@@ -80,7 +81,7 @@ export default function LiteratureResearchPage() {
   const [notice, setNotice] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState<"search" | "reading" | "library" | "review" | "trends">("search");
+  const [activeTab, setActiveTab] = useState<"search" | "reading" | "library" | "review" | "trends" | "discovery">("search");
   const [yearFilter, setYearFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("relevance");
@@ -228,7 +229,7 @@ export default function LiteratureResearchPage() {
     hint="支持 PDF / Word / Markdown / TXT"
   ><section className="suna-literature-page">
     <header className="suna-literature-header"><div><span className="suna-module-kicker">SUNA LITERATURE RESEARCH</span><h1><BookOpen size={25} />文献研究</h1><p>检索、阅读、比较和综述钢铁材料领域文献</p></div><div className="suna-literature-header-actions"><Button variant="ghost" onClick={importDocument}><FilePlus2 size={16} />导入文献</Button><Button variant="primary" onClick={() => void generateReview()} disabled={reviewStatus === "loading"}><Sparkles size={16} />{reviewStatus === "loading" ? "生成中..." : "生成综述"}</Button></div></header>
-    <nav className="suna-literature-tabs" aria-label="文献研究视图">{([["search", "文献检索"], ["reading", "文献阅读"], ["library", "文献管理"], ["review", "文献综述"], ["trends", "研究趋势"]] as const).map(([value, label]) => <button key={value} className={activeTab === value ? "is-active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}</nav>
+    <nav className="suna-literature-tabs" aria-label="文献研究视图">{([["search", "文献检索"], ["reading", "文献阅读"], ["library", "文献管理"], ["review", "文献综述"], ["trends", "研究趋势"], ["discovery", "公开发现 / 本地题录"]] as const).map(([value, label]) => <button key={value} className={activeTab === value ? "is-active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}</nav>
     <form className="suna-literature-searchbar" onSubmit={search}><Search size={18} /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入材料、工艺、性能或研究问题，例如：耐磨钢 热处理 马氏体" /><Button variant="primary" disabled={status === "loading"}>{status === "loading" ? <Loader2 className="suna-spin" size={16} /> : <Search size={16} />}检索</Button></form>
     <div className="suna-literature-toolbar"><label>年份<Select value={yearFilter} onValueChange={(value) => setYearFilter(value)}>
   <SelectTrigger aria-label="年份"><SelectValue /></SelectTrigger>
@@ -260,6 +261,7 @@ export default function LiteratureResearchPage() {
     {activeTab === "review" && <div className="suna-literature-review"><div><strong>文献综述</strong><span>当前将综述 {poolSize} 篇（对比选中优先，否则取前 {reviewCount} 篇）</span></div>{reviewStatus === "loading" ? <p>正在生成综述…</p> : review ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={review} literatureResults={[]} /></div> : <p>选择 10 / 20 / 50 篇后点击右上角“生成综述”。</p>}</div>}
     {activeTab === "trends" && <div className="suna-literature-review"><div><strong>研究趋势</strong><span>基于当前 {Math.min(visibleResults.length, 50)} 篇检索结果</span><Button variant="ghost" onClick={() => void generateTrends()} disabled={trendsStatus === "loading"}><TrendingUp size={15} />{trendsStatus === "loading" ? "分析中..." : "分析趋势"}</Button></div>{trends ? <div className="suna-literature-review-body"><AIAnswerRenderer answer={trends} literatureResults={[]} /></div> : <p>分析热点主题、时间演化、常用材料与工艺、方法与数据趋势、研究空白。</p>}</div>}
     {compareItems.length > 0 && <div className="suna-literature-compare"><div className="suna-literature-compare-head"><div><strong>文献对比</strong><span>已选择 {compareItems.length} 篇</span></div><div className="suna-literature-compare-actions"><Button variant="ghost" onClick={() => void generateComparison()} disabled={compareStatus === "loading"}>{compareStatus === "loading" ? "分析中..." : "生成差异分析"}</Button><button onClick={() => setCompareIds([])} aria-label="清空对比"><X size={16} /></button></div></div><div className="suna-literature-compare-table"><div className="suna-literature-compare-row"><strong>研究对象</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{titleOf(item)}</span>)}</div><div className="suna-literature-compare-row"><strong>期刊</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{journalOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>年份</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{yearOf(item, metadataOf(item))}</span>)}</div><div className="suna-literature-compare-row"><strong>证据位置</strong>{compareItems.map((item) => <span key={item.document_id ?? item.source_name}>{sourceLocation(item)}</span>)}</div></div>{compareSummary && <div className="suna-literature-ai-result"><strong>AI 差异分析</strong><AIAnswerRenderer answer={compareSummary} literatureResults={[]} /></div>}</div>}
+    {activeTab==="discovery" && <LiteratureDiscoveryPanel/>}
     <LiteratureEvidenceTable records={evidence} onChange={(records) => { void saveEvidence(records).catch((e) => setError(errorMessage(e,"保存证据失败"))); }} onExtract={extractEvidence} onError={setError} onNotice={setNotice} />
     {error && status !== "error" && <div role="alert">{error}</div>}
     {libraryTarget && <Dialog open onOpenChange={(open) => { if (!open) setLibraryTarget(null); }}><DialogContent className="suna-literature-library-modal" aria-label="加入知识库"><DialogHeader><DialogTitle>加入知识库</DialogTitle></DialogHeader><label>目标知识库<Select value={libraryBaseId} onValueChange={(value) => setLibraryBaseId(value)}>

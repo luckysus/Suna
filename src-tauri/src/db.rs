@@ -310,6 +310,7 @@ fn rag_task_handlers_with_compute(
     ));
     let mut handlers = crate::compute::handler::compute_task_handlers(compute_worker);
     let domain_handlers: Vec<Arc<dyn TaskHandler>> = vec![
+        Arc::new(crate::app::literature_discovery::MetadataSearchHandler::new(database.clone())),
         Arc::new(MinerUTaskHandler::new(
             content_root.clone(),
             remote_factory,

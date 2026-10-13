@@ -1577,7 +1577,22 @@ export interface ImageAnnotationRecord {id:string;imageId:string;parameters:Micr
 export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[]}
 export interface ImageAnalysis {id:string;taskId:string;annotationId:string;result:MicrostructureStatistics|null;error:string|null;reviewState:'accepted'|'rejected'|null;reviewNote:string|null;createdAt:string}
 
+export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
+export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;source:string;quote:string;location:Record<string,unknown>}
 export const desktop = {
+  createLiteratureEvidenceDataset:(projectId:string)=>call<SteelDatasetRecord>("create_literature_evidence_dataset",{projectId}),
+  searchPublicLiterature:(request:{query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
+  listDiscoveredLiterature:(query:string,offset=0)=>call<DiscoveredLiterature[]>('list_discovered_literature',{query,offset}),
+  getLiteratureDiscoveryResult:(id:string)=>call<{records:DiscoveredLiterature[];nextCursor:string|null;provider:string;sampleScope:string;query:string;fromYear:number|null;toYear:number|null}|null>('get_literature_discovery_result',{id}),
+  attachDiscoveredLiterature:(projectId:string,id:string)=>call<void>('attach_discovered_literature',{projectId,id}),
+  linkLiteratureFulltext:(request:{projectId:string;id:string;documentId:string;versionId:string;rightsBasis:string})=>call<void>('link_literature_fulltext',request),
+  archiveReviewedLiteratureEvidence:(projectId:string,request:{documentId:string;versionId:string;chunkId:string;quote:string;field:string;value:number;unit:string;conclusion:string;doi:string|null})=>call<string>('archive_reviewed_literature_evidence',{projectId,request}),
+  getProjectLiteratureEvidence:(projectId:string)=>call<Record<string,unknown>[]>('get_project_literature_evidence',{projectId}),
+  searchLocalLiteratureEvidence:(query:string)=>call<LocalLiteratureEvidence[]>('search_local_literature_evidence',{query}),
+  listLocalKnowledgeBases:()=>call<KnowledgeBaseRecord[]>('list_knowledge_bases'),
+  createLocalKnowledgeBase:(name:string)=>call<KnowledgeBaseRecord>('create_knowledge_base',{name}),
+  importLocalKnowledgeDocument:(request:DocumentImportRequest)=>call<DocumentImportResponse>('import_local_document',{request}),
+
   importMicrostructureImage:(request:{sourcePath:string;projectId:string;sampleId:string;modality:string;sourceType:string;magnification?:number|null;acquiredAt?:string|null;notes?:string})=>call<MicrostructureImage>('import_microstructure_image',{request}),
   listMicrostructureImages:(projectId:string,offset=0)=>call<MicrostructureImage[]>('list_microstructure_images',{projectId,offset}),
   getMicrostructurePreview:(id:string)=>call<number[]>('get_microstructure_preview',{id}),
