@@ -129,10 +129,54 @@ fn query_schema(required: bool) -> Value {
 
 pub(crate) fn agent_gateway_tools(gateway: Arc<dyn SteelAgentGateway>) -> Vec<ToolRegistration> {
     vec![
-        gateway_tool("research.list_projects","research_list_projects",json!({"type":"object","properties":{"search":{"type":"string"},"offset":{"type":"integer","minimum":0}},"additionalProperties":false}),PermissionRisk::Automatic,true,gateway.clone()),
-        gateway_tool("research.get_project_context","research_get_project_context",json!({"type":"object","additionalProperties":false}),PermissionRisk::Automatic,true,gateway.clone()),
-        gateway_tool("research.list_artifacts","research_list_artifacts",json!({"type":"object","properties":{"offset":{"type":"integer","minimum":0}},"additionalProperties":false}),PermissionRisk::Automatic,true,gateway.clone()),
-        gateway_tool("research.attach_result","research_attach_result",json!({"type":"object","properties":{"kind":{"type":"string","enum":["background_task","model","dataset","report","experiment","document"]},"id":{"type":"string"}},"required":["kind","id"],"additionalProperties":false}),PermissionRisk::ConfirmationRequired,false,gateway.clone()),
+        gateway_tool(
+            "steel.read_microstructure_statistics",
+            "read_microstructure_statistics",
+            json!({"type":"object","properties":{"imageId":{"type":"string"}},"required":["imageId"],"additionalProperties":false}),
+            PermissionRisk::Automatic,
+            true,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "steel.analyze_microstructure",
+            "analyze_microstructure",
+            json!({"type":"object","properties":{"annotationIds":{"type":"array","items":{"type":"string"},"minItems":1,"maxItems":20}},"required":["annotationIds"],"additionalProperties":false}),
+            PermissionRisk::ConfirmationRequired,
+            false,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "research.list_projects",
+            "research_list_projects",
+            json!({"type":"object","properties":{"search":{"type":"string"},"offset":{"type":"integer","minimum":0}},"additionalProperties":false}),
+            PermissionRisk::Automatic,
+            true,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "research.get_project_context",
+            "research_get_project_context",
+            json!({"type":"object","additionalProperties":false}),
+            PermissionRisk::Automatic,
+            true,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "research.list_artifacts",
+            "research_list_artifacts",
+            json!({"type":"object","properties":{"offset":{"type":"integer","minimum":0}},"additionalProperties":false}),
+            PermissionRisk::Automatic,
+            true,
+            gateway.clone(),
+        ),
+        gateway_tool(
+            "research.attach_result",
+            "research_attach_result",
+            json!({"type":"object","properties":{"kind":{"type":"string","enum":["background_task","model","dataset","report","experiment","document"]},"id":{"type":"string"}},"required":["kind","id"],"additionalProperties":false}),
+            PermissionRisk::ConfirmationRequired,
+            false,
+            gateway.clone(),
+        ),
         gateway_tool(
             "steel.material_feasibility",
             "material_feasibility",

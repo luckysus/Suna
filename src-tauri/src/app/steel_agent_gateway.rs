@@ -1255,6 +1255,62 @@ impl SteelAgentGateway for DesktopSteelAgentGateway {
                 "optimize_process" => gateway.optimize_process(arguments),
                 "match_coil" => gateway.match_coil(arguments),
                 "start_training" => gateway.start_training(arguments),
+                "read_microstructure_statistics" => {
+                    let c = gateway.open()?;
+                    let p = if let Some(run) = gateway.run_id {
+                        crate::storage::repositories::research_delivery::context(
+                            &c,
+                            &gateway.workspace_id,
+                            &run.to_string(),
+                        )?
+                    } else {
+                        crate::storage::repositories::research_artifacts::current(
+                            &c,
+                            &gateway.workspace_id,
+                        )?
+                    }
+                    .ok_or("research_project_unassigned")?;
+                    let id = arguments["imageId"].as_str().ok_or("imageId required")?;
+                    let image = crate::storage::repositories::microstructure::get(
+                        &c,
+                        &gateway.workspace_id,
+                        id,
+                    )?;
+                    if image.project_id != p {
+                        return Err("image_outside_agent_project".into());
+                    }
+                    crate::storage::repositories::microstructure::analyses(
+                        &c,
+                        &gateway.workspace_id,
+                        id,
+                        true,
+                    )
+                }
+                "analyze_microstructure" => {
+                    let root = gateway
+                        .database
+                        .parent()
+                        .ok_or("invalid_database_directory")?
+                        .to_path_buf();
+                    let ids: Vec<String> =
+                        serde_json::from_value(arguments["annotationIds"].clone())
+                            .map_err(|e| e.to_string())?;
+                    let task = gateway.submit_compute_task(|c| {
+                        let p = crate::storage::repositories::research_artifacts::current(
+                            c,
+                            &gateway.workspace_id,
+                        )?
+                        .ok_or("research_project_unassigned")?;
+                        crate::storage::repositories::microstructure::submit(
+                            c,
+                            &gateway.workspace_id,
+                            &root,
+                            &p,
+                            ids.clone(),
+                        )
+                    })?;
+                    Ok(json!(background_task_response(task)))
+                }
                 "material_feasibility" => {
                     let c = gateway.open()?;
                     let project = if let Some(run) = gateway.run_id {

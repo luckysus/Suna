@@ -15,7 +15,7 @@ use crate::domains::{self, DomainTrustStore};
 const FORMAT_VERSION: u32 = 1;
 const DATABASE_ENTRY: &str = "suna.sqlite3";
 const CONTENT_PREFIX: &str = "content/";
-const CONTENT_DIRECTORIES: [&str; 2] = ["objects", "indexes"];
+const CONTENT_DIRECTORIES: [&str; 3] = ["objects", "indexes", "microstructure"];
 const MAX_FILES: usize = 100_000;
 const MAX_UNCOMPRESSED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 

@@ -20,6 +20,9 @@ pub const COMPUTE_DESIGN_EXPERIMENTS_KIND: &str = "compute_design_experiments";
 /// db.rs 装配 compute 任务处理器；新增 compute 任务类型时在此登记。
 pub fn compute_task_handlers(worker: Option<WorkerConfig>) -> Vec<std::sync::Arc<dyn TaskHandler>> {
     vec![
+        std::sync::Arc::new(ComputeMicrostructureTaskHandler {
+            worker: worker.clone(),
+        }),
         std::sync::Arc::new(ComputeTaskHandler::from_optional(worker.clone())),
         std::sync::Arc::new(ComputePredictionTaskHandler::from_optional(worker.clone())),
         std::sync::Arc::new(ComputeOnnxPredictionTaskHandler::from_optional(
@@ -37,6 +40,23 @@ pub fn compute_task_handlers(worker: Option<WorkerConfig>) -> Vec<std::sync::Arc
         )),
         std::sync::Arc::new(ComputeSklearnTrainingTaskHandler::from_optional(worker)),
     ]
+}
+
+#[derive(Clone)]
+pub struct ComputeMicrostructureTaskHandler {
+    worker: Option<WorkerConfig>,
+}
+impl TaskHandler for ComputeMicrostructureTaskHandler {
+    fn kind(&self) -> &str {
+        "compute_analyze_microstructure"
+    }
+    fn resumable(&self) -> bool {
+        true
+    }
+    fn run(&self, task: TaskRecord, context: HandlerContext) -> HandlerFuture {
+        let worker = self.worker.clone();
+        Box::pin(async move { run_task(task, context, worker, "analyze_microstructure") })
+    }
 }
 
 pub fn is_training_task_kind(kind: &str) -> bool {
@@ -401,6 +421,8 @@ fn run_task(
         result["state"] == "completed" && result.get("recommendations").is_some()
     } else if expected_operation == "design_experiments" {
         result["state"] == "completed" && result.get("points").map(Value::is_array).unwrap_or(false)
+    } else if expected_operation == "analyze_microstructure" {
+        result["state"] == "completed" && result["images"].is_array()
     } else if expected_operation == "export_linear_onnx" {
         result["state"] == "completed" && result.get("model_base64").is_some()
     } else {
@@ -433,10 +455,18 @@ fn run_task(
         }
     } else if expected_operation == "optimize_constrained" {
         validate_optimization_result(&result)?;
-        crate::storage::repositories::material_rules::annotate_result(&mut result,&payload.payload).map_err(|_|HandlerError::permanent("material_candidate_recheck_failed"))?;
+        crate::storage::repositories::material_rules::annotate_result(
+            &mut result,
+            &payload.payload,
+        )
+        .map_err(|_| HandlerError::permanent("material_candidate_recheck_failed"))?;
     } else if expected_operation == "design_experiments" {
         validate_design_result(&result)?;
-        crate::storage::repositories::material_rules::annotate_result(&mut result,&payload.payload).map_err(|_|HandlerError::permanent("material_design_recheck_failed"))?;
+        crate::storage::repositories::material_rules::annotate_result(
+            &mut result,
+            &payload.payload,
+        )
+        .map_err(|_| HandlerError::permanent("material_design_recheck_failed"))?;
     } else if expected_operation == "export_linear_onnx" {
         validate_export_result(&result)?;
     }

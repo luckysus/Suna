@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, BinaryIO
 
+from .microstructure import analyze_batch
 from .design import DesignError, design_experiments
 from .onnx_export import export_linear_onnx
 from .onnx_inference import OnnxInferenceError, predict_onnx
@@ -68,6 +69,7 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
                         "optimize_constrained",
                         "design_experiments",
                         "export_linear_onnx",
+                        "analyze_microstructure",
                     ],
                 },
             ),
@@ -109,6 +111,7 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
             "optimize_constrained",
             "design_experiments",
             "export_linear_onnx",
+                        "analyze_microstructure",
         }:
             _write(
                 output,
@@ -305,6 +308,13 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
                         result={"task_id": task_id, "state": "completed", **result},
                     ),
                 )
+        elif operation == "analyze_microstructure":
+            try:
+                result = analyze_batch(params.get("payload", {}), report=lambda stage, progress: _write(output, _progress(task_id, progress, stage)))
+            except (ValueError, TypeError) as error:
+                _write(output, _error(request_id, "invalid_image_analysis", str(error)))
+            else:
+                _write(output, _response(request_id, result={"task_id": task_id, "state": "completed", **result}))
         elif operation == "export_linear_onnx":
             payload = params.get("payload", {})
             if not isinstance(payload, dict):

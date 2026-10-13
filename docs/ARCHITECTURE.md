@@ -40,3 +40,5 @@ Suna 当前是以 Windows 为主要目标的 Tauri 2 本地桌面应用。默认
 原 `experiments.state` 仍表示计划审批。执行、复测与测量单独留档；审核历史追加写入。只有已接受的真实测量可显式生成新的数据集版本，随后确认映射、激活并手动训练。下一轮推荐复用 design.py 的 GP 代理，提供预算、候选距离去重与专业约束筛选，明确报告不确定性的来源。指定项目的操作不会覆盖全局当前项目配置。
 
 科研项目的 Agent 上下文由迁移 0040 在 run 创建时冻结；受控 research 工具与专业工具遵循同一权限体系。项目报告复用 reports 与原生导出服务，manifest 导出 SHA256 校验过的元数据及血缘，不承担文件备份或恢复功能。
+
+显微组织模块在数据实验室内使用管理目录中的不可变原图、SQLite标注/审核及analysis_result成果，新增compute_analyze_microstructure任务复用Scheduler和PythonstdioWorker。算法依赖Pillow/NumPy/SciPy并锁定版本；阈值区域不推断材料相，没有标尺时仅像素单位。

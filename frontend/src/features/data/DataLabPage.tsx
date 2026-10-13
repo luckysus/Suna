@@ -3,6 +3,7 @@ import { BarChart3, Database, FileSpreadsheet, Loader2, RefreshCw, Search, Uploa
 import { desktop, type DatasetAnalysis, type DatasetSeries, type MultivariateResult, type SteelDatasetRecord } from "../../bridge/desktop";
 import { Input } from "../../components/ui/input";
 import { DataLabAnalysisPanel, DataLabVisualizePanel } from "./DataLabPanels";
+import MicrostructurePanel from "./MicrostructurePanel";
 import MaterialMappingPanel from "./MaterialMappingPanel";
 import { DataLabTablePanel } from "./DataLabTablePanel";
 import { FileDropZone } from "../../components/common/FileDropZone";
@@ -11,13 +12,14 @@ import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 
-type DataTab = "manage" | "analysis" | "visualize" | "table";
+type DataTab = "manage" | "analysis" | "visualize" | "table" | "microstructure";
 
 const tabs: Array<{ id: DataTab; label: string }> = [
   { id: "manage", label: "数据管理" },
   { id: "analysis", label: "数据分析" },
   { id: "visualize", label: "数据可视化" },
   { id: "table", label: "数据表" },
+  { id: "microstructure", label: "显微组织" },
 ];
 
 const DATA_EXTENSIONS = ["csv", "xlsx", "xls", "json"];
@@ -190,7 +192,7 @@ export default function DataLabPage() {
 
       {message && <div className="suna-data-message">{message}</div>}
 
-      <FileDropZone
+      {tab === "microstructure" ? <MicrostructurePanel/> : <FileDropZone
         extensions={DATA_EXTENSIONS}
         onFiles={(paths) => importPaths(paths)}
         onRejected={(reason) => setMessage(reason)}
@@ -282,7 +284,7 @@ export default function DataLabPage() {
           )}
         </section>
       </div>
-      </FileDropZone>
+      </FileDropZone>}
     </section>
   );
 }

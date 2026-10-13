@@ -1,6 +1,6 @@
 {
   "id": "steel",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "compatibility": {
     "min_app_version": "0.1.0",
     "max_app_version": null
@@ -55,7 +55,9 @@
     "research.list_projects",
     "research.get_project_context",
     "research.attach_result",
-    "research.list_artifacts"
+    "research.list_artifacts",
+    "steel.read_microstructure_statistics",
+    "steel.analyze_microstructure"
   ],
   "mcp_recommendations": [
     {

@@ -1570,7 +1570,24 @@ export interface MaterialRegistry { schemaVersion:string;materialSystem:string;f
 export interface MaterialRule { id:string;name:string;severity:'hard'|'soft'|'support';enabled:boolean;penalty:number;provenance:{type:string;sourceRef:string;sourceVersion:string;reviewed:boolean;demonstration?:boolean};expression:{kind:'range';fieldId:string;unit:string;min?:number|null;max?:number|null}|{kind:'linear';coefficients:Record<string,number>;units:Record<string,string>;operator:'ge'|'le'|'eq';value:number}; }
 export interface VersionedMaterialRule {version:number;rule:MaterialRule;}
 export interface MaterialVariable {name:string;fieldId:string;unit:string;min:number;max:number;fixedValue?:number|null;}
+export interface MicrostructureImage {id:string;projectId:string;sampleId:string;modality:string;sourceType:string;sourceSha256:string;width:number;height:number;metadata:Record<string,unknown>;createdAt:string}
+export type ImagePoint=[number,number];
+export interface MicrostructureAnnotation {calibration:{points:[ImagePoint,ImagePoint];distance:number;unit:string}|null;rois:{kind:'rectangle'|'polygon';points:ImagePoint[]}[];threshold:number;maskConfirmed:boolean}
+export interface ImageAnnotationRecord {id:string;imageId:string;parameters:MicrostructureAnnotation&{scaleMicronsPerPixel:number|null};sha256:string}
+export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[]}
+export interface ImageAnalysis {id:string;taskId:string;annotationId:string;result:MicrostructureStatistics|null;error:string|null;reviewState:'accepted'|'rejected'|null;reviewNote:string|null;createdAt:string}
+
 export const desktop = {
+  importMicrostructureImage:(request:{sourcePath:string;projectId:string;sampleId:string;modality:string;sourceType:string;magnification?:number|null;acquiredAt?:string|null;notes?:string})=>call<MicrostructureImage>('import_microstructure_image',{request}),
+  listMicrostructureImages:(projectId:string,offset=0)=>call<MicrostructureImage[]>('list_microstructure_images',{projectId,offset}),
+  getMicrostructurePreview:(id:string)=>call<number[]>('get_microstructure_preview',{id}),
+  saveMicrostructureAnnotation:(imageId:string,request:MicrostructureAnnotation)=>call<ImageAnnotationRecord>('save_microstructure_annotation',{imageId,request}),
+  getMicrostructureAnnotation:(imageId:string)=>call<ImageAnnotationRecord|null>('get_microstructure_annotation',{imageId}),
+  analyzeMicrostructureImages:(projectId:string,annotationIds:string[])=>call<BackgroundTask>('analyze_microstructure_images',{projectId,annotationIds}),
+  listMicrostructureAnalyses:(imageId:string)=>call<ImageAnalysis[]>('list_microstructure_analyses',{imageId}),
+  reviewMicrostructureAnalysis:(id:string,state:'accepted'|'rejected',note:string)=>call<void>('review_microstructure_analysis',{id,state,note}),
+  getMicrostructureTaskResult:(id:string)=>call<{images:{imageId:string;result?:MicrostructureStatistics;error?:string}[]}|null>('get_microstructure_task_result',{id}),
+
   exportResearchManifest:(projectId:string)=>call<Record<string,unknown>>('export_research_manifest',{projectId}),
   generateResearchProjectReport:(projectId:string)=>call<ReportRecord>('generate_research_project_report',{projectId}),
   getResearchRunNavigation:(taskId:string)=>call<{projectId:string;conversationId:string|null;agentRunId:string|null;kind:string}>('get_research_run_navigation',{taskId}),

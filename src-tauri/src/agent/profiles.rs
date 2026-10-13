@@ -145,12 +145,7 @@ impl AgentProfile {
         self.tool_ids.dedup();
         self.limits.validate()?;
         self.preset = preset_ids().contains(&self.id.as_str());
-        self.status = if self.enabled {
-            "ready"
-        } else {
-            "disabled"
-        }
-        .to_string();
+        self.status = if self.enabled { "ready" } else { "disabled" }.to_string();
         Ok(self)
     }
 
@@ -249,10 +244,36 @@ pub fn builtin_tool_capabilities() -> Vec<(&'static str, &'static str, &'static 
             "性能预测",
             "调用已配置模型预测性能",
         ),
-        ("research.list_projects","科研项目列表","读取当前工作区项目"),
-        ("research.get_project_context","本轮项目上下文","读取冻结项目及汇总"),
-        ("research.list_artifacts","科研成果列表","读取冻结项目的成果索引"),
-        ("research.attach_result","关联科研成果","审核后关联当前项目已有对象"),
+        (
+            "steel.read_microstructure_statistics",
+            "显微统计读取",
+            "只读取当前项目人工接受的统计",
+        ),
+        (
+            "steel.analyze_microstructure",
+            "显微原图分析",
+            "确认后提交不可变标注版本的原图分析",
+        ),
+        (
+            "research.list_projects",
+            "科研项目列表",
+            "读取当前工作区项目",
+        ),
+        (
+            "research.get_project_context",
+            "本轮项目上下文",
+            "读取冻结项目及汇总",
+        ),
+        (
+            "research.list_artifacts",
+            "科研成果列表",
+            "读取冻结项目的成果索引",
+        ),
+        (
+            "research.attach_result",
+            "关联科研成果",
+            "审核后关联当前项目已有对象",
+        ),
         ("steel.optimize_process", "工艺优化", "根据模型推荐工艺方案"),
         ("steel.start_training", "模型训练", "启动数据训练任务"),
         ("steel.process_literature", "文献处理", "导入并处理科研文献"),
@@ -320,12 +341,11 @@ pub fn presets() -> Vec<AgentProfile> {
 }
 
 /// 从 settings JSON 回填到 agents 表（一次性迁移）。
-fn backfill_legacy_profiles(
-    connection: &Connection,
-    workspace_id: &str,
-) -> Result<(), String> {
+fn backfill_legacy_profiles(connection: &Connection, workspace_id: &str) -> Result<(), String> {
     let raw = settings::get(connection, workspace_id, AGENT_PROFILES_KEY)?;
-    let Some(raw) = raw else { return Ok(()); };
+    let Some(raw) = raw else {
+        return Ok(());
+    };
     let saved: Vec<AgentProfile> = serde_json::from_str(&raw)
         .map_err(|error| format!("Agent profiles are invalid: {error}"))?;
     for profile in saved {
@@ -461,11 +481,10 @@ mod tests {
         profile.id = "custom-evidence".to_string();
         save(&connection, "local", profile.clone()).unwrap();
         delete(&connection, "local", "custom-evidence").unwrap();
-        assert!(
-            list(&connection, "local").unwrap()
-                .iter()
-                .all(|p| p.id != "custom-evidence")
-        );
+        assert!(list(&connection, "local")
+            .unwrap()
+            .iter()
+            .all(|p| p.id != "custom-evidence"));
     }
 
     #[test]

@@ -458,6 +458,8 @@ fn kind(task: &str) -> Option<(&str, &str)> {
         Some(("prediction", "prediction_result"))
     } else if task == "compute_optimize_constrained" {
         Some(("optimization", "optimization_result"))
+    } else if task == "compute_analyze_microstructure" {
+        Some(("analysis", "analysis_result"))
     } else if task == "compute_design_experiments" {
         Some(("experiment_design", "experiment_plan"))
     } else {
@@ -484,6 +486,7 @@ pub fn bind_current(c: &Connection, ws: &str, task: &str) -> Result<(), String> 
             )
             .map_err(err)?;
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
         let explicit = payload["_research_project_id"].as_str().map(str::to_string);
         if let Some(p) = match explicit {
             Some(p) => Some(p),
@@ -535,6 +538,7 @@ pub fn bind(c: &Connection, ws: &str, p: &str, task: &str) -> Result<String, Str
             )
             .map_err(err)?;
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
         let mut models = Vec::new();
         if let Some(model) = payload["payload"]["training_task_id"].as_str() {
             models.push(model.to_string());
@@ -644,6 +648,10 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
             return Err("missing_compute_result".into());
         }
         let payload: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        if task_kind == "compute_analyze_microstructure" {
+            super::microstructure::record_completed(c, ws, task, &p, &run, &cp["result"])?;
+            continue;
+        }
         let mut frozen = json!({"request":safe_request(&payload["payload"]),"result":safe_metadata(&cp["result"]),"producer":{"app_version":env!("CARGO_PKG_VERSION"),"worker_protocol":"1.0"}});
         if artifact_kind == "model_snapshot" {
             if let Some(model) = cp["result"].get("artifact") {
