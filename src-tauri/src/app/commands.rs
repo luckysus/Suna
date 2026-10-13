@@ -2,7 +2,11 @@ macro_rules! handler {
     () => {
         tauri::generate_handler![
             crate::db::db_init,
-            crate::app::research_commands::save_research_project,
+            crate::app::research_commands::list_research_runs,
+            research_commands::list_research_artifacts,
+            research_commands::get_research_artifact,
+            research_commands::list_research_artifact_edges,
+            research_commands::save_research_project,
             crate::app::research_commands::get_research_project,
             crate::app::research_commands::list_research_projects,
             crate::app::research_commands::archive_research_project,

@@ -132,6 +132,7 @@ pub fn create(
             ],
         )
         .map_err(|error| error.to_string())?;
+    super::research_artifacts::registered_model(&transaction, workspace_id, &id)?;
     transaction.commit().map_err(|error| error.to_string())?;
     get(connection, workspace_id, &id)?
         .ok_or_else(|| "created model version could not be read back".to_string())

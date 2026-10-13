@@ -104,6 +104,7 @@ pub fn save_preview(
             )
             .map_err(|error| error.to_string())?;
     }
+    super::research_artifacts::imported_dataset(&transaction, workspace_id, &dataset_id)?;
     transaction.commit().map_err(|error| error.to_string())?;
     get(connection, workspace_id, &dataset_id)?
         .ok_or_else(|| "saved dataset disappeared".to_string())

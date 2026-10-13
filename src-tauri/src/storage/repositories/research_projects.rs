@@ -205,6 +205,7 @@ pub fn target(kind: &str) -> Result<(&'static str, &'static str), String> {
         "optimization" => ("optimization_tasks", "method || ' · ' || state"),
         "experiment" => ("experiments", "title"),
         "report" => ("reports", "title"),
+        "artifact" => ("research_artifacts", "title"),
         _ => return Err("unsupported research object kind".into()),
     })
 }
@@ -237,6 +238,10 @@ pub fn attach_in_transaction(
     }
     target_title(conn, ws, kind, id)?.ok_or("research_source_not_found_in_workspace")?;
     let changed=conn.execute("INSERT OR IGNORE INTO research_project_links(workspace_id,project_id,target_kind,target_id,relation,created_at,created_by) VALUES(?1,?2,?3,?4,?5,?6,'local_user')",params![ws,project,kind,id,relation,Utc::now().to_rfc3339()]).map_err(error)?;
+    if kind=="background_task" && super::research_artifacts::installed(conn){
+        super::research_artifacts::bind(conn,ws,project,id)?;
+        super::research_artifacts::reconcile_task(conn,ws,id)?;
+    }
     if changed > 0 {
         audit(
             conn,
@@ -409,7 +414,7 @@ mod tests {
             attach(&mut c, "ws", &p.id, k, id, "attached").unwrap();
             attach(&mut c, "ws", &p.id, k, id, "attached").unwrap();
         }
-        assert_eq!(objects(&c, "ws", &p.id, 50, 0).unwrap().len(), 3);
+        assert_eq!(objects(&c, "ws", &p.id, 50, 0).unwrap().iter().map(|o|(&o.kind,&o.id)).collect::<std::collections::HashSet<_>>().len(), 3);
         assert!(attach(&mut c, "other", &p.id, "dataset", "data", "attached").is_err());
         let other = project(&mut c, "other");
         assert!(attach(&mut c, "other", &other.id, "dataset", "data", "attached").is_err());
@@ -469,7 +474,7 @@ mod tests {
         }
         c.execute("INSERT INTO settings(workspace_id,key,value_json,updated_at) VALUES('ws','user-theme','\"dark\"','now')",[]).unwrap();
         let report = migrate(&mut c).unwrap();
-        assert_eq!(report.applied_versions, vec![36]);
+        assert_eq!(report.applied_versions, (36..=crate::storage::migrations::latest_version()).collect::<Vec<_>>());
         assert_eq!(
             c.query_row(
                 "SELECT value_json FROM settings WHERE key='user-theme'",

@@ -21,3 +21,5 @@ pub mod settings;
 pub mod steel;
 pub mod steel_models;
 pub mod turn_snapshots;
+
+pub mod research_artifacts;

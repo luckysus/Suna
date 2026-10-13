@@ -1556,7 +1556,14 @@ function call<T>(command: string, args?: Record<string, unknown>) {
   return invoke<T>(command, args);
 }
 
+export interface ResearchArtifact { id:string; projectId:string; kind:string; title:string; schemaVersion:string; contentSha256:string; state:string; sourceRunId:string|null; createdAt:string; payload?:Record<string,unknown>; }
+export interface ResearchRun { id:string; title:string; kind:string; backgroundTaskId:string|null; state:string; progress:number; errorCode:string|null; origin:string; agentRunId:string|null; createdAt:string; }
+export interface ResearchArtifactEdge { fromId:string; toId:string; relation:string; }
 export const desktop = {
+  listResearchRuns: (projectId:string,limit=50,offset=0)=>call<ResearchRun[]>("list_research_runs",{projectId,limit,offset}),
+  listResearchArtifacts: (projectId:string,limit=50,offset=0)=>call<ResearchArtifact[]>("list_research_artifacts",{projectId,limit,offset}),
+  getResearchArtifact: (id:string)=>call<ResearchArtifact>("get_research_artifact",{id}),
+  listResearchArtifactEdges: (projectId:string,limit=50,offset=0)=>call<ResearchArtifactEdge[]>("list_research_artifact_edges",{projectId,limit,offset}),
   saveResearchProject: (request: SaveResearchProject) => call<ResearchProject>("save_research_project", { request }),
   getResearchProject: (id: string) => call<ResearchProject>("get_research_project", { id }),
   listResearchProjects: (options: { search?: string; status?: string; limit?: number; offset?: number } = {}) => call<ResearchProject[]>("list_research_projects", options),
