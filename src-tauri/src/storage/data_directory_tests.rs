@@ -212,12 +212,15 @@ fn relocation_keeps_real_frozen_artifact_hashes_and_is_idempotent() {
     assert_eq!(PathBuf::from(&row.0), target.join("objects/paper.txt"));
     assert_eq!(PathBuf::from(&row.2), file);
     let json: serde_json::Value = serde_json::from_str(&row.1).unwrap();
+    // JSON contains local filesystem paths, whose separator spelling may differ
+    // from PathBuf::join's input. Compare components, not serialized strings.
     assert_eq!(
-        json["items"][0],
-        target.join("objects/paper.txt").to_string_lossy().as_ref()
+        Path::new(json["items"][0].as_str().unwrap()),
+        target.join("objects/paper.txt")
     );
+    assert_ne!(Path::new(json["items"][0].as_str().unwrap()), file);
     assert_eq!(json["items"][1], external.to_string_lossy().as_ref());
-    assert_eq!(json["sourceDirectory"], target.to_string_lossy().as_ref());
+    assert_eq!(Path::new(json["sourceDirectory"].as_str().unwrap()), target);
     relocate_database(&mut c, &source, &target).unwrap();
     let repeated: (String, String, String) = c
         .query_row("SELECT * FROM operational_paths", [], |r| {
@@ -225,6 +228,9 @@ fn relocation_keeps_real_frozen_artifact_hashes_and_is_idempotent() {
         })
         .unwrap();
     assert_eq!(row, repeated);
+    let repeated_artifact = artifacts::get(&c, "ws", &id).unwrap();
+    assert_eq!(repeated_artifact.content_sha256, before);
+    assert_eq!(repeated_artifact.payload, after.payload);
     assert_eq!(fs::read_to_string(&file).unwrap(), "unchanged source");
     assert_eq!(
         c.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
@@ -232,6 +238,49 @@ fn relocation_keeps_real_frozen_artifact_hashes_and_is_idempotent() {
         "ok"
     );
     drop(c);
+    fs::remove_dir_all(base).unwrap();
+}
+
+#[test]
+fn relocated_json_round_trip_preserves_path_semantics_and_external_spelling() {
+    let base = root();
+    let source = base.join("中文 source");
+    let target = base.join("中文 target");
+    fs::create_dir_all(source.join("objects")).unwrap();
+    let file = source.join("objects/paper.txt");
+    fs::write(&file, "original").unwrap();
+    let external = base.join("中文 source-neighbor/objects/paper.txt");
+    let external_text = external.to_string_lossy().into_owned();
+    let expected = target.join("objects").join("paper.txt");
+    let spellings = vec![file.clone()];
+    #[cfg(windows)]
+    let spellings = {
+        let mut spellings = spellings;
+        spellings.push(PathBuf::from(file.to_string_lossy().replace('\\', "/")));
+        spellings.push(source.join("objects").join("paper.txt"));
+        spellings
+    };
+    for spelling in spellings {
+        let mut json = serde_json::json!({
+            "items": [{"path": spelling}, external_text],
+            "directory": source,
+            "label": "fixture, not a path",
+        });
+        relocate_json(&mut json, &source, &target);
+        let serialized = serde_json::to_string(&json).unwrap();
+        let round_trip: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        let relocated = Path::new(round_trip["items"][0]["path"].as_str().unwrap());
+        assert_eq!(relocated, expected);
+        assert_ne!(relocated, file);
+        assert_eq!(Path::new(round_trip["directory"].as_str().unwrap()), target);
+        // External strings must remain byte-for-byte unchanged, including slash
+        // spelling; only owned paths are eligible for relocation.
+        assert_eq!(round_trip["items"][1], external_text);
+        assert_eq!(round_trip["label"], "fixture, not a path");
+        relocate_json(&mut json, &source, &target);
+        assert_eq!(serde_json::to_string(&json).unwrap(), serialized);
+    }
+    assert_eq!(fs::read_to_string(file).unwrap(), "original");
     fs::remove_dir_all(base).unwrap();
 }
 
