@@ -415,7 +415,8 @@ fn scheduler_trains_sklearn_model_and_predicts_through_trained_path() {
                 assert_eq!(
                     current.state,
                     TaskState::Completed,
-                    "sklearn training failed: {current:?}"
+                    "sklearn training failed: {:?}",
+                    current.error_code
                 );
                 let checkpoint: serde_json::Value =
                     serde_json::from_str(current.checkpoint_json.as_deref().expect("checkpoint"))
@@ -484,7 +485,8 @@ fn scheduler_trains_sklearn_model_and_predicts_through_trained_path() {
             assert_eq!(
                 current.state,
                 TaskState::Completed,
-                "trained prediction failed: {current:?}"
+                "trained prediction failed: {:?}",
+                current.error_code
             );
             let checkpoint: serde_json::Value =
                 serde_json::from_str(current.checkpoint_json.as_deref().expect("checkpoint"))

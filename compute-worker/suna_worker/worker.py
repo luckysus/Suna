@@ -190,6 +190,8 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
             _write(output, _progress(task_id, 10, "inference"))
             try:
                 prediction = predict_model(artifact, features)
+                from .applicability import assess_model
+                prediction["applicability"] = assess_model(artifact, features)
             except ValueError as error:
                 _write(output, _error(request_id, "invalid_payload", str(error)))
             else:
@@ -214,6 +216,8 @@ def _dispatch(request: dict[str, Any], output: BinaryIO) -> bool:
             _write(output, _progress(task_id, 10, "inference"))
             try:
                 prediction = predict_linear_regression(artifact, features)
+                from .applicability import assess_model
+                prediction["applicability"] = assess_model(artifact, features)
             except ValueError as error:
                 _write(output, _error(request_id, "invalid_payload", str(error)))
             else:

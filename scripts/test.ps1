@@ -41,6 +41,7 @@ $updateChannelContract = Join-Path $repoRoot "scripts\tests\update-channel.contr
 $workflowContract = Join-Path $repoRoot "scripts\tests\workflow.contract.ps1"
 $caseStudyContract = Join-Path $repoRoot "scripts\tests\case-study.contract.ps1"
 $dependencyContract = Join-Path $repoRoot "scripts\tests\dependency.contract.ps1"
+$actionsStateContract = Join-Path $repoRoot "scripts\tests\check-actions.test.py"
 $runContracts = $Stage -eq "all" -or $Stage -eq "contracts"
 $runFrontend = $Stage -eq "all" -or $Stage -eq "frontend"
 $runRust = $Stage -eq "all" -or $Stage -eq "rust"
@@ -53,6 +54,7 @@ if ($runContracts) {
     Invoke-Checked "Workflow contract" "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $workflowContract) $repoRoot
     Invoke-Checked "Case-study contract" "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $caseStudyContract) $repoRoot
     Invoke-Checked "Dependency contract" "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $dependencyContract) $repoRoot
+    Invoke-Checked "Public Actions state contract" "python" @($actionsStateContract) $repoRoot
 }
 
 if ($runFrontend) {

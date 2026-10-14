@@ -2,15 +2,10 @@ import { useEffect, useState } from "react";
 import { desktop, type ComputeTrainingResult } from "../../bridge/desktop";
 import { useComputeTask, ComputeTaskStatus } from "../tasks/useComputeTask";
 import { Button } from "../../components/ui/button";
+import { applicabilityLabel, applicabilityReason, applicabilityRow, parseBatchInput } from "./applicability";
 
 export function parseBatchJson(text: string, names: string[]): number[][] {
-  const records: unknown = JSON.parse(text);
-  if (!Array.isArray(records) || !records.length || records.length > 10000) throw new Error("请输入 1–10000 行 JSON 数组");
-  return records.map((row, i) => {
-    const values = Array.isArray(row) ? row : row && typeof row === "object" ? names.map((name) => (row as Record<string,unknown>)[name]) : [];
-    if (values.length !== names.length || values.some((v) => typeof v !== "number" || !Number.isFinite(v))) throw new Error(`第 ${i+1} 行必须包含全部模型特征的有限数值`);
-    return values as number[];
-  });
+  return parseBatchInput(text, names).rows;
 }
 export default function BatchPredictionPanel({ datasetId, model, onError, onNotice }: { datasetId: string; model: ComputeTrainingResult | null; onError: (s: string) => void; onNotice: (s: string) => void }) {
   const [models, setModels] = useState<Record<string, ComputeTrainingResult>>({});
@@ -39,10 +34,10 @@ export default function BatchPredictionPanel({ datasetId, model, onError, onNoti
   const run = async () => {
     if (!activeModel) { onError("请先训练模型，再进行批量预测"); return; }
     try {
-      const inputs = parseBatchJson(text, activeModel.artifact.feature_names);
-      await desktop.setSetting(`suna.batch.inputs.${datasetId}`, JSON.stringify(inputs));
-      const submitted = await desktop.predictSteelModel({ datasetId, trainingTaskId: activeModel.task_id, featureRows: inputs });
-      setRows(inputs);
+      const inputs = parseBatchInput(text, activeModel.artifact.feature_names);
+      await desktop.setSetting(`suna.batch.inputs.${datasetId}`, JSON.stringify(inputs.rows));
+      const submitted = await desktop.predictSteelModel({ datasetId, trainingTaskId: activeModel.task_id, featureRows: inputs.rows, inputSchema: inputs.inputSchema });
+      setRows(inputs.rows);
       await task.run(submitted.id);
     } catch (e) { onError(e instanceof Error ? e.message : String(e)); }
   };
@@ -55,17 +50,26 @@ export default function BatchPredictionPanel({ datasetId, model, onError, onNoti
     if (!task.result) return;
     try {
       const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-      const csv = [task.result.feature_names.map(quote).concat(["prediction","lower","upper","extrapolation"]).join(","), ...task.result.predictions.map((p, i) => [...(rows[i] ?? []), p, task.result?.prediction_interval?.[i]?.lower ?? "", task.result?.prediction_interval?.[i]?.upper ?? "", task.result?.applicability_warnings.some((w) => w.row_index === i) ? "true" : "false"].join(","))].join("\r\n");
+      const resultRows = task.result.input_rows ?? rows;
+      const csv = [task.result.feature_names.map(quote).concat(["prediction","lower","upper","extrapolation","applicability_state","risk_codes","support_sha256"]).join(","), ...task.result.predictions.map((p, i) => {
+        const risk = applicabilityRow(task.result?.applicability, i);
+        return [...(resultRows[i] ?? []), p, task.result?.prediction_interval?.[i]?.lower ?? "", task.result?.prediction_interval?.[i]?.upper ?? "", risk.state === "outside_domain" ? "true" : risk.state === "unknown" ? "unknown" : "false", risk.state, quote(risk.reasons.map(reason => reason.code).join(";")), task.result?.applicability?.support_sha256 ?? ""].join(",");
+      })].join("\r\n");
       const saved = await desktop.saveExportFile("批量预测.csv", Array.from(new TextEncoder().encode("\uFEFF"+csv)));
       if (saved) onNotice(`批量预测已导出：${saved.path}`);
     } catch (e) { onError(e instanceof Error ? e.message : String(e)); }
   };
   const busy = task.task && ["queued","running","waiting_external"].includes(task.task.state);
   return <section><h2>批量预测</h2><p>选择模型后粘贴或导入 JSON：每行可按特征名称提供对象，或按模型顺序提供数值数组。特征：{activeModel?.artifact.feature_names.join(", ") ?? "请先训练"}</p>
+    {activeModel?.artifact.feature_schema?.fields && <p>模型训练单位：{activeModel.artifact.feature_schema.fields.map(field => `${field.name} (${field.unit ?? "单位未记录"})`).join("，")}</p>}
+    <p>不同字段顺序或单位可使用 {`{"schema":[{"name":"temperature","unit":"K"}],"rows":[[1100]]}`} 格式，schema 必须包含全部模型特征。</p>
     <label>训练模型<select aria-label="批量预测模型" value={modelId} onChange={(e) => setModelId(e.target.value)}><option value="">选择已完成的模型</option>{Object.entries(models).map(([id,m]) => <option key={id} value={id}>{m.artifact.model_type} · {id.slice(0,8)}</option>)}</select></label>
     <input aria-label="导入批量 JSON" type="file" accept=".json,application/json" onChange={(e) => { const file=e.target.files?.[0]; if (file) void file.text().then(setText).catch((reason) => onError(String(reason))); }} />
     <textarea aria-label="批量预测输入" value={text} onChange={(e) => setText(e.target.value)} rows={8} />
     <Button onClick={() => void run()} disabled={!activeModel || !!busy}>提交整批预测</Button><ComputeTaskStatus {...task} />
-    {task.result && <><Button onClick={() => void exportCsv()}>导出预测 CSV</Button><table><thead><tr><th>行</th>{task.result.feature_names.map((n) => <th key={n}>{n}</th>)}<th>预测值</th><th>校准区间</th><th>外推风险</th></tr></thead><tbody>{task.result.predictions.map((p,i) => <tr key={i}><td>{i+1}</td>{rows[i]?.map((v,j) => <td key={j}>{v}</td>)}<td>{p}</td><td>{task.result?.prediction_interval?.[i] ? `${task.result.prediction_interval[i]?.lower} ~ ${task.result.prediction_interval[i]?.upper}` : "未校准"}</td><td>{task.result?.applicability_warnings.some((w) => w.row_index === i) ? "超出训练范围" : "范围内"}</td></tr>)}</tbody></table></>}
+    {task.result && <><Button onClick={() => void exportCsv()}>导出预测 CSV</Button><p>单变量训练范围筛查；联合支持域及物理可行性尚未评估。</p><table><thead><tr><th>行</th>{task.result.feature_names.map((n) => <th key={n}>{n}</th>)}<th>预测值</th><th>校准区间</th><th>适用域</th></tr></thead><tbody>{task.result.predictions.map((p,i) => {
+      const risk = applicabilityRow(task.result?.applicability, i);
+      return <tr key={i}><td>{i+1}</td>{(task.result?.input_rows ?? rows)[i]?.map((v,j) => <td key={j}>{v}</td>)}<td>{p}</td><td>{task.result?.prediction_interval?.[i] ? `${task.result.prediction_interval[i]?.lower} ~ ${task.result.prediction_interval[i]?.upper}` : "未校准"}</td><td>{applicabilityLabel(risk.state)}{risk.reasons.length > 0 && <details><summary>判定依据</summary>{risk.reasons.map((reason,j) => <div key={j}>{reason.feature ? `${reason.feature}：` : ""}{applicabilityReason(reason.code)}</div>)}</details>}</td></tr>;
+    })}</tbody></table></>}
   </section>;
 }

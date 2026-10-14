@@ -37,7 +37,7 @@ def inspect(repo,sha):
         if any(r['url']==url for r in runs):continue
         state=match.group(2).strip().replace(" ","_")
         if state=="currently_running":state="in_progress"
-        if state in {'completed','success','successful','passed'} and 'color-fg-success' in block:state='success'
+        if state in {'completed','success','successful','passed','completed_successfully'} and 'color-fg-success' in block:state='success'
         run={'url':url,'state':state,'failedSteps':[]}
         if run['state']=='failed':
             detail=read(url)

@@ -35,6 +35,8 @@ pub struct PredictSteelModelRequest {
     pub feature_values: Vec<f64>,
     #[serde(default)]
     pub feature_rows: Vec<Vec<f64>>,
+    #[serde(default)]
+    pub input_schema: Option<Vec<crate::compute::applicability::PredictionInputFeature>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -424,6 +426,26 @@ pub fn build_linear_regression_payload(
         "feature_names": feature_names, "field_mapping": field_mapping, "source_rows": source_rows,
         "seed": policy.get("seed").cloned().unwrap_or(json!(0)),
         "split_policy": {"kind": kind, "validation_fraction": policy.get("validationFraction").or_else(|| policy.get("validation_fraction")).cloned().unwrap_or(json!(0.2)), "seed": policy.get("seed").cloned().unwrap_or(json!(0))}
+    });
+    // Freeze the exact training field order and declared units with the model.
+    // Unknown units remain null; no conversion or physical meaning is guessed.
+    payload["feature_metadata"] = json!(request
+        .feature_columns
+        .iter()
+        .zip(feature_names.iter())
+        .map(|(ordinal, name)| {
+            let unit = columns[*ordinal]
+                .unit
+                .as_deref()
+                .map(str::trim)
+                .filter(|unit| crate::steel::materials::conversion(unit, unit).is_ok());
+            json!({"name":name,"unit":unit})
+        })
+        .collect::<Vec<_>>());
+    let target = &columns[request.target_column];
+    payload["target_schema"] = json!({
+        "name": target.canonical_field.as_deref().unwrap_or(&table.headers[request.target_column]),
+        "unit": target.unit.as_deref().map(str::trim).filter(|unit| crate::steel::materials::conversion(unit, unit).is_ok()),
     });
     if kind == "group" {
         payload["groups"] = json!(auxiliary_values);
@@ -967,32 +989,24 @@ pub fn predict_steel_model_on_connection(
     )
     .map_err(|error| format!("invalid training checkpoint: {error}"))?;
     let artifact = checkpoint["result"]["artifact"].clone();
+    let input_rows = if request.feature_rows.is_empty() {
+        vec![request.feature_values.clone()]
+    } else {
+        request.feature_rows.clone()
+    };
+    let normalized_rows = crate::compute::applicability::normalize_prediction_rows(
+        &artifact,
+        &input_rows,
+        request.input_schema.as_deref(),
+    )?;
     let mut payload = build_linear_regression_prediction_payload(
         &request.dataset_id,
         &request.training_task_id,
         &artifact,
-        request
-            .feature_rows
-            .first()
-            .unwrap_or(&request.feature_values),
+        &normalized_rows[0],
     )?;
-    if !request.feature_rows.is_empty() {
-        if request.feature_rows.len() > 10000 {
-            return Err("batch prediction supports at most 10000 rows".into());
-        }
-        let count = artifact["feature_names"]
-            .as_array()
-            .ok_or("feature names missing")?
-            .len();
-        if request
-            .feature_rows
-            .iter()
-            .any(|r| r.len() != count || r.iter().any(|v| !v.is_finite()))
-        {
-            return Err("batch rows must contain finite numbers in model feature order".into());
-        }
-        payload["payload"]["features"] = json!(request.feature_rows);
-    }
+    payload["payload"]["features"] = json!(normalized_rows);
+    payload["payload"]["input_schema"] = json!(request.input_schema);
     let task_kind = match artifact["artifact_version"].as_str() {
         Some("linear-regression.v1") => {
             crate::compute::handler::COMPUTE_PREDICT_LINEAR_REGRESSION_KIND
@@ -1021,6 +1035,8 @@ pub fn predict_steel_model_on_connection(
         "dataset_id": request.dataset_id,
         "training_task_id": request.training_task_id,
         "feature_values": request.feature_values,
+        "feature_rows": request.feature_rows,
+        "input_schema": request.input_schema,
     })
     .to_string();
     compute_tasks::create_prediction(
@@ -1810,6 +1826,14 @@ mod tests {
         assert_eq!(payload["targets"], serde_json::json!([355.0, 360.0, 365.0]));
         assert_eq!(payload["feature_names"], serde_json::json!(["temperature"]));
         assert_eq!(payload["field_mapping"]["temperature"], "temperature");
+        assert_eq!(
+            payload["feature_metadata"],
+            json!([{"name":"temperature","unit":"C"}])
+        );
+        assert_eq!(
+            payload["target_schema"],
+            json!({"name":"yield_strength","unit":"MPa"})
+        );
     }
 
     #[test]

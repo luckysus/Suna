@@ -15,6 +15,15 @@ pub fn safe_metadata(value: &Value) -> Value {
         "means",
         "scales",
         "applicability_range",
+        "applicability_support",
+        "schema_version",
+        "fit_scope",
+        "support_sha256",
+        "dataset_sha256",
+        "unknown_reasons",
+        "imputation_mean",
+        "target_schema",
+        "fields",
         "recommendation_policy",
         "feedback_source",
         "measurement_ids",
@@ -218,8 +227,19 @@ pub fn safe_metadata(value: &Value) -> Value {
         }
         Value::Object(map) => Value::Object(
             map.iter()
-                .filter(|(k, _)| KEYS.contains(&k.as_str()))
-                .map(|(k, v)| (k.clone(), safe_metadata(v)))
+                .filter(|(k, _)| k.as_str() == "applicability" || KEYS.contains(&k.as_str()))
+                .map(|(k, v)| {
+                    let projected = if k == "applicability" {
+                        crate::compute::applicability::risk::risk_snapshot(
+                            v,
+                            v["rows"].as_array().map_or(0, Vec::len),
+                        )
+                        .unwrap_or(Value::Null)
+                    } else {
+                        safe_metadata(v)
+                    };
+                    (k.clone(), projected)
+                })
                 .collect(),
         ),
         Value::Array(items) => Value::Array(items.iter().map(safe_metadata).collect()),

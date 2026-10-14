@@ -423,6 +423,8 @@ export interface ComputeTrainingResult {
     model_id: string;
     model_type: string;
     feature_names: string[];
+    feature_schema?: { count: number; names: string[]; fields?: Array<{ name: string; unit: string | null }> };
+    target_schema?: { name?: string; unit?: string | null };
     preprocessing?: { means: number[]; scales: number[] };
     metrics: { train?: ComputeModelMetrics; validation?: ComputeModelMetrics; test?: ComputeModelMetrics };
     evaluation?: { folds: Array<ComputeModelMetrics & { train_indices: number[]; validation_indices: number[] }>; learning_curve: Array<{ training_fraction: number; mean_rmse: number; mean_train_count: number }>; test_interval_coverage: number | null; test_extrapolation_count: number; calibration_count: number; interval_status: string; split_kind: string; selected_parameters: Record<string, number> };
@@ -455,6 +457,15 @@ export interface ComputePredictionResult {
   model_type: string;
   feature_names: string[];
   input_values: Array<number | null>;
+  input_rows?: number[][];
+  applicability?: {
+    schema_version: string; method: "marginal_training_ranges";
+    model_id: string | null; support_sha256: string | null;
+    probability: null; physical_feasibility: "not_assessed"; joint_support: "not_assessed";
+    rows: Array<{ row_index: number; state: "within_domain" | "warning" | "outside_domain" | "unknown";
+      reasons: Array<{ state: "within_domain" | "warning" | "outside_domain" | "unknown"; code: string; feature?: string;
+        threshold?: { min: number; max: number; unit: string; source: "training_split"; support_sha256: string } }> }>;
+  };
   predictions: number[];
   /** 第 37 章 Prediction Interval：基于验证集残差的预测区间。 */
   prediction_interval?: Array<{ lower: number; upper: number; confidence: number; basis: string } | null> | null;
@@ -1794,6 +1805,7 @@ export const desktop = {
     trainingTaskId: string;
     featureValues?: number[];
     featureRows?: number[][];
+    inputSchema?: Array<{ name: string; unit?: string | null }>;
   }) => call<BackgroundTask>("predict_steel_model", { request }),
   getComputePredictionResult: (id: string) =>
     call<ComputePredictionResult | null>("get_compute_prediction_result", { id }),

@@ -493,13 +493,14 @@ fn annotate_prediction_result(mut result: Value, payload: &Value) -> Result<Valu
         .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_model"))?;
     let ranges = payload["artifact"]["applicability_range"]
         .as_array()
-        .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_model"))?;
+        .cloned()
+        .unwrap_or_default();
     let input = payload["features"]
         .as_array()
         .and_then(|rows| rows.first())
         .and_then(Value::as_array)
         .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_payload"))?;
-    if names.len() != input.len() || ranges.len() != input.len() {
+    if names.len() != input.len() || (!ranges.is_empty() && ranges.len() != input.len()) {
         return Err(HandlerError::permanent("compute_worker_invalid_model"));
     }
 
@@ -518,7 +519,9 @@ fn annotate_prediction_result(mut result: Value, payload: &Value) -> Result<Valu
             let Some(number) = value.as_f64() else {
                 continue;
             };
-            let range = &ranges[index];
+            let Some(range) = ranges.get(index) else {
+                continue;
+            };
             let min = range.get("min").and_then(Value::as_f64);
             let max = range.get("max").and_then(Value::as_f64);
             if min.is_some_and(|bound| number < bound) || max.is_some_and(|bound| number > bound) {
@@ -535,6 +538,28 @@ fn annotate_prediction_result(mut result: Value, payload: &Value) -> Result<Valu
         }
     }
     result["input_values"] = Value::Array(input.clone());
+    result["input_rows"] = payload["features"].clone();
+    let row_count = payload["features"].as_array().map_or(0, Vec::len);
+    let risk = result.get("applicability").cloned().unwrap_or_else(|| json!({
+        "schema_version":"applicability-support.v1", "method":"marginal_training_ranges",
+        "model_id":payload["artifact"]["model_id"], "support_sha256":null,
+        "probability":null,"physical_feasibility":"not_assessed","joint_support":"not_assessed",
+        "rows":(0..row_count).map(|index|json!({"row_index":index,"state":"unknown","reasons":[{"state":"unknown","code":"legacy_model_without_support"}]})).collect::<Vec<_>>()
+    }));
+    if payload["artifact"].get("model_id").is_some()
+        && risk["model_id"] != payload["artifact"]["model_id"]
+        || payload["artifact"]["applicability_support"]
+            .get("support_sha256")
+            .is_some()
+            && risk["support_sha256"]
+                != payload["artifact"]["applicability_support"]["support_sha256"]
+    {
+        return Err(HandlerError::permanent(
+            "compute_worker_invalid_applicability",
+        ));
+    }
+    result["applicability"] = crate::compute::applicability::risk::risk_snapshot(&risk, row_count)
+        .map_err(|_| HandlerError::permanent("compute_worker_invalid_applicability"))?;
     result["applicability_range"] = Value::Array(ranges.clone());
     result["applicability_warnings"] = Value::Array(warnings);
     result["confidence"] = Value::Null;

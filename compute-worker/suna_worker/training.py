@@ -155,7 +155,7 @@ def train_linear_regression(payload: Mapping[str, Any]) -> dict[str, Any]:
         "applicability_range": _applicability_range(features, split["train_indices"]),
     }
     artifact["model_id"] = _artifact_id(artifact)
-    return artifact
+    return _attach_applicability_support(artifact, payload)
 
 
 def predict_linear_regression(
@@ -233,7 +233,7 @@ def train_sklearn_model(payload: Mapping[str, Any]) -> dict[str, Any]:
     if algorithm == "transformer":
         from .transformer import train_transformer
 
-        return train_transformer(payload)
+        return _attach_applicability_support(train_transformer(payload), payload)
     try:
         import numpy as np
     except ImportError as error:
@@ -376,7 +376,7 @@ def train_sklearn_model(payload: Mapping[str, Any]) -> dict[str, Any]:
         "model_pickle_base64": base64.b64encode(model_pickle).decode("ascii"),
     }
     artifact["model_id"] = _artifact_id(artifact)
-    return artifact
+    return _attach_applicability_support(artifact, payload)
 
 
 def predict_model(
@@ -781,3 +781,35 @@ def _artifact_id(artifact: Mapping[str, Any]) -> str:
     without_id = {key: value for key, value in artifact.items() if key != "model_id"}
     encoded = json.dumps(without_id, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:24]
+
+
+def _attach_applicability_support(artifact, payload):
+    """Persist aggregate training support, schema and units; never raw rows."""
+    from .applicability import build_training_support
+    names = artifact["feature_names"]
+    fields = payload.get("feature_metadata")
+    if fields is None:
+        fields = [{"name": name, "unit": None} for name in names]
+    if not isinstance(fields, list) or len(fields) != len(names) or any(
+        not isinstance(field, Mapping) or field.get("name") != name
+        for field, name in zip(fields, names)
+    ):
+        raise ValueError("feature_metadata must match model feature order")
+    units = {}
+    clean_fields = []
+    for field, name in zip(fields, names):
+        unit = field.get("unit")
+        if unit is not None and (not isinstance(unit, str) or not unit.strip() or len(unit) > 64):
+            raise ValueError("feature_metadata unit is invalid")
+        unit = unit.strip() if unit is not None else None
+        units[name] = unit
+        clean_fields.append({"name": name, "unit": unit})
+    artifact["feature_schema"]["fields"] = clean_fields
+    target = payload.get("target_schema", {})
+    if not isinstance(target, Mapping):
+        raise ValueError("target_schema must be an object")
+    artifact["target_schema"] = {key: target.get(key) for key in ("name", "unit") if isinstance(target.get(key), str)}
+    artifact["model_id"] = _artifact_id(artifact)
+    artifact["applicability_support"] = build_training_support(artifact, units)
+    artifact["model_id"] = _artifact_id(artifact)
+    return artifact
