@@ -1,6 +1,6 @@
 {
   "id": "steel",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "compatibility": {
     "min_app_version": "0.1.0",
     "max_app_version": null
@@ -57,7 +57,14 @@
     "research.attach_result",
     "research.list_artifacts",
     "steel.read_microstructure_statistics",
-    "steel.analyze_microstructure"
+    "steel.analyze_microstructure",
+    "research.list_workflow_templates",
+    "research.get_workflow_template",
+    "research.save_workflow_template",
+    "research.preview_workflow",
+    "research.start_workflow",
+    "research.list_workflows",
+    "research.get_workflow"
   ],
   "mcp_recommendations": [
     {

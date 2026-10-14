@@ -79,6 +79,16 @@ pub trait TaskHandler: Send + Sync {
     fn kind(&self) -> &str;
     fn resumable(&self) -> bool;
     fn run(&self, task: TaskRecord, context: HandlerContext) -> HandlerFuture;
+    /// Maintenance runs on the original scheduler tick, including when all
+    /// workers are occupied. Existing handlers retain their default behavior.
+    fn maintain(
+        &self,
+        _connection: &mut Connection,
+        _workspace: &str,
+        _now: DateTime<Utc>,
+    ) -> Result<Vec<TaskRecord>, HandlerError> {
+        Ok(Vec::new())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -338,6 +348,11 @@ impl Scheduler {
         self.control.clone()
     }
 
+    #[cfg(test)]
+    pub(crate) fn pending_workers(&self) -> usize {
+        self.active.len()
+    }
+
     pub fn recover(&mut self) -> Result<(), TaskError> {
         let mut connection = open_connection(&self.path)?;
         for task in repository::list(&connection, &self.workspace_id)? {
@@ -403,6 +418,22 @@ impl Scheduler {
         if self.handlers.is_empty() {
             return Ok(());
         }
+        let mut connection = open_connection(&self.path)?;
+        for handler in self.handlers.values() {
+            match handler.maintain(&mut connection, &self.workspace_id, self.clock.now()) {
+                Ok(changed) => {
+                    for task in changed {
+                        self.emit_progress(&task)
+                    }
+                }
+                Err(error) => log::warn!(
+                    "task maintenance failed: kind={} code={}",
+                    handler.kind(),
+                    error.code()
+                ),
+            }
+        }
+        drop(connection);
 
         let available_workers = self.config.max_workers - self.active.len();
         for _ in 0..available_workers {

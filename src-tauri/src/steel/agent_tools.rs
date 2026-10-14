@@ -76,7 +76,7 @@ impl ToolHandler for GatewayTool {
     }
 }
 
-fn gateway_tool(
+pub(super) fn gateway_tool(
     id: &'static str,
     name: &'static str,
     input_schema: Value,
@@ -128,7 +128,8 @@ fn query_schema(required: bool) -> Value {
 }
 
 pub(crate) fn agent_gateway_tools(gateway: Arc<dyn SteelAgentGateway>) -> Vec<ToolRegistration> {
-    vec![
+    let mut tools = crate::steel::workflow_tools::registrations(gateway.clone());
+    tools.extend(vec![
         gateway_tool(
             "steel.read_microstructure_statistics",
             "read_microstructure_statistics",
@@ -539,5 +540,6 @@ pub(crate) fn agent_gateway_tools(gateway: Arc<dyn SteelAgentGateway>) -> Vec<To
             false,
             gateway,
         ),
-    ]
+    ]);
+    tools
 }

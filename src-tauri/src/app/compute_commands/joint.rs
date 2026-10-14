@@ -155,7 +155,14 @@ pub fn submit_joint_optimization(
     connection: &rusqlite::Connection,
     request: &OptimizeSteelProcessRequest,
 ) -> Result<TaskRecord, String> {
-    let workspace = current_workspace_id();
+    submit_joint_optimization_in_workspace(connection, current_workspace_id(), request)
+}
+
+pub fn submit_joint_optimization_in_workspace(
+    connection: &rusqlite::Connection,
+    workspace: &str,
+    request: &OptimizeSteelProcessRequest,
+) -> Result<TaskRecord, String> {
     let mut artifacts = std::collections::HashMap::new();
     for spec in &request.objectives {
         if spec["source"] != "prediction_model" {

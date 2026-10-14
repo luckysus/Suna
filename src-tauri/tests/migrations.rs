@@ -202,6 +202,10 @@ fn seed_database_at_version(connection: &mut Connection, version: u32) {
             43,
             include_str!("../src/storage/migrations/0043_industrial_sources.sql"),
         ),
+        (
+            44,
+            include_str!("../src/storage/migrations/0044_research_workflow_templates.sql"),
+        ),
     ];
 
     assert_eq!(

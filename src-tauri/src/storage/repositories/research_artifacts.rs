@@ -33,6 +33,25 @@ pub fn atomic<T>(c: &Connection, f: impl FnOnce() -> Result<T, String>) -> Resul
         }
     }
 }
+/// Mutable companion uses the same savepoints; nested submissions keep one FSM.
+pub fn atomic_mut<T>(
+    c: &mut Connection,
+    f: impl FnOnce(&mut Connection) -> Result<T, String>,
+) -> Result<T, String> {
+    let name = format!("research_{}", Uuid::new_v4().simple());
+    c.execute_batch(&format!("SAVEPOINT {name}")).map_err(err)?;
+    match f(c) {
+        Ok(value) => {
+            c.execute_batch(&format!("RELEASE {name}")).map_err(err)?;
+            Ok(value)
+        }
+        Err(error) => {
+            c.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))
+                .map_err(err)?;
+            Err(error)
+        }
+    }
+}
 pub fn current(c: &Connection, ws: &str) -> Result<Option<String>, String> {
     if let Some(p) = super::research_delivery::scope(c)? {
         return Ok(p);

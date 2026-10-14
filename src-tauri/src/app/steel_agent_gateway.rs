@@ -33,6 +33,8 @@ use uuid::Uuid;
 #[cfg(test)]
 #[path = "steel_agent_gateway_live_tests.rs"]
 mod live_tests;
+#[path = "steel_agent_gateway_workflows.rs"]
+mod workflows;
 
 #[derive(Clone)]
 pub struct DesktopSteelAgentGateway {
@@ -1228,6 +1230,17 @@ impl SteelAgentGateway for DesktopSteelAgentGateway {
                 return Err("tool execution was cancelled".to_string());
             }
             match tool_name {
+                "research_list_workflow_templates"
+                | "research_get_workflow_template"
+                | "research_save_workflow_template"
+                | "research_preview_workflow"
+                | "research_start_workflow"
+                | "research_list_workflows"
+                | "research_get_workflow" => {
+                    gateway
+                        .workflow_call(tool_name, arguments, cancellation)
+                        .await
+                }
                 "research_list_projects"
                 | "research_get_project_context"
                 | "research_attach_result"

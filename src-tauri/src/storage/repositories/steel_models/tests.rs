@@ -99,3 +99,98 @@ fn active_versions_switch_within_a_lineage_and_block_deletion() {
     set_active(&mut connection, "ws", &first.id).expect("reactivate first");
     assert!(delete(&mut connection, "ws", &second.id).is_ok());
 }
+
+#[test]
+fn registration_fence_reads_cancellation_inside_transaction_without_creating_a_model() {
+    use crate::tasks::{repository, NewTask};
+    let mut c = database();
+    let parent = repository::create(
+        &c,
+        NewTask {
+            workspace_id: "ws".into(),
+            kind: "research_modeling_workflow".into(),
+            payload_json: "{}".into(),
+            checkpoint_json: None,
+            next_run_at: None,
+            progress: 0,
+        },
+    )
+    .unwrap();
+    let claimed = repository::claim_next(&mut c, "ws", "2099-01-01T00:00:00Z")
+        .unwrap()
+        .unwrap();
+    assert_eq!(claimed.id, parent.id);
+    // A cached preflight said running; cancellation won before registration.
+    repository::request_running_cancellation(&mut c, "ws", parent.id, claimed.attempt).unwrap();
+    let guard = |c: &Connection| {
+        assert!(!c.is_autocommit());
+        let current = repository::get(c, "ws", parent.id).unwrap().unwrap();
+        if current.cancel_requested {
+            Err("workflow_checkpoint_stale".into())
+        } else {
+            Ok(())
+        }
+    };
+    let result = super::create_inner(
+        &mut c,
+        "ws",
+        sample("sklearn_artifact", r#"{"v":1}"#),
+        None,
+        super::RegistrationPolicy {
+            activate_first: false,
+            guard: Some(&guard),
+        },
+    );
+    assert_eq!(result.unwrap_err(), "workflow_checkpoint_stale");
+    assert!(list_all(&c, "ws").unwrap().is_empty());
+    assert!(c.is_autocommit());
+}
+
+#[test]
+fn workflow_registration_remains_inactive_and_rechecks_permission_before_insert() {
+    let mut c = database();
+    let old = create(&mut c, "ws", sample("sklearn_artifact", r#"{"v":1}"#)).unwrap();
+    let calls = std::cell::Cell::new(0);
+    let guard = |c: &Connection| {
+        assert!(!c.is_autocommit());
+        calls.set(calls.get() + 1);
+        Ok(())
+    };
+    let mut next = sample("sklearn_artifact", r#"{"v":2}"#);
+    next.lineage_id = "workflow:synthetic";
+    let new = super::create_inner(
+        &mut c,
+        "ws",
+        next,
+        None,
+        super::RegistrationPolicy {
+            activate_first: false,
+            guard: Some(&guard),
+        },
+    )
+    .unwrap();
+    assert!(!new.is_active);
+    assert_eq!(calls.get(), 2);
+    assert!(get(&c, "ws", &old.id).unwrap().unwrap().is_active);
+    let deny = |_: &Connection| {
+        calls.set(calls.get() + 1);
+        if calls.get() == 4 {
+            Err("workflow_timeout_requires_new_confirmed_run".into())
+        } else {
+            Ok(())
+        }
+    };
+    let error = super::create_inner(
+        &mut c,
+        "ws",
+        sample("sklearn_artifact", r#"{"v":3}"#),
+        None,
+        super::RegistrationPolicy {
+            activate_first: false,
+            guard: Some(&deny),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error, "workflow_timeout_requires_new_confirmed_run");
+    assert_eq!(list_all(&c, "ws").unwrap().len(), 2);
+}

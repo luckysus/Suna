@@ -6,3 +6,4 @@ pub(crate) mod materials;
 pub(crate) mod measurements;
 pub(crate) mod objects;
 pub(crate) mod projects;
+pub(crate) mod workflow;

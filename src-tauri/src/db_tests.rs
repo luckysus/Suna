@@ -34,7 +34,7 @@ fn production_scheduler_registers_mineru_ingest_handler() {
 
     assert_eq!(
         handlers.len(),
-        crate::compute::handler::compute_task_handlers(None).len() + 4
+        crate::compute::handler::compute_task_handlers(None).len() + 5
     );
     assert!(handlers
         .iter()

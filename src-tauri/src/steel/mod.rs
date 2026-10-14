@@ -9,6 +9,7 @@ mod multivariate;
 mod optimization_tool;
 mod series;
 mod tool;
+mod workflow_tools;
 
 pub use agent_tools::{SteelAgentGateway, SteelAgentGatewayFuture};
 pub use analysis::{

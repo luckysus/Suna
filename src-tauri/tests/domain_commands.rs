@@ -134,7 +134,7 @@ fn bundled_steel_resource_is_valid_and_has_declared_asset_integrity() {
     let package = load_package(&source, "0.1.0").expect("load bundled steel package");
 
     assert_eq!(package.manifest.id, "steel");
-    assert_eq!(package.manifest.version, "1.2.1");
+    assert_eq!(package.manifest.version, "1.2.2");
     assert_eq!(
         package.manifest.builtin_tool_allowlist,
         vec![
@@ -169,6 +169,13 @@ fn bundled_steel_resource_is_valid_and_has_declared_asset_integrity() {
             "research.list_artifacts".to_string(),
             "steel.read_microstructure_statistics".to_string(),
             "steel.analyze_microstructure".to_string(),
+            "research.list_workflow_templates".to_string(),
+            "research.get_workflow_template".to_string(),
+            "research.save_workflow_template".to_string(),
+            "research.preview_workflow".to_string(),
+            "research.start_workflow".to_string(),
+            "research.list_workflows".to_string(),
+            "research.get_workflow".to_string(),
         ]
     );
     assert_eq!(package.assets.len(), 6);
@@ -401,7 +408,7 @@ fn bundled_steel_source_can_be_installed_as_an_unsigned_package() {
     .expect("the bundled steel package must install before it is activated");
 
     assert_eq!(installed.manifest.id, "steel");
-    assert_eq!(installed.manifest.version, "1.2.1");
+    assert_eq!(installed.manifest.version, "1.2.2");
     assert_eq!(installed.trust, DomainTrust::ThirdPartyUnsigned);
     assert!(installed.path.join("manifest.json").is_file());
 }

@@ -27,6 +27,21 @@ pub struct NewSteelModel<'a> {
     pub model_base64: Option<&'a str>,
 }
 
+/// Trusted callers may fence registration inside its existing transaction.
+/// This is not deserialized from desktop or Agent arguments.
+pub struct RegistrationPolicy<'a> {
+    pub activate_first: bool,
+    pub guard: Option<&'a dyn Fn(&Connection) -> Result<(), String>>,
+}
+impl Default for RegistrationPolicy<'_> {
+    fn default() -> Self {
+        Self {
+            activate_first: true,
+            guard: None,
+        }
+    }
+}
+
 const SELECT_MODEL: &str = "SELECT id, lineage_id, kind, version, source_task_id,
          model_sha256, manifest_json, artifact_json, model_base64, is_active, created_at
          FROM steel_models WHERE workspace_id = ?1 AND id = ?2";
@@ -52,7 +67,13 @@ pub fn create(
     workspace_id: &str,
     model: NewSteelModel<'_>,
 ) -> Result<SteelModelRecord, String> {
-    create_inner(connection, workspace_id, model, None)
+    create_inner(
+        connection,
+        workspace_id,
+        model,
+        None,
+        RegistrationPolicy::default(),
+    )
 }
 
 /// Register an exact artifact with its scientific metadata in one transaction.
@@ -63,7 +84,23 @@ pub fn create_with_scientific_cards(
     model: NewSteelModel<'_>,
     context: &serde_json::Value,
 ) -> Result<SteelModelRecord, String> {
-    create_inner(connection, workspace_id, model, Some(context))
+    create_with_scientific_cards_with_policy(
+        connection,
+        workspace_id,
+        model,
+        context,
+        RegistrationPolicy::default(),
+    )
+}
+
+pub fn create_with_scientific_cards_with_policy(
+    connection: &mut Connection,
+    workspace_id: &str,
+    model: NewSteelModel<'_>,
+    context: &serde_json::Value,
+    policy: RegistrationPolicy<'_>,
+) -> Result<SteelModelRecord, String> {
+    create_inner(connection, workspace_id, model, Some(context), policy)
 }
 
 fn create_inner(
@@ -71,6 +108,7 @@ fn create_inner(
     workspace_id: &str,
     model: NewSteelModel<'_>,
     context: Option<&serde_json::Value>,
+    policy: RegistrationPolicy<'_>,
 ) -> Result<SteelModelRecord, String> {
     if model.lineage_id.trim().is_empty() {
         return Err("model lineage is required".to_string());
@@ -119,6 +157,9 @@ fn create_inner(
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|error| error.to_string())?;
+    if let Some(guard) = policy.guard {
+        guard(&transaction)?;
+    }
     let version: i64 = transaction
         .query_row(
             "SELECT COALESCE(MAX(version), 0) + 1 FROM steel_models
@@ -127,7 +168,7 @@ fn create_inner(
             |row| row.get(0),
         )
         .map_err(|error| error.to_string())?;
-    let is_active = if version == 1 { 1 } else { 0 };
+    let is_active = i64::from(version == 1 && policy.activate_first);
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let manifest_json = if let Some(context) = context {
@@ -151,6 +192,10 @@ fn create_inner(
     } else {
         model.manifest_json.to_owned()
     };
+    // Card preparation can take time. Recheck the deadline before any insert.
+    if let Some(guard) = policy.guard {
+        guard(&transaction)?;
+    }
     transaction
         .execute(
             "INSERT INTO steel_models

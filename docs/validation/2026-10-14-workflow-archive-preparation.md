@@ -8,6 +8,8 @@
 
 此前模型卡提交 `6e8a172a43c762f12ff70feee5872abce3e9b330` 的 [完整 Windows CI](https://github.com/luckysus/Suna/actions/runs/38517617942) 也已全绿。保留已推送历史，后续提交署名为 luckysus。
 
+准备提交 `815f391cc43f624bf90e24a72edf4277db6a1aa3` 的 [完整 Windows CI](https://github.com/luckysus/Suna/actions/runs/38559062057) 已在 2026-10-14 12:58:31 UTC 核对成功：31 个步骤全部 success。此结论仍不代表个人 Windows 原生验收通过。
+
 ## 真正运行的代码
 
 - `tools/development/research-workflow` 引用实际 Suna 库和已锁定 Worker，在合成临时 SQLite 中保存模板版本、预检数据/单位/划分/规则、创建原 Scheduler 任务、训练两个独立性能模型、登记科研模型卡、执行联合优化、生成 proposed 计划。父子来源通过原 research_artifacts/research_run_sources 绑定，不建立第二套任务状态或模型注册表。

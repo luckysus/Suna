@@ -24,6 +24,23 @@ pub fn scoped<T>(
     p: Option<&str>,
     f: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    let previous = enter_scope(c, p)?;
+    let result = f();
+    restore_scope(c, previous)?;
+    result
+}
+/// Registering a model needs mutable access to the original transaction API.
+pub fn scoped_mut<T>(
+    c: &mut Connection,
+    p: Option<&str>,
+    f: impl FnOnce(&mut Connection) -> Result<T, String>,
+) -> Result<T, String> {
+    let previous = enter_scope(c, p)?;
+    let result = f(c);
+    restore_scope(c, previous)?;
+    result
+}
+fn enter_scope(c: &Connection, p: Option<&str>) -> Result<Option<Option<String>>, String> {
     c.execute_batch("CREATE TEMP TABLE IF NOT EXISTS research_submission_scope(id INTEGER PRIMARY KEY,project_id TEXT)").map_err(error)?;
     let previous: Option<Option<String>> = c
         .query_row(
@@ -38,7 +55,9 @@ pub fn scoped<T>(
         [p],
     )
     .map_err(error)?;
-    let result = f();
+    Ok(previous)
+}
+fn restore_scope(c: &Connection, previous: Option<Option<String>>) -> Result<(), String> {
     c.execute("DELETE FROM temp.research_submission_scope", [])
         .map_err(error)?;
     if let Some(old) = previous {
@@ -48,7 +67,7 @@ pub fn scoped<T>(
         )
         .map_err(error)?;
     }
-    result
+    Ok(())
 }
 pub fn scope(c: &Connection) -> Result<Option<Option<String>>, String> {
     let exists:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_temp_master WHERE name='research_submission_scope')",[],|r|r.get(0)).map_err(error)?;

@@ -650,6 +650,72 @@ fn one_automatic_tool_is_observed_before_the_final_answer() {
 }
 
 #[test]
+fn workflow_start_and_template_save_are_denied_before_the_scientific_gateway() {
+    use suna::steel::{
+        OptimizationGateway, SteelAgentGateway, SteelAgentGatewayFuture, SteelToolExecutor,
+    };
+    struct Gateway(Arc<AtomicUsize>);
+    impl OptimizationGateway for Gateway {
+        fn submit(&self, _: Value) -> Result<Value, String> {
+            panic!("unrelated optimization gateway")
+        }
+        fn status(&self, _: &str) -> Result<Value, String> {
+            panic!("unrelated optimization gateway")
+        }
+    }
+    impl SteelAgentGateway for Gateway {
+        fn execute(
+            &self,
+            _: &'static str,
+            _: Value,
+            _: CancellationToken,
+        ) -> SteelAgentGatewayFuture {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Ok(json!({"synthetic_gateway_executed":true})) })
+        }
+    }
+    for (name, args) in [
+        (
+            "research_start_workflow",
+            json!({"templateId":"template","templateRevision":1,"projectId":"project","datasetId":"dataset","datasetSha256":"a".repeat(64),"dryRunSha256":"b".repeat(64),"nonce":"nonce","confirmed":true}),
+        ),
+        (
+            "research_save_workflow_template",
+            json!({"template":{},"expectedRevision":0}),
+        ),
+    ] {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let gateway = Arc::new(Gateway(calls.clone()));
+        let tools = SteelToolExecutor::with_agent_gateways(gateway.clone(), gateway, true);
+        // Exercise the actual selected scientific tool through the original
+        // permission loop, without advertising unrelated tools to this 8K fixture.
+        let tools = TestTools {
+            registrations: tools
+                .registrations()
+                .iter()
+                .filter(|t| t.spec.name == name)
+                .cloned()
+                .collect(),
+        };
+        let model = ScriptedModel::script(vec![
+            response("", vec![call("call-workflow", name, &args.to_string())]),
+            response("需要用户确认，尚未运行。", vec![]),
+        ]);
+        let mut sink = RecordingSink::new();
+        let result =
+            tauri::async_runtime::block_on(AgentLoop::new(&model, &tools, &DenyPermissions).run(
+                request(None),
+                &mut sink,
+                CancellationToken::new(|| false),
+            ))
+            .unwrap();
+        assert_eq!(result.outcome, RunOutcome::Completed);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert!(sink.events.iter().any(|e|matches!(&e.data,AgentEventData::PermissionResolved(p) if p.decision==suna::agent::protocol::PermissionDecision::Deny)));
+    }
+}
+
+#[test]
 fn deepseek_reasoning_is_replayed_on_the_next_tool_round() {
     let calls = Arc::new(Mutex::new(Vec::new()));
     let tools = TestTools {

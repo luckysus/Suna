@@ -1,6 +1,13 @@
 macro_rules! handler {
     () => {
         tauri::generate_handler![
+            research_commands::workflow::list_research_workflow_templates,
+            research_commands::workflow::get_research_workflow_template,
+            research_commands::workflow::save_research_workflow_template,
+            research_commands::workflow::preview_research_workflow,
+            research_commands::workflow::start_research_workflow,
+            research_commands::workflow::list_research_workflows,
+            research_commands::workflow::get_research_workflow,
             crate::db::db_init,
             crate::app::research_commands::feedback::create_research_design_candidate_plan,
             research_commands::feedback::recommend_next_research_experiments,

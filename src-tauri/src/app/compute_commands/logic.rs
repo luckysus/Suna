@@ -1232,6 +1232,20 @@ pub fn register_steel_model_on_connection(
     workspace_id: &str,
     request: &RegisterSteelModelRequest,
 ) -> Result<SteelModelRecord, String> {
+    register_steel_model_on_connection_with_policy(
+        connection,
+        workspace_id,
+        request,
+        model_repository::RegistrationPolicy::default(),
+    )
+}
+
+pub fn register_steel_model_on_connection_with_policy(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    request: &RegisterSteelModelRequest,
+    policy: model_repository::RegistrationPolicy<'_>,
+) -> Result<SteelModelRecord, String> {
     let task_id = uuid::Uuid::parse_str(&request.task_id)
         .map_err(|error| format!("invalid task ID: {error}"))?;
     let task = task_repository::get(connection, workspace_id, task_id)
@@ -1316,12 +1330,16 @@ pub fn register_steel_model_on_connection(
             &payload["payload"],
         )
         .map_err(str::to_owned)?;
-        return model_repository::create_with_scientific_cards(
+        return model_repository::create_with_scientific_cards_with_policy(
             connection,
             workspace_id,
             model,
             &context,
+            policy,
         );
+    }
+    if policy.guard.is_some() || !policy.activate_first {
+        return Err("workflow_training_source_required".into());
     }
     model_repository::create(connection, workspace_id, model)
 }
@@ -1392,22 +1410,37 @@ pub fn submit_optimization_on_connection(
     if !request.objectives.is_empty() {
         return super::joint::submit_joint_optimization(connection, request);
     }
-    if let Some(project) = crate::storage::repositories::research_artifacts::current(
+    submit_optimization_in_workspace(
         connection,
         current_workspace_id(),
-    )? {
-        if crate::storage::repositories::material_rules::list(
+        request,
+        training_task_id,
+    )
+}
+
+pub fn submit_optimization_in_workspace(
+    connection: &rusqlite::Connection,
+    workspace_id: &str,
+    request: &OptimizeSteelProcessRequest,
+    training_task_id: uuid::Uuid,
+) -> Result<crate::tasks::model::TaskRecord, String> {
+    if !request.objectives.is_empty() {
+        return super::joint::submit_joint_optimization_in_workspace(
             connection,
-            current_workspace_id(),
-            &project,
-        )?
-        .iter()
-        .any(|r| r.rule.enabled)
+            workspace_id,
+            request,
+        );
+    }
+    if let Some(project) =
+        crate::storage::repositories::research_artifacts::current(connection, workspace_id)?
+    {
+        if crate::storage::repositories::material_rules::list(connection, workspace_id, &project)?
+            .iter()
+            .any(|r| r.rule.enabled)
         {
             return Err("active_material_rules_require_named_joint_optimization_protocol".into());
         }
     }
-    let workspace_id = current_workspace_id();
     let training_task = task_repository::get(connection, workspace_id, training_task_id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "training task was not found in the local workspace".to_string())?;

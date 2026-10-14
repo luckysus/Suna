@@ -9,6 +9,7 @@ import {
   type SaveDialogOptions,
 } from "@tauri-apps/plugin-dialog";
 import type { AgentEventEnvelope, AgentRunState, PermissionDecision } from "./generated/protocol";
+import type { Template as ResearchWorkflowTemplate, SavedTemplate, TemplateSummary, FrozenInput, Preview as WorkflowPreview, WorkflowRun } from './researchWorkflowTypes';
 
 export interface ResearchProject { id: string; name: string; description: string; materialSystem: string | null; status: "active" | "archived"; tags: string[]; createdAt: string; updatedAt: string }
 export interface SaveResearchProject { id?: string; name: string; description: string; materialSystem?: string | null; tags: string[]; expectedUpdatedAt?: string }
@@ -1694,6 +1695,13 @@ export const desktop = {
   getMicrostructureTaskResult:(id:string)=>call<{images:{imageId:string;result?:MicrostructureStatistics;error?:string}[]}|null>('get_microstructure_task_result',{id}),
 
   exportResearchManifest:(projectId:string)=>call<Record<string,unknown>>('export_research_manifest',{projectId}),
+  listResearchWorkflowTemplates:(limit=50,offset=0)=>call<TemplateSummary[]>('list_research_workflow_templates',{limit,offset}),
+  getResearchWorkflowTemplate:(id:string,revision:number)=>call<SavedTemplate>('get_research_workflow_template',{id,revision}),
+  saveResearchWorkflowTemplate:(template:ResearchWorkflowTemplate,expectedRevision:number)=>call<SavedTemplate>('save_research_workflow_template',{template,expectedRevision}),
+  previewResearchWorkflow:(request:FrozenInput & {templateId:string;templateRevision:number})=>call<WorkflowPreview>('preview_research_workflow',{request}),
+  startResearchWorkflow:(request:FrozenInput & {templateId:string;templateRevision:number;dryRunSha256:string;nonce:string;confirmed:true})=>call<WorkflowRun>('start_research_workflow',{request}),
+  listResearchWorkflows:(projectId:string,limit=25,offset=0)=>call<WorkflowRun[]>('list_research_workflows',{projectId,limit,offset}),
+  getResearchWorkflow:(projectId:string,id:string)=>call<WorkflowRun>('get_research_workflow',{projectId,id}),
   generateResearchProjectReport:(projectId:string)=>call<ReportRecord>('generate_research_project_report',{projectId}),
   getResearchRunNavigation:(taskId:string)=>call<{projectId:string;conversationId:string|null;agentRunId:string|null;kind:string}>('get_research_run_navigation',{taskId}),
   createResearchDesignCandidatePlan:(projectId:string,taskId:string,index:number,title:string)=>call<ExperimentPlanRecord>('create_research_design_candidate_plan',{projectId,taskId,index,title}),

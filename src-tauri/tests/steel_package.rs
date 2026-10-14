@@ -10,7 +10,7 @@ fn official_steel_package_fixture_is_declaration_only_and_loadable() {
         .expect("official steel package fixture must load");
 
     assert_eq!(package.manifest.id, "steel");
-    assert_eq!(package.manifest.version, "1.2.1");
+    assert_eq!(package.manifest.version, "1.2.2");
     assert_eq!(package.manifest.license, "Apache-2.0");
     assert!(package.manifest.prompts.system.contains("steel"));
     assert!(package
@@ -42,6 +42,9 @@ fn official_steel_package_fixture_is_declaration_only_and_loadable() {
         "steel.forget_memory",
         "steel.material_feasibility",
         "steel.recommend_next_experiments",
+        "research.start_workflow",
+        "research.preview_workflow",
+        "research.save_workflow_template",
     ] {
         assert!(
             package

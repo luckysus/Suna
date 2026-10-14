@@ -88,6 +88,8 @@ $RECYCLE.BIN/
 *.rej
 .runtime/
 runtime/
+!src-tauri/src/research_workflow/runtime/
+!src-tauri/src/research_workflow/runtime/*.rs
 tmp/
 temp/
 .cache/

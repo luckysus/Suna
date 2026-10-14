@@ -12,6 +12,13 @@ fn cancel_task(
     let task = repository::get(connection, workspace_id, id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "task_not_found: task not found".to_string())?;
+    if task.kind == crate::research_workflow::runtime::KIND {
+        crate::research_workflow::runtime::request_cancellation(connection, workspace_id, id)?;
+        return repository::get(connection, workspace_id, id)
+            .map_err(|_| "workflow_storage_error".to_string())?
+            .map(background_task_response)
+            .ok_or("workflow_task_missing".into());
+    }
     let updated = match task.state {
         TaskState::Running => {
             repository::request_running_cancellation(connection, workspace_id, id, task.attempt)
@@ -106,6 +113,34 @@ mod tests {
     use crate::storage::migrations::migrate;
     use crate::tasks::{repository, NewTask, TaskState};
     use rusqlite::Connection;
+
+    #[test]
+    fn workflow_cancel_through_the_desktop_command_cascades_only_to_owned_tasks() {
+        use crate::research_workflow::runtime_support::*;
+        let (mut f, path) = setup();
+        let root = submit(&mut f, Uuid::new_v4());
+        let mut scheduler = new_scheduler(&path);
+        wait_until(&mut scheduler, &f.connection, root.id, |r| {
+            r.state == TaskState::WaitingExternal
+        });
+        let owned =
+            crate::research_workflow::provenance::owned_nodes(&f.connection, &root).unwrap();
+        assert!(!owned.is_empty());
+        let response = cancel_task(&mut f.connection, "local", root.id).unwrap();
+        assert_eq!(response.state, TaskState::Cancelled);
+        for child in owned {
+            let node = record(&f.connection, child.id);
+            assert!(node.cancel_requested || node.state == TaskState::Cancelled);
+        }
+        assert_eq!(
+            f.connection
+                .query_row("SELECT COUNT(*) FROM experiments", [], |r| r
+                    .get::<_, u32>(0))
+                .unwrap(),
+            0
+        );
+        drain(&mut scheduler);
+    }
 
     fn database() -> Connection {
         let mut connection = Connection::open_in_memory().expect("open database");
