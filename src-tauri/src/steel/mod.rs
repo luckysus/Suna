@@ -40,6 +40,7 @@ pub use series::{
 pub use tool::{carbon_equivalent_tool, SteelToolExecutor};
 
 pub mod materials;
+pub mod model_cards;
 
 mod optimization_request;
 pub use optimization_request::OptimizeSteelProcessRequest;

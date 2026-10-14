@@ -313,6 +313,18 @@ pub fn registered_model(c: &Connection, ws: &str, id: &str) -> Result<(), String
     if let Some(p) = current(c, ws)? {
         projects::require_active(c, ws, &p)?;
         let model = super::steel_models::get(c, ws, id)?.ok_or("model_not_found")?;
+        let manifest: Value =
+            serde_json::from_str(&model.manifest_json).map_err(|_| "model_manifest_invalid")?;
+        let cards = if manifest.get("scientific_cards").is_some() {
+            Some(super::steel_models::scientific_cards_from_record(&model)?["cards"].clone())
+        } else {
+            None
+        };
+        // Preserve the exact legacy snapshot shape and historical digest.
+        let mut payload = json!({"model_id":id,"model_sha256":model.model_sha256,"kind":model.kind,"version":model.version,"training_task_id":model.source_task_id,"manifest":safe_metadata(&manifest)});
+        if let Some(cards) = cards {
+            payload["scientific_cards"] = cards;
+        }
         projects::attach_in_transaction(c, ws, &p, "model", id, "attached")?;
         let a = create(
             c,
@@ -322,7 +334,7 @@ pub fn registered_model(c: &Connection, ws: &str, id: &str) -> Result<(), String
             "注册模型版本",
             &format!("registered:{id}"),
             None,
-            json!({"model_id":id,"model_sha256":model.model_sha256,"kind":model.kind,"version":model.version,"training_task_id":model.source_task_id,"manifest":safe_metadata(&serde_json::from_str::<Value>(&model.manifest_json).map_err(|e|e.to_string())?)}),
+            payload,
         )?;
         if let Some(task) = model.source_task_id {
             bind(c, ws, &p, &task)?;

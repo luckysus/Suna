@@ -434,6 +434,43 @@ export interface ComputeTrainingResult {
 }
 
 /** 第 35 章模型中心：已注册的模型版本（steel_models 表记录）。 */
+export interface ScientificCardsResponse {
+  status: "recorded" | "legacy_derived";
+  persisted: boolean;
+  cards: {
+    cards_sha256: string;
+    model_card: {
+      schema_version: string;
+      registry_id: string | null;
+      version: number | null;
+      model_sha256: string;
+      algorithm: string | null;
+      parameters: Record<string, number | boolean>;
+      features: {name: string | null; unit: string | null}[];
+      target: {name: string | null; unit: string | null};
+      split_kind: "random" | "group" | "time" | null;
+      split_counts: Record<"train" | "validation" | "test" | "calibration", number | null>;
+      metrics: Record<"train" | "validation" | "test", {sample_count:number|null;rmse:number|null;mae:number|null;r2:number|null}>;
+      interval: {status:string;nominal_coverage:number|null;observed_test_coverage:number|null;exchangeability_verified:false};
+      dataset_sha256: string | null;
+      review_status: "unreviewed";
+    };
+    data_card: {
+      schema_version: string;
+      dataset_id: string | null;
+      dataset_sha256: string | null;
+      filtered_row_count: number | null;
+      valid_row_count: number | null;
+      source_row_count: number | null;
+      filter_policy: string;
+      grouping_field: string | null;
+      time_field: string | null;
+      imputation: string;
+      quality_status: "unknown";
+    };
+  };
+}
+
 export interface SteelModelRecord {
   id: string;
   lineage_id: string;
@@ -1814,6 +1851,7 @@ export const desktop = {
   registerSteelModel: (request: { taskId: string; lineageId?: string }) =>
     call<SteelModelRecord>("register_steel_model", { request }),
   listAllSteelModels: () => call<SteelModelRecord[]>("list_all_steel_models"),
+  getSteelModelScientificCards: (id:string) => call<ScientificCardsResponse>("get_steel_model_scientific_cards",{id}),
   createExperimentPlan: (request: {
     source: "optimization" | "manual";
     title: string;

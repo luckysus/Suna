@@ -447,6 +447,18 @@ pub fn build_linear_regression_payload(
         "name": target.canonical_field.as_deref().unwrap_or(&table.headers[request.target_column]),
         "unit": target.unit.as_deref().map(str::trim).filter(|unit| crate::steel::materials::conversion(unit, unit).is_ok()),
     });
+    payload["data_summary"] = json!({
+        "schema_version":"training-data-summary.v1", "source_row_count":table.rows.len(),
+        "valid_row_count":targets.len(), "filtered_row_count":table.rows.len()-targets.len(),
+        "filter_policy":"exclude_missing_target_reject_invalid_numbers",
+    });
+    if let Some(ordinal) = auxiliary {
+        let column = &columns[ordinal as usize];
+        payload["split_field_metadata"] = json!({
+            "schema_version":"training-split-field.v1",
+            "name":column.canonical_field.as_deref().unwrap_or(&table.headers[ordinal as usize]),
+        });
+    }
     if kind == "group" {
         payload["groups"] = json!(auxiliary_values);
     }
@@ -1210,87 +1222,108 @@ pub(crate) fn register_steel_model(
     db: tauri::State<DbState>,
     request: RegisterSteelModelRequest,
 ) -> Result<SteelModelRecord, String> {
+    with_conn_mut(&db, |connection| {
+        register_steel_model_on_connection(connection, current_workspace_id(), &request)
+    })
+}
+
+pub fn register_steel_model_on_connection(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    request: &RegisterSteelModelRequest,
+) -> Result<SteelModelRecord, String> {
     let task_id = uuid::Uuid::parse_str(&request.task_id)
         .map_err(|error| format!("invalid task ID: {error}"))?;
-    with_conn_mut(&db, |connection| {
-        let task = task_repository::get(connection, current_workspace_id(), task_id)
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| "task_not_found: task not found".to_string())?;
-        if task.state != crate::tasks::TaskState::Completed {
-            return Err("source task must be completed before registration".to_string());
-        }
-        let checkpoint: Value = serde_json::from_str(
-            task.checkpoint_json
-                .as_deref()
-                .ok_or_else(|| "completed task has no result".to_string())?,
-        )
-        .map_err(|error| format!("invalid task checkpoint: {error}"))?;
-        let result = &checkpoint["result"];
-        let payload: Value = serde_json::from_str(&task.payload_json)
-            .map_err(|error| format!("invalid task payload: {error}"))?;
+    let task = task_repository::get(connection, workspace_id, task_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "task_not_found: task not found".to_string())?;
+    if task.state != crate::tasks::TaskState::Completed {
+        return Err("source task must be completed before registration".to_string());
+    }
+    let checkpoint: Value = serde_json::from_str(
+        task.checkpoint_json
+            .as_deref()
+            .ok_or_else(|| "completed task has no result".to_string())?,
+    )
+    .map_err(|error| format!("invalid task checkpoint: {error}"))?;
+    let result = &checkpoint["result"];
+    let payload: Value = serde_json::from_str(&task.payload_json)
+        .map_err(|error| format!("invalid task payload: {error}"))?;
 
-        let (kind, lineage, sha256, manifest_json, artifact_json, model_base64) =
-            if crate::compute::handler::is_training_task_kind(&task.kind) {
-                let artifact = &result["artifact"];
-                let (kind, lineage_prefix) = match artifact["artifact_version"].as_str() {
-                    Some("linear-regression.v1") => ("linear_artifact", "linear"),
-                    Some("sklearn-pickle.v1") => ("sklearn_artifact", "sklearn"),
-                    Some("transformer.v1") => ("transformer_artifact", "transformer"),
-                    _ => return Err("unsupported training model artifact".to_string()),
-                };
-                let artifact_json =
-                    serde_json::to_string(artifact).map_err(|error| error.to_string())?;
-                let mut digest = Sha256::new();
-                digest.update(artifact_json.as_bytes());
-                let dataset_id = payload["payload"]["dataset_id"]
-                    .as_str()
-                    .unwrap_or("unknown");
-                (
-                    kind,
-                    format!("{lineage_prefix}:{dataset_id}"),
-                    format!("{:x}", digest.finalize()),
-                    artifact_json.clone(),
-                    Some(artifact_json),
-                    None,
-                )
-            } else if task.kind == crate::compute::handler::COMPUTE_EXPORT_ONNX_KIND {
-                let base64 = result["model_base64"]
-                    .as_str()
-                    .ok_or_else(|| "export result has no model blob".to_string())?;
-                let sha256 = result["model_sha256"]
-                    .as_str()
-                    .ok_or_else(|| "export result has no model hash".to_string())?;
-                let manifest_json = serde_json::to_string(&result["manifest"])
-                    .map_err(|error| error.to_string())?;
-                let training_task_id = payload["payload"]["training_task_id"]
-                    .as_str()
-                    .unwrap_or("unknown");
-                (
-                    "onnx",
-                    format!("onnx:{training_task_id}"),
-                    sha256.to_string(),
-                    manifest_json,
-                    None,
-                    Some(base64.to_string()),
-                )
-            } else {
-                return Err("task is not a registrable model source".to_string());
+    let (kind, lineage, sha256, manifest_json, artifact_json, model_base64) =
+        if crate::compute::handler::is_training_task_kind(&task.kind) {
+            let artifact = &result["artifact"];
+            let (kind, lineage_prefix) = match artifact["artifact_version"].as_str() {
+                Some("linear-regression.v1") => ("linear_artifact", "linear"),
+                Some("sklearn-pickle.v1") => ("sklearn_artifact", "sklearn"),
+                Some("transformer.v1") => ("transformer_artifact", "transformer"),
+                _ => return Err("unsupported training model artifact".to_string()),
             };
-        let lineage = request.lineage_id.clone().unwrap_or(lineage);
-        model_repository::create(
-            connection,
-            current_workspace_id(),
-            NewSteelModel {
-                lineage_id: &lineage,
+            let artifact_json =
+                serde_json::to_string(artifact).map_err(|error| error.to_string())?;
+            let mut digest = Sha256::new();
+            digest.update(artifact_json.as_bytes());
+            let dataset_id = payload["payload"]["dataset_id"]
+                .as_str()
+                .unwrap_or("unknown");
+            (
                 kind,
-                source_task_id: Some(&task.id.to_string()),
-                model_sha256: &sha256,
-                manifest_json: &manifest_json,
-                artifact_json: artifact_json.as_deref(),
-                model_base64: model_base64.as_deref(),
-            },
+                format!("{lineage_prefix}:{dataset_id}"),
+                format!("{:x}", digest.finalize()),
+                artifact_json.clone(),
+                Some(artifact_json),
+                None,
+            )
+        } else if task.kind == crate::compute::handler::COMPUTE_EXPORT_ONNX_KIND {
+            let base64 = result["model_base64"]
+                .as_str()
+                .ok_or_else(|| "export result has no model blob".to_string())?;
+            let sha256 = result["model_sha256"]
+                .as_str()
+                .ok_or_else(|| "export result has no model hash".to_string())?;
+            let manifest_json =
+                serde_json::to_string(&result["manifest"]).map_err(|error| error.to_string())?;
+            let training_task_id = payload["payload"]["training_task_id"]
+                .as_str()
+                .unwrap_or("unknown");
+            (
+                "onnx",
+                format!("onnx:{training_task_id}"),
+                sha256.to_string(),
+                manifest_json,
+                None,
+                Some(base64.to_string()),
+            )
+        } else {
+            return Err("task is not a registrable model source".to_string());
+        };
+    let lineage = request.lineage_id.clone().unwrap_or(lineage);
+    let source_task_id = task.id.to_string();
+    let model = NewSteelModel {
+        lineage_id: &lineage,
+        kind,
+        source_task_id: Some(&source_task_id),
+        model_sha256: &sha256,
+        manifest_json: &manifest_json,
+        artifact_json: artifact_json.as_deref(),
+        model_base64: model_base64.as_deref(),
+    };
+    if let Some(artifact) = artifact_json.as_ref() {
+        let artifact: Value =
+            serde_json::from_str(artifact).map_err(|_| "model_card_invalid_artifact")?;
+        let context = crate::steel::model_cards::training_registration_context(
+            &artifact,
+            &payload["payload"],
         )
-    })
+        .map_err(str::to_owned)?;
+        return model_repository::create_with_scientific_cards(
+            connection,
+            workspace_id,
+            model,
+            &context,
+        );
+    }
+    model_repository::create(connection, workspace_id, model)
 }
 
 pub(crate) fn list_steel_models(
@@ -1308,6 +1341,15 @@ pub(crate) fn list_all_steel_models(
 ) -> Result<Vec<SteelModelRecord>, String> {
     with_conn(&db, |connection| {
         model_repository::list_all(connection, current_workspace_id())
+    })
+}
+
+pub(crate) fn get_steel_model_scientific_cards(
+    db: tauri::State<DbState>,
+    id: String,
+) -> Result<Value, String> {
+    with_conn(&db, |connection| {
+        model_repository::scientific_cards(connection, current_workspace_id(), &id)
     })
 }
 

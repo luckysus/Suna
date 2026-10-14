@@ -5,6 +5,7 @@ import { algorithmLabel, formatMetricValue } from "./predictionModel";
 import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import ScientificModelCards from "./ScientificModelCards";
 
 /**
  * 第 35 章模型中心：已注册模型版本的卡片列表。
@@ -75,6 +76,7 @@ export default function ModelRegistryPanel({
   const [models, setModels] = useState<SteelModelRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState("");
+  const [cardId,setCardId]=useState("");
 
   const load = async () => {
     setLoading(true);
@@ -146,6 +148,7 @@ export default function ModelRegistryPanel({
                 <div><dt>RMSE</dt><dd>{formatMetricValue(metrics?.rmse)}</dd></div>
               </dl>
               <div className="suna-registry-actions">
+                <Button variant="ghost" disabled={!model.artifact_json} title={model.artifact_json?"读取经过校验的科研卡":"ONNX 登记未包含完整训练元数据"} onClick={()=>setCardId(cardId===model.id?"":model.id)}>科研卡</Button>
                 <Button variant="ghost" onClick={() => void activate(model)} disabled={busy || model.is_active} >
                   {busy ? <Loader2 className="suna-spin" size={14} /> : <Star size={14} />}设为活动
                 </Button>
@@ -153,6 +156,7 @@ export default function ModelRegistryPanel({
                   <Trash2 size={14} />删除
                 </Button>
               </div>
+              {cardId===model.id && <ScientificModelCards modelId={model.id} modelSha={model.model_sha256} loadCards={desktop.getSteelModelScientificCards}/>}
             </Card>
           );
         })}

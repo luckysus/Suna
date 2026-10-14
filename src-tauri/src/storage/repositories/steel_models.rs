@@ -52,6 +52,26 @@ pub fn create(
     workspace_id: &str,
     model: NewSteelModel<'_>,
 ) -> Result<SteelModelRecord, String> {
+    create_inner(connection, workspace_id, model, None)
+}
+
+/// Register an exact artifact with its scientific metadata in one transaction.
+/// Old create callers/data retain their existing behavior.
+pub fn create_with_scientific_cards(
+    connection: &mut Connection,
+    workspace_id: &str,
+    model: NewSteelModel<'_>,
+    context: &serde_json::Value,
+) -> Result<SteelModelRecord, String> {
+    create_inner(connection, workspace_id, model, Some(context))
+}
+
+fn create_inner(
+    connection: &mut Connection,
+    workspace_id: &str,
+    model: NewSteelModel<'_>,
+    context: Option<&serde_json::Value>,
+) -> Result<SteelModelRecord, String> {
     if model.lineage_id.trim().is_empty() {
         return Err("model lineage is required".to_string());
     }
@@ -110,6 +130,27 @@ pub fn create(
     let is_active = if version == 1 { 1 } else { 0 };
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
+    let manifest_json = if let Some(context) = context {
+        let mut context = context.clone();
+        if !context.is_object() {
+            return Err("model_card_invalid_context".into());
+        }
+        context["id"] = serde_json::json!(id);
+        context["version"] = serde_json::json!(version);
+        context["source_task_id"] = serde_json::json!(model.source_task_id);
+        crate::steel::model_cards::registration_manifest(
+            model
+                .artifact_json
+                .ok_or("model_card_training_artifact_required")?,
+            model.model_sha256,
+            model.manifest_json,
+            &context,
+        )
+        .map_err(str::to_owned)?
+        .to_string()
+    } else {
+        model.manifest_json.to_owned()
+    };
     transaction
         .execute(
             "INSERT INTO steel_models
@@ -124,7 +165,7 @@ pub fn create(
                 version,
                 model.source_task_id,
                 model.model_sha256,
-                model.manifest_json,
+                manifest_json,
                 model.artifact_json,
                 model.model_base64,
                 is_active,
@@ -136,6 +177,39 @@ pub fn create(
     transaction.commit().map_err(|error| error.to_string())?;
     get(connection, workspace_id, &id)?
         .ok_or_else(|| "created model version could not be read back".to_string())
+}
+
+/// Read the same persisted card for UI/report/Agent, with artifact/SHA checks.
+/// Legacy registration remains read-only and explicitly derived.
+pub fn scientific_cards(
+    connection: &Connection,
+    workspace_id: &str,
+    id: &str,
+) -> Result<serde_json::Value, String> {
+    let model = get(connection, workspace_id, id)?.ok_or("model_not_found")?;
+    scientific_cards_from_record(&model)
+}
+
+pub fn scientific_cards_from_record(model: &SteelModelRecord) -> Result<serde_json::Value, String> {
+    let artifact = model
+        .artifact_json
+        .as_deref()
+        .ok_or("model_card_training_artifact_required")?;
+    let manifest: serde_json::Value =
+        serde_json::from_str(&model.manifest_json).map_err(|_| "model_card_invalid_manifest")?;
+    let data = &manifest["scientific_cards"]["data_card"];
+    // Only a bounded metadata projection supplies context; never raw source rows.
+    let context = serde_json::json!({"id":model.id,"version":model.version,"source_task_id":model.source_task_id,
+        "dataset_id":data["dataset_id"],"filtered_row_count":data["filtered_row_count"],
+        "valid_row_count":data["valid_row_count"],"source_row_count":data["source_row_count"],
+        "filter_policy":data["filter_policy"],"grouping_field":data["grouping_field"],"time_field":data["time_field"]});
+    crate::steel::model_cards::read_registered_cards(
+        artifact,
+        &model.model_sha256,
+        &model.manifest_json,
+        &context,
+    )
+    .map_err(str::to_owned)
 }
 
 pub fn get(
@@ -238,106 +312,5 @@ pub fn delete(connection: &mut Connection, workspace_id: &str, id: &str) -> Resu
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{create, delete, get, list, list_all, set_active, NewSteelModel};
-    use crate::storage::migrations::migrate;
-    use rusqlite::Connection;
-
-    fn database() -> Connection {
-        let mut connection = Connection::open_in_memory().expect("open database");
-        migrate(&mut connection).expect("migrate database");
-        connection
-    }
-
-    fn sample(kind: &'static str, manifest: &'static str) -> NewSteelModel<'static> {
-        NewSteelModel {
-            lineage_id: "sklearn:dataset-1",
-            kind,
-            source_task_id: Some("task-1"),
-            model_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-            manifest_json: manifest,
-            artifact_json: Some(r#"{"model_type":"mlp","metrics":{}}"#),
-            model_base64: None,
-        }
-    }
-
-    #[test]
-    fn accepts_transformer_artifacts_and_lists_across_lineages() {
-        let mut connection = database();
-        let transformer = create(
-            &mut connection,
-            "ws",
-            NewSteelModel {
-                lineage_id: "transformer:dataset-1",
-                ..sample("transformer_artifact", r#"{"model_id":"t1"}"#)
-            },
-        )
-        .expect("create transformer model");
-        assert_eq!(transformer.kind, "transformer_artifact");
-        assert!(transformer.is_active);
-
-        create(
-            &mut connection,
-            "ws",
-            sample("sklearn_artifact", r#"{"model_id":"s1"}"#),
-        )
-        .expect("create sklearn model");
-
-        let all = list_all(&connection, "ws").expect("list all models");
-        assert_eq!(all.len(), 2);
-        assert!(all
-            .iter()
-            .any(|model| model.lineage_id == "transformer:dataset-1"));
-        assert!(all
-            .iter()
-            .any(|model| model.lineage_id == "sklearn:dataset-1"));
-        // 同 lineage 内版本倒序。
-        let scoped = list(&connection, "ws", "transformer:dataset-1").expect("list lineage");
-        assert_eq!(scoped.len(), 1);
-        assert_eq!(scoped[0].id, transformer.id);
-    }
-
-    #[test]
-    fn transformer_versions_require_an_artifact_and_reject_blobs() {
-        let mut connection = database();
-        let mut model = sample("transformer_artifact", r#"{"model_id":"t1"}"#);
-        model.artifact_json = None;
-        assert!(create(&mut connection, "ws", model).is_err());
-
-        let mut blobbed = sample("transformer_artifact", r#"{"model_id":"t1"}"#);
-        blobbed.model_base64 = Some("AAAA");
-        assert!(create(&mut connection, "ws", blobbed).is_err());
-    }
-
-    #[test]
-    fn active_versions_switch_within_a_lineage_and_block_deletion() {
-        let mut connection = database();
-        let first = create(
-            &mut connection,
-            "ws",
-            sample("sklearn_artifact", r#"{"v":1}"#),
-        )
-        .expect("create first version");
-        let mut second_manifest = sample("sklearn_artifact", r#"{"v":2}"#);
-        second_manifest.lineage_id = "sklearn:dataset-1";
-        let second = create(&mut connection, "ws", second_manifest).expect("create second version");
-        assert_eq!(second.version, 2);
-        // 只有 version 1 自动激活；后续版本要显式切换。
-        assert!(first.is_active);
-        assert!(!second.is_active);
-
-        let activated = set_active(&mut connection, "ws", &second.id).expect("activate second");
-        assert!(activated.is_active);
-        assert!(
-            !get(&connection, "ws", &first.id)
-                .unwrap()
-                .unwrap()
-                .is_active
-        );
-
-        // 活动版本不可删除，切换后旧版本可以。
-        assert!(delete(&mut connection, "ws", &second.id).is_err());
-        set_active(&mut connection, "ws", &first.id).expect("reactivate first");
-        assert!(delete(&mut connection, "ws", &second.id).is_ok());
-    }
-}
+#[path = "steel_models/tests.rs"]
+mod tests;

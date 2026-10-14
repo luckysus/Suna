@@ -273,6 +273,7 @@ macro_rules! handler {
             crate::app::compute_commands::commands::register_steel_model,
             crate::app::compute_commands::commands::list_steel_models,
             crate::app::compute_commands::commands::list_all_steel_models,
+            crate::app::compute_commands::cards::get_steel_model_scientific_cards,
             crate::app::compute_commands::commands::set_active_steel_model,
             crate::app::compute_commands::commands::delete_steel_model,
             crate::app::experiment_commands::create_experiment_plan,

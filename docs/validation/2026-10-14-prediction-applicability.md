@@ -39,7 +39,9 @@
 
 新的真实集成测试使用临时 SQLite、实际 Scheduler 和 Worker：训练单位/范围、不同字段序、K 与 fraction 换算、逐行风险、科研 manifest 投影、原 CSV SHA 不变、数据库关闭后重开读取。前端两项交互测试实际触发 bridge mock 提交和原生导出调用，检查 CSV 使用转换后的数值；这属于 jsdom/IPC mock，不是 Windows 保存弹窗验收。
 
-原始日志保存在当前工作区 `/workspace/suna-independent-development/cloud2-*.log`。首轮完整 Rust 的一个原因码失败已定位并修复，最终全套复验为零失败；没有忽略测试。当前提交写入时尚未推送，新提交的 Windows CI 为 pending，后续按实际 SHA 检查完整结论。
+原始日志保存在当前工作区 `/workspace/suna-independent-development/cloud2-*.log`。首轮完整 Rust 的一个原因码失败已定位并修复，最终全套复验为零失败；没有忽略测试。
+
+后续复核：提交 `f7bef8d51050d57614121895f9cfdad046387be0` 的 [Run 38501647064](https://github.com/luckysus/Suna/actions/runs/38501647064) 最终成功；[Windows job](https://github.com/luckysus/Suna/actions/runs/38501647064/job/115649736513) 的 31 个步骤全部 success，含四项性能基准和 Complete job。公开页面证据保存在 `ci-f7bef8d51050d57614121895f9cfdad046387be0.json`，没有使用 Rust 单项状态代替最终结论。
 
 ## 本里程碑范围与待办
 

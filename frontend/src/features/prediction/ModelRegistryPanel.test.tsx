@@ -8,6 +8,7 @@ vi.mock("../../bridge/desktop", () => ({
     listAllSteelModels: vi.fn(),
     setActiveSteelModel: vi.fn(),
     deleteSteelModel: vi.fn(),
+    getSteelModelScientificCards: vi.fn(),
   },
 }));
 
@@ -99,6 +100,19 @@ describe("ModelRegistryPanel", () => {
   it("shows the empty state when no models are registered", async () => {
     renderPanel();
     expect(await screen.findByText("尚无已注册的模型")).toBeInTheDocument();
+  });
+
+  it("reads the selected model's scientific card through the production bridge",async()=>{
+    const registered=model();
+    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([registered]);
+    const metric={sample_count:null,rmse:null,mae:null,r2:null};
+    vi.mocked(desktop.getSteelModelScientificCards).mockResolvedValue({status:"recorded",persisted:true,cards:{cards_sha256:"b".repeat(64),
+      model_card:{schema_version:"model-card.v1",registry_id:registered.id,version:registered.version,model_sha256:registered.model_sha256,algorithm:"xgboost",parameters:{},features:[],target:{name:"hv",unit:"HV"},split_kind:null,split_counts:{train:10,validation:2,test:null,calibration:null},metrics:{train:metric,validation:metric,test:metric},interval:{status:"unknown",nominal_coverage:null,observed_test_coverage:null,exchangeability_verified:false},dataset_sha256:null,review_status:"unreviewed"},
+      data_card:{schema_version:"data-card.v1",dataset_id:null,dataset_sha256:null,filtered_row_count:null,valid_row_count:12,source_row_count:null,filter_policy:"unknown",grouping_field:null,time_field:null,imputation:"train_mean",quality_status:"unknown"}}});
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button",{name:"科研卡"}));
+    expect(await screen.findByText("科研模型卡 · v2")).toBeInTheDocument();
+    expect(desktop.getSteelModelScientificCards).toHaveBeenCalledWith(registered.id);
   });
 
   it("derives card titles and metrics from stored json", () => {

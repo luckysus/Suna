@@ -1490,6 +1490,8 @@ fn chunk_by_chars(value: &str, max_chars: usize) -> Vec<String> {
 }
 
 fn compact_model(model: &steel_models::SteelModelRecord) -> Value {
+    let cards = steel_models::scientific_cards_from_record(model)
+        .unwrap_or_else(|_| json!({"status":"unavailable","persisted":false}));
     json!({
         "id": model.id,
         "lineage_id": model.lineage_id,
@@ -1499,7 +1501,8 @@ fn compact_model(model: &steel_models::SteelModelRecord) -> Value {
         "model_sha256": model.model_sha256,
         "is_active": model.is_active,
         "created_at": model.created_at,
-        "manifest": serde_json::from_str::<Value>(&model.manifest_json).unwrap_or(Value::Null),
+        "manifest": crate::storage::repositories::research_artifacts::safe_metadata(&serde_json::from_str::<Value>(&model.manifest_json).unwrap_or(Value::Null)),
+        "scientific_cards":cards,
     })
 }
 
@@ -1880,6 +1883,45 @@ fn truncate(value: &str, limit: usize) -> String {
 mod tests {
     use super::*;
     use crate::steel::{preview_dataset, DatasetColumnPreview, DatasetPreview};
+
+    #[test]
+    fn model_status_uses_verified_cards_and_does_not_return_raw_model_or_secret_fields() {
+        use sha2::Digest;
+        let path =
+            std::env::temp_dir().join(format!("suna-model-card-agent-{}.sqlite3", Uuid::new_v4()));
+        let (mut c, _) = crate::storage::database::open(&path).unwrap();
+        let body=json!({"model_type":"linear_regression","feature_names":["c"],"model_pickle_base64":"synthetic-sensitive-blob","source_path":"C:/synthetic-private/raw.csv","parameters":{"password":"synthetic-secret"}}).to_string();
+        let sha = format!("{:x}", sha2::Sha256::digest(body.as_bytes()));
+        let model = steel_models::create_with_scientific_cards(
+            &mut c,
+            "local",
+            steel_models::NewSteelModel {
+                lineage_id: "linear:synthetic",
+                kind: "linear_artifact",
+                source_task_id: None,
+                model_sha256: &sha,
+                manifest_json: &body,
+                artifact_json: Some(&body),
+                model_base64: None,
+            },
+            &json!({}),
+        )
+        .unwrap();
+        let expected = steel_models::scientific_cards(&c, "local", &model.id).unwrap();
+        let gateway = DesktopSteelAgentGateway::new(path.clone(), "local");
+        let response = execute(&gateway, "get_model_status", json!({})).unwrap();
+        assert_eq!(response["models"][0]["scientific_cards"], expected);
+        for forbidden in [
+            "synthetic-sensitive-blob",
+            "synthetic-private",
+            "synthetic-secret",
+        ] {
+            assert!(!response.to_string().contains(forbidden));
+        }
+        drop(gateway);
+        drop(c);
+        std::fs::remove_file(path).unwrap();
+    }
 
     fn execute(
         gateway: &DesktopSteelAgentGateway,
