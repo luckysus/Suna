@@ -100,6 +100,7 @@ fn research_backup_verifies_hashes_and_relocates_managed_dataset_with_images() {
             magnification: None,
             acquired_at: None,
             notes: "合成夹具".into(),
+            gray16_mapping: None,
         },
     )
     .unwrap();

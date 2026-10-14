@@ -31,7 +31,7 @@ pub fn submit(
         }
         let(raw,source):(String,String)=c.query_row("SELECT storage_ref,source_artifact_id FROM microstructure_images WHERE workspace_id=?1 AND id=?2",params![ws,image_id],|r|Ok((r.get(0)?,r.get(1)?))).map_err(err)?;
         let path = managed(root, &raw)?;
-        inputs.push(json!({"imageId":image_id,"annotationId":id,"annotation":serde_json::from_str::<Value>(&body).map_err(|e|e.to_string())?,"path":path,"sha256":image.source_sha256}));
+        inputs.push(json!({"imageId":image_id,"annotationId":id,"annotation":serde_json::from_str::<Value>(&body).map_err(|e|e.to_string())?,"path":path,"sha256":image.source_sha256,"rasterInput":image.metadata.get("rasterInput")}));
         sources.push(source);
     }
     artifacts::atomic(c, || {
@@ -106,6 +106,16 @@ pub fn record_completed(
         let error = row["error"].as_str();
         if error.is_none() && output["sourceSha256"] != image.source_sha256 {
             return Err("image_source_hash_mismatch".into());
+        }
+        if error.is_none()
+            && image.metadata.get("rasterInput").is_some_and(|input| {
+                !input.is_null()
+                    && (output.get("rasterInput") != Some(input)
+                        || output["width"] != image.width
+                        || output["height"] != image.height)
+            })
+        {
+            return Err("image_input_contract_mismatch".into());
         }
         let key = format!("image-analysis:{task}:{id}");
         let a = if error.is_none() {

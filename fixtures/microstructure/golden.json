@@ -1,0 +1,81 @@
+{
+  "license": "CC0-1.0",
+  "sourcePixels16": [
+    [
+      0,
+      1000,
+      2000,
+      3000
+    ],
+    [
+      4000,
+      5000,
+      6000,
+      65535
+    ]
+  ],
+  "fullRangeGray8": [
+    [
+      0,
+      3,
+      7,
+      11
+    ],
+    [
+      15,
+      19,
+      23,
+      255
+    ]
+  ],
+  "window1000to5000Gray8": [
+    [
+      0,
+      0,
+      63,
+      127
+    ],
+    [
+      191,
+      255,
+      255,
+      255
+    ]
+  ],
+  "rgb8Gray": [
+    [
+      0,
+      76,
+      150,
+      29
+    ],
+    [
+      255,
+      226,
+      105,
+      179
+    ]
+  ],
+  "rawOrientation6Pixels": [
+    [
+      0,
+      64,
+      128
+    ],
+    [
+      192,
+      224,
+      255
+    ]
+  ],
+  "sourceSha256": {
+    "gray16-be.tif": "0bc0f8a727ceff228df4252f7c0083d07c0f940177a14537842e90c9375e31e5",
+    "gray16-le.tif": "551a6013609dc93459aa502ef665a7fa4cf18a0c14bfe03e1d05e475ae2f8b7e",
+    "gray16.png": "55226ebda8ca3e8aa5036ef8ce8cb4bba549fae78f16a89769eb08c2884d82e8",
+    "raw-orientation6.png": "563bd3585040e7ec53a064be7dd9dd24c5b441eb475ebd5bc3cfcdeb506ff087",
+    "rgb8.tif": "d06068af092a29b56f63410123c187c1874d9c7a46b67c1ea66bbe1b4f25e42c",
+    "unsupported-float.tif": "82934bc459976fe8cc33506e6c544620c2455ed52d6506fe756afe7ed9e484c8",
+    "unsupported-orientation6.tif": "fc4120e8acec777f7a1aa8b9fa29c24d0eb53a11b414c716bee44446aea5e364",
+    "unsupported-pages.tif": "162b6c0b0138726680b1ca1f41849011bff058c97bbf14c8b942ad20be54bde7"
+  }
+}

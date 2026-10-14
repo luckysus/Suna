@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
+mod raster;
+pub use raster::Gray16Mapping;
 const MAX_BYTES: u64 = 32 * 1024 * 1024;
 fn err(e: rusqlite::Error) -> String {
     e.to_string()
@@ -30,6 +32,7 @@ pub struct ImportImage {
     pub acquired_at: Option<String>,
     #[serde(default)]
     pub notes: String,
+    pub gray16_mapping: Option<Gray16Mapping>,
 }
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -136,33 +139,8 @@ pub fn import(
     if bytes.len() as u64 > MAX_BYTES {
         return Err("image_byte_limit".into());
     }
-    let format = image::guess_format(&bytes).map_err(|_| "image_decode_failed")?;
-    if !matches!(format, image::ImageFormat::Png | image::ImageFormat::Jpeg) {
-        return Err("supported_images_png_jpeg_only".into());
-    }
-    let reader = image::ImageReader::with_format(Cursor::new(&bytes), format);
-    let (w, h) = reader
-        .into_dimensions()
-        .map_err(|_| "image_decode_failed")?;
-    if w == 0 || h == 0 || w as u64 * h as u64 > 16_000_000 || w > 8192 || h > 8192 {
-        return Err("image_pixel_limit".into());
-    }
-    let mut reader = image::ImageReader::with_format(Cursor::new(&bytes), format);
-    let mut limits = image::Limits::default();
-    limits.max_alloc = Some(128 * 1024 * 1024);
-    limits.max_image_width = Some(8192);
-    limits.max_image_height = Some(8192);
-    reader.limits(limits);
-    let raster = reader.decode().map_err(|_| "image_decode_failed")?;
-    if !matches!(
-        raster.color(),
-        image::ColorType::L8
-            | image::ColorType::La8
-            | image::ColorType::Rgb8
-            | image::ColorType::Rgba8
-    ) {
-        return Err("unsupported_image_depth".into());
-    }
+    let (raster, contract, extension) = raster::decode(&bytes, input.gray16_mapping.as_ref())?;
+    let (w, h) = (raster.width(), raster.height());
     let id = Uuid::new_v4().to_string();
     let directory = root.join("microstructure");
     fs::create_dir_all(&directory).map_err(|_| "image_storage_failed")?;
@@ -173,17 +151,10 @@ pub fn import(
     {
         return Err("image_path_outside_data_root".into());
     }
-    let raw = format!(
-        "microstructure/{id}.{}",
-        if format == image::ImageFormat::Png {
-            "png"
-        } else {
-            "jpg"
-        }
-    );
+    let raw = format!("microstructure/{id}.{extension}");
     let preview = format!("microstructure/{id}.preview.png");
     let sha = hash(&bytes);
-    let metadata = json!({"magnification":input.magnification,"acquiredAt":input.acquired_at,"notes":input.notes,"coordinateSystem":"raw raster; EXIF ignored","scaleInferredFromMagnification":false});
+    let metadata = json!({"magnification":input.magnification,"acquiredAt":input.acquired_at,"notes":input.notes,"coordinateSystem":"raw raster; EXIF ignored","scaleInferredFromMagnification":false,"rasterInput":contract});
     let write = || -> Result<(), String> {
         let mut raw_file = OpenOptions::new()
             .write(true)
@@ -212,7 +183,7 @@ pub fn import(
             );
         }
         image::DynamicImage::ImageRgb8(rgb)
-            .thumbnail(1024, 1024)
+            .thumbnail(w.min(1024), h.min(1024))
             .write_to(&mut thumb, image::ImageFormat::Png)
             .map_err(|_| "image_preview_failed")?;
         let mut dest = OpenOptions::new()

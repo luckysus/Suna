@@ -1652,11 +1652,13 @@ export interface MaterialRegistry { schemaVersion:string;materialSystem:string;f
 export interface MaterialRule { id:string;name:string;severity:'hard'|'soft'|'support';enabled:boolean;penalty:number;provenance:{type:string;sourceRef:string;sourceVersion:string;reviewed:boolean;demonstration?:boolean};expression:{kind:'range';fieldId:string;unit:string;min?:number|null;max?:number|null}|{kind:'linear';coefficients:Record<string,number>;units:Record<string,string>;operator:'ge'|'le'|'eq';value:number}; }
 export interface VersionedMaterialRule {version:number;rule:MaterialRule;}
 export interface MaterialVariable {name:string;fieldId:string;unit:string;min:number;max:number;fixedValue?:number|null;}
-export interface MicrostructureImage {id:string;projectId:string;sampleId:string;modality:string;sourceType:string;sourceSha256:string;width:number;height:number;metadata:Record<string,unknown>;createdAt:string}
+export type Gray16Mapping = {mode:'full_range'} | {mode:'window';lower:number;upper:number};
+export interface MicrostructureRasterInput {version:'microstructure-input.v1';format:'PNG'|'JPEG'|'TIFF';decodedBitDepth:8|16;colorModel:'gray'|'rgb';width:number;height:number;sourceExifOrientation:number;orientationPolicy:'ignore-exif';coordinateSystem:'raw-raster';alphaPolicy:'white-composite';iccPolicy:'unmanaged';grayscaleMapping:({version:'linear-u16.v1';rounding:'floor';lower:number;upper:number}&Gray16Mapping)|null}
+export interface MicrostructureImage {id:string;projectId:string;sampleId:string;modality:string;sourceType:string;sourceSha256:string;width:number;height:number;metadata:Record<string,unknown>&{rasterInput?:MicrostructureRasterInput};createdAt:string}
 export type ImagePoint=[number,number];
 export interface MicrostructureAnnotation {calibration:{points:[ImagePoint,ImagePoint];distance:number;unit:string}|null;rois:{kind:'rectangle'|'polygon';points:ImagePoint[]}[];threshold:number;maskConfirmed:boolean}
 export interface ImageAnnotationRecord {id:string;imageId:string;parameters:MicrostructureAnnotation&{scaleMicronsPerPixel:number|null};sha256:string}
-export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[]}
+export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[];rasterInput?:MicrostructureRasterInput}
 export interface ImageAnalysis {id:string;taskId:string;annotationId:string;result:MicrostructureStatistics|null;error:string|null;reviewState:'accepted'|'rejected'|null;reviewNote:string|null;createdAt:string}
 
 export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
@@ -1685,7 +1687,7 @@ export const desktop = {
   createLocalKnowledgeBase:(name:string)=>call<KnowledgeBaseRecord>('create_knowledge_base',{name}),
   importLocalKnowledgeDocument:(request:DocumentImportRequest)=>call<DocumentImportResponse>('import_local_document',{request}),
 
-  importMicrostructureImage:(request:{sourcePath:string;projectId:string;sampleId:string;modality:string;sourceType:string;magnification?:number|null;acquiredAt?:string|null;notes?:string})=>call<MicrostructureImage>('import_microstructure_image',{request}),
+  importMicrostructureImage:(request:{sourcePath:string;projectId:string;sampleId:string;modality:string;sourceType:string;magnification?:number|null;acquiredAt?:string|null;notes?:string;gray16Mapping?:Gray16Mapping})=>call<MicrostructureImage>('import_microstructure_image',{request}),
   listMicrostructureImages:(projectId:string,offset=0)=>call<MicrostructureImage[]>('list_microstructure_images',{projectId,offset}),
   getMicrostructurePreview:(id:string)=>call<number[]>('get_microstructure_preview',{id}),
   saveMicrostructureAnnotation:(imageId:string,request:MicrostructureAnnotation)=>call<ImageAnnotationRecord>('save_microstructure_annotation',{imageId,request}),

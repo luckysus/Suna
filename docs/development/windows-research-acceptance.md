@@ -27,3 +27,16 @@
 | 同时保留备份格式 1/2 的恢复流程 | 科研包独立于既有备份，不能报告完整项目或凭据恢复成功 | NOT_RUN / pending-native |
 
 记录精确提交 SHA、Actions URL、Windows/应用版本、所选隔离目录、实际结果、脱敏日志、文件 SHA256、取消与错误结果；使用合成项目，不在生产库测试。协议见 [科研包 v1](../research-package-v1.md)。
+
+显微输入扩展原生记录（以下均 `NOT_RUN / pending-native`，使用 `fixtures/microstructure`）：
+
+| 检查 | 独立预期 | 当前状态 |
+| --- | --- | --- |
+| 中文目录导入 `gray16-le.tif`、`gray16-be.tif` 和 `gray16.png` | 未选择映射时拒绝；完整量程预览与 `golden.json` 一致，阈值128占比12.5%；原文件 SHA 不变 | NOT_RUN / pending-native |
+| 同一原图另导入窗口1000–5000 | 显示明确窗口；全图阈值128占比50%，处理不覆盖原像素 | NOT_RUN / pending-native |
+| 窗口图 ROI (0,0)–(2,2)，标尺2px=4μm | ROI 4px²/16μm²，平均灰度111.5，单个连通区面积8μm² | NOT_RUN / pending-native |
+| `raw-orientation6.png`、125%/150% DPI 与键盘标点 | 显示3×2原始栅格和方向提示；ROI/标尺坐标不随方向/DPI自动改变 | NOT_RUN / pending-native |
+| 多页、方向6、浮点 TIFF；取消选择；非法窗口 | 明确拒绝/取消，无原图或成果半成品，无伪造统计 | NOT_RUN / pending-native |
+| 退出重启、原有8位图像/标注、备份恢复到另一中文目录 | 新图输入协议/源 SHA/标注/审核保持；旧坐标与历史摘要不重算，逐文件哈希一致 | NOT_RUN / pending-native |
+
+记录应用提交 SHA、完整 Actions、Windows/安装包/Worker 版本、原始文件哈希、映射上下限、ROI/标尺、实际结果和脱敏错误。仪器真实导出图需要另行授权及兼容性验收，不能将合成像素测试当作材料相或精确晶粒验证。
