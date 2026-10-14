@@ -1,6 +1,6 @@
 # TLS 依赖安全修复与验证
 
-科研工作流提交 `3cef7e1463a014b0ca8ca0ff38174b3034f8555a` 的 [Windows Actions](https://github.com/luckysus/Suna/actions/runs/38571314630) 在 `Run Rust dependency policy scan` 失败，其后的测试与性能基准均跳过。公开页面注解只有退出码 1，gh 日志接口返回 Forbidden，页面提供的详细日志地址返回 404。因此不能宣称已取得该运行的具体错误文本。
+科研工作流提交 `3cef7e1463a014b0ca8ca0ff38174b3034f8555a` 的 [Windows Actions](https://github.com/luckysus/Suna/actions/runs/38571314630) 在 `Run Rust dependency policy scan` 失败，其后的测试与性能基准均跳过。最初公开页面注解只有退出码 1，gh 日志接口返回 Forbidden，页面详细日志地址返回 404；随后用户提供该步骤的真实 Windows 错误文本，确认阻断项为下列 4 项 rustls 漏洞，最终结果为 advisories FAILED、bans/licenses/sources ok。Windows 依赖重复版本和 yanked 条目属于 warning，不是此次退出码 1 的原因。
 
 ## 已取得的实际证据
 
@@ -11,7 +11,7 @@
 - [RUSTSEC-2026-0348](https://rustsec.org/advisories/RUSTSEC-2026-0348)：启用特定 Brotli 功能时，证书解压可能在认证前分配大量内存。
 - [RUSTSEC-2026-0349](https://rustsec.org/advisories/RUSTSEC-2026-0349)：未认证握手可能影响后续连接的密钥交换预测。
 
-以上是本地真实扫描证据，不表示 Suna 的所有运行配置均触发每项漏洞，也不替代旧 Actions 运行的详细日志。
+本地真实扫描与用户提供的 Windows 错误文本一致；不表示 Suna 的所有运行配置均触发每项漏洞。
 
 ## 修改范围
 
@@ -29,3 +29,9 @@
 - 上一工作流里程碑的前端 307 项、Worker 194 项、构建、运行边界与原安全检查结果见 [工作流验证](2026-10-14-scientific-workflow.md)。本修复未改这些源码；新提交完整 Windows CI 仍须另核对精确 SHA 的全部步骤。
 
 个人 Windows 安装、Credential Manager、原生弹窗、DPI、真实 SQL Server 和授权服务验收仍未完成。原备份协议、用户配置与科研数据保持不变。
+
+## 完整 Windows CI 结果
+
+修复提交 `1a13acd6ddd28b06e7fe2c22c6de5fddd166e610` 的 [Run 38578642205](https://github.com/luckysus/Suna/actions/runs/38578642205)、[Job 115902331383](https://github.com/luckysus/Suna/actions/runs/38578642205/job/115902331383) 已在 2026-10-14 15:36:05 UTC 核对最终 success，31 个步骤全部 success。包括依赖策略、公告、前端审计、锁定 Worker、前端、Rust、应用安全、钢铁案例及报告上传、检索/数据导入/Agent/启动与空闲内存四项基准、空白检查和最终清理。原工作流代码也随该 SHA 通过完整 CI。
+
+此结论仅属于上述 SHA，不能替代后续归档提交的 CI 或个人 Windows 原生验收。

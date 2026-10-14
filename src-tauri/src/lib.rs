@@ -12,6 +12,7 @@ pub mod models;
 pub mod permissions;
 pub mod providers;
 pub mod rag;
+pub mod research_package;
 pub mod research_workflow;
 mod retrieval;
 pub mod skills;

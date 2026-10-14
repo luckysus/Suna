@@ -5,5 +5,6 @@ pub(crate) mod feedback;
 pub(crate) mod materials;
 pub(crate) mod measurements;
 pub(crate) mod objects;
+pub(crate) mod package;
 pub(crate) mod projects;
 pub(crate) mod workflow;

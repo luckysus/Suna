@@ -20,38 +20,44 @@ pub async fn save_export_file(
     filename: String,
     bytes: Vec<u8>,
 ) -> Result<Option<ExportReceipt>, String> {
+    tauri::async_runtime::spawn_blocking(move || save_selected_file(&app, &filename, &bytes))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+pub(crate) fn save_selected_file(
+    app: &tauri::AppHandle,
+    filename: &str,
+    bytes: &[u8],
+) -> Result<Option<ExportReceipt>, String> {
     if filename.is_empty() || filename.contains(['/', '\\', ':']) || bytes.len() > 64 * 1024 * 1024
     {
         return Err("invalid export name or size (maximum 64 MiB)".into());
     }
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(selected) = app
+    let Some(selected) = app
+        .dialog()
+        .file()
+        .set_file_name(filename)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = selected.into_path().map_err(|e| e.to_string())?;
+    if path.exists()
+        && !app
             .dialog()
-            .file()
-            .set_file_name(&filename)
-            .blocking_save_file()
-        else {
-            return Ok(None);
-        };
-        let path = selected.into_path().map_err(|e| e.to_string())?;
-        if path.exists()
-            && !app
-                .dialog()
-                .message("文件已存在，确认覆盖？")
-                .title("导出文件")
-                .buttons(MessageDialogButtons::OkCancel)
-                .blocking_show()
-        {
-            return Ok(None);
-        }
-        write_verified_export(&path, &bytes)?;
-        Ok(Some(ExportReceipt {
-            path: path.to_string_lossy().into_owned(),
-            bytes: bytes.len(),
-        }))
-    })
-    .await
-    .map_err(|e| e.to_string())?
+            .message("文件已存在，确认覆盖？")
+            .title("导出文件")
+            .buttons(MessageDialogButtons::OkCancel)
+            .blocking_show()
+    {
+        return Ok(None);
+    }
+    write_verified_export(&path, bytes)?;
+    Ok(Some(ExportReceipt {
+        path: path.to_string_lossy().into_owned(),
+        bytes: bytes.len(),
+    }))
 }
 
 pub fn write_verified_export(path: &Path, bytes: &[u8]) -> Result<(), String> {

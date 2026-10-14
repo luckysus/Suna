@@ -1,3 +1,4 @@
+import type {PackagePreview, PackageSaved, PackageInspection} from "./researchPackageTypes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
@@ -1694,6 +1695,9 @@ export const desktop = {
   reviewMicrostructureAnalysis:(id:string,state:'accepted'|'rejected',note:string)=>call<void>('review_microstructure_analysis',{id,state,note}),
   getMicrostructureTaskResult:(id:string)=>call<{images:{imageId:string;result?:MicrostructureStatistics;error?:string}[]}|null>('get_microstructure_task_result',{id}),
 
+  previewResearchPackage:(projectId:string)=>call<PackagePreview>('preview_research_package',{projectId}),
+  exportResearchPackage:(projectId:string,expectedSha256:string)=>call<PackageSaved|null>('export_research_package',{projectId,expectedSha256}),
+  inspectResearchPackageFile:()=>call<PackageInspection|null>('inspect_research_package_file',{}),
   exportResearchManifest:(projectId:string)=>call<Record<string,unknown>>('export_research_manifest',{projectId}),
   listResearchWorkflowTemplates:(limit=50,offset=0)=>call<TemplateSummary[]>('list_research_workflow_templates',{limit,offset}),
   getResearchWorkflowTemplate:(id:string,revision:number)=>call<SavedTemplate>('get_research_workflow_template',{id,revision}),
