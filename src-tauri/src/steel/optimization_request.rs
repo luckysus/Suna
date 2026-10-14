@@ -5,6 +5,8 @@ use serde_json::Value;
 pub struct OptimizeSteelProcessRequest {
     pub dataset_id: String,
     #[serde(default)]
+    pub domain_policy: Option<String>,
+    #[serde(default)]
     pub objectives: Vec<Value>,
     #[serde(default)]
     pub variables: Vec<Value>,

@@ -1962,6 +1962,7 @@ mod tests {
         });
         let request = OptimizeSteelProcessRequest {
             dataset_id: "dataset-1".to_string(),
+            domain_policy: None,
             objectives: vec![],
             variables: vec![],
             training_task_id: "task-1".to_string(),
@@ -2012,6 +2013,7 @@ mod tests {
         });
         let base = OptimizeSteelProcessRequest {
             dataset_id: "dataset-1".to_string(),
+            domain_policy: None,
             objectives: vec![],
             variables: vec![],
             training_task_id: "task-1".to_string(),

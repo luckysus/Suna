@@ -89,6 +89,7 @@ pub fn safe_metadata(value: &Value) -> Value {
         "target_name",
         "target_names",
         "unit",
+        "unit_status",
         "units",
         "direction",
         "directions",
@@ -227,9 +228,18 @@ pub fn safe_metadata(value: &Value) -> Value {
         }
         Value::Object(map) => Value::Object(
             map.iter()
-                .filter(|(k, _)| k.as_str() == "applicability" || KEYS.contains(&k.as_str()))
+                .filter(|(k, _)| {
+                    ["applicability", "model_applicability", "domain_filter"].contains(&k.as_str())
+                        || KEYS.contains(&k.as_str())
+                })
                 .map(|(k, v)| {
-                    let projected = if k == "applicability" {
+                    let projected = if k == "model_applicability" {
+                        crate::compute::joint_applicability::risk::project_risk_entries(v)
+                            .unwrap_or(Value::Null)
+                    } else if k == "domain_filter" {
+                        crate::compute::joint_applicability::risk::domain_filter_snapshot(v)
+                            .unwrap_or(Value::Null)
+                    } else if k == "applicability" {
                         crate::compute::applicability::risk::risk_snapshot(
                             v,
                             v["rows"].as_array().map_or(0, Vec::len),

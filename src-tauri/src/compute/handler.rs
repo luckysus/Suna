@@ -454,7 +454,17 @@ fn run_task(
             return Err(HandlerError::permanent("compute_worker_invalid_result"));
         }
     } else if expected_operation == "optimize_constrained" {
-        validate_optimization_result(&result)?;
+        crate::compute::joint_applicability::risk::validate_joint_result(
+            &mut result,
+            &payload.payload,
+        )
+        .map_err(|code| {
+            HandlerError::permanent(format!("compute_worker_invalid_joint_applicability_{code}"))
+        })?;
+        let empty_domain_front = payload.payload["objective_specs"].is_array()
+            && result["domain_filter"]["policy"] == "within_domain_only"
+            && result["domain_filter"]["status"] == "insufficient_domain_candidates";
+        validate_optimization_result(&result, empty_domain_front)?;
         crate::storage::repositories::material_rules::annotate_result(
             &mut result,
             &payload.payload,
@@ -611,7 +621,10 @@ fn validate_design_result(result: &Value) -> Result<(), HandlerError> {
     Ok(())
 }
 
-fn validate_optimization_result(result: &Value) -> Result<(), HandlerError> {
+fn validate_optimization_result(
+    result: &Value,
+    empty_domain_front: bool,
+) -> Result<(), HandlerError> {
     if result.get("method").and_then(Value::as_str).is_none()
         || result.get("direction").and_then(Value::as_str).is_none()
         || result.get("model_id").and_then(Value::as_str).is_none()
@@ -629,7 +642,7 @@ fn validate_optimization_result(result: &Value) -> Result<(), HandlerError> {
     let recommendations = result
         .get("recommendations")
         .and_then(Value::as_array)
-        .filter(|items| !items.is_empty())
+        .filter(|items| !items.is_empty() || empty_domain_front)
         .ok_or_else(|| HandlerError::permanent("compute_worker_invalid_result"))?;
     for recommendation in recommendations {
         if !recommendation

@@ -35,7 +35,9 @@ Worker 集成同时检查 7 个来源行中 1 个目标缺失行被排除，以�
 
 首轮全量 Rust 发现 `steel_models.rs` 超出 400 行、Tauri 命令模块超出 150 行；按职责拆分测试和只读命令，完整保留原门禁和原测试。架构 28 项与登记回归 4 项已复验通过，没有调整阈值或忽略失败。
 
-原始证据：工作区 `model-cards-*.log`。本提交对应的新 SHA 在提交后记录并检查整轮 Windows CI；当前不把本地通过标为新 CI 已通过。
+提交：`6e8a172a43c762f12ff70feee5872abce3e9b330`。对应 [Windows Run 38517617942](https://github.com/luckysus/Suna/actions/runs/38517617942)，[Job 115699850497](https://github.com/luckysus/Suna/actions/runs/38517617942/job/115699850497) 的全部 **31 个步骤成功**，包含依赖安全扫描、完整 Rust/Worker/前端、应用安全、钢材案例、四项性能基准与 Complete job。最终结论 success，精确 SHA 已核对。
+
+原始证据：工作区 `model-cards-*.log` 与 `ci-6e8a172a43c762f12ff70feee5872abce3e9b330.json`。Windows runner 验证不能替代下面的个人电脑验收。
 
 ## 剩余边界
 

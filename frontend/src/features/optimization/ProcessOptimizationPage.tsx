@@ -13,6 +13,8 @@ import { FileDropZone } from "../../components/common/FileDropZone";
 import "./optimization.css";
 import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
+import { CandidateDomainEvidence, OptimizationDomainPolicy, OptimizationDomainSummary } from "./OptimizationDomainEvidence";
+import type { DomainPolicy } from "../../bridge/desktop";
 
 /** 第 38–43 章：工艺优化（算法可选、训练任务联动、Pareto 前沿、候选入库）。 */
 
@@ -36,6 +38,7 @@ export default function ProcessOptimizationPage() {
   const [constraints, setConstraints] = useState<ComputeOptimizationRequest["constraints"]>([]);
   const [algorithm, setAlgorithm] = useState<string>("");
   const [trials, setTrials] = useState(80);
+  const [domainPolicy, setDomainPolicy] = useState<DomainPolicy>("annotate_all");
   const [state, setState] = useState<State>("idle");
   const [result, setResult] = useState<ComputeOptimizationResult | null>(null);
   const [error, setError] = useState("");
@@ -114,6 +117,7 @@ export default function ProcessOptimizationPage() {
         objectives,
         variables,
         constraints,
+        domainPolicy,
         trials: Math.max(10, Math.min(500, trials)),
         seed: 42,
         algorithm: algorithm === "" ? undefined : (algorithm as "nsga2" | "tpe" | "ga" | "pso" | "grid"),
@@ -233,6 +237,7 @@ export default function ProcessOptimizationPage() {
           <MaterialConstraintsPanel variables={variables} onChange={setVariables}/>
           <OptimizationObjectives objectives={objectives} setObjectives={setObjectives} models={models} variables={variables} setVariables={setVariables} constraints={constraints} setConstraints={setConstraints} availableVariables={columns.map((c) => ({ name: c.canonicalField || c.originalName, min: c.min ?? 0, max: c.max ?? 1 }))} additionalVariables={additionalVariables} onAddVariable={(name) => setAdditionalVariables((current) => [...current, name])} onRemoveVariable={(name) => { setAdditionalVariables((current) => current.filter((n) => n !== name)); setObjectives((current) => current.map((o) => o.source === "formula" ? { ...o, coefficients: Object.fromEntries(Object.entries(o.coefficients ?? {}).filter(([n]) => n !== name)) } : o)); }} />
           <ComputeTaskStatus {...computeTask} />
+          <OptimizationDomainPolicy value={domainPolicy} onChange={setDomainPolicy} disabled={state === "running"}/>
           <label>搜索次数<Input type="number" min="10" max="500" step="10" value={trials} onChange={(event) => setTrials(Number(event.target.value))} /></label>
           <Button variant="primary" className="suna-optimization-run" onClick={() => void run()} disabled={state === "running" || state === "loading" || !!(computeTask.task && ["queued","running","waiting_external"].includes(computeTask.task.state))}>
             {state === "running" ? <Loader2 className="suna-spin" size={16} /> : <Play size={16} />}{state === "running" ? "优化中..." : "开始优化"}
@@ -242,6 +247,7 @@ export default function ProcessOptimizationPage() {
           <div className="suna-optimization-title"><Gauge size={17} /><div><h2>候选方案</h2><span>{result ? `${result.method} · ${result.trials_completed} 次评估 · 前沿 ${result.pareto_front.length} 解` : "运行任务后显示 Pareto 候选方案"}</span></div>
             {result && <Button variant="ghost" onClick={() => void exportResult()}><Download size={14} />导出 JSON</Button>}
           </div>
+          {result && <OptimizationDomainSummary filter={result.domain_filter}/>}
           {result && result.recommendations.length > 0 && (
             <OptimizationParetoChart front={result.pareto_front} recommendations={result.recommendations} objectives={result.objectives.map((name,i) => `${name}${result.objective_specs?.[i]?.unit ? ` (${result.objective_specs[i].unit})` : ""} ${(result.directions?.[i] ?? result.direction) === "minimize" ? "↓" : "↑"}`)} />
           )}
@@ -256,6 +262,7 @@ export default function ProcessOptimizationPage() {
                   <span>{recommendation.objectives.map((value) => value.toFixed(3)).join(" / ")}</span>
                   <span className="suna-optimization-values">{result.feature_names.map((name) => `${name}=${recommendation.values[name]?.toFixed(2) ?? "-"}`).join("，")}</span>
                   <span className="suna-optimization-actions-cell"><Button variant="ghost" onClick={() => void addToPlan(index)}><CalendarPlus size={13} />加入实验计划</Button></span>
+                  <div className="suna-optimization-domain-evidence"><CandidateDomainEvidence entries={recommendation.model_applicability} objectives={result.objectives}/></div>
                 </div>
               ))}
             </div>

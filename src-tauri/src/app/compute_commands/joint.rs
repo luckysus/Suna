@@ -28,6 +28,10 @@ pub fn build_joint_payload(
     {
         return Err("joint optimization requires NSGA-II/grid, or single-objective TPE".into());
     }
+    let policy = request.domain_policy.as_deref().unwrap_or("annotate_all");
+    if !["annotate_all", "within_domain_only"].contains(&policy) || request.variables.len() > 64 {
+        return Err("joint_domain_policy_or_variable_budget_invalid".into());
+    }
     let mut names = Vec::new();
     let mut bounds = Vec::new();
     let mut fixed = serde_json::Map::new();
@@ -84,8 +88,21 @@ pub fn build_joint_payload(
                         return Err(format!("model feature {feature} missing from variables"));
                     }
                 }
+                crate::compute::joint_applicability::units::model_transforms(
+                    &mut objective,
+                    artifact,
+                    &request.variables,
+                )?;
                 objective["artifact"] = artifact.clone();
                 objective["model_id"] = json!(id);
+                use sha2::{Digest, Sha256};
+                objective["model_sha256"] = json!(format!(
+                    "{:x}",
+                    Sha256::digest(
+                        serde_json::to_vec(artifact)
+                            .map_err(|_| "joint_model_serialization_failed")?
+                    )
+                ));
             }
             Some("formula") => {
                 let c = spec["coefficients"]
@@ -122,7 +139,7 @@ pub fn build_joint_payload(
         finite(&c["value"])?;
     }
     Ok(json!({"operation": "optimize_constrained", "payload": {
-        "dataset_id": request.dataset_id, "feature_names": names, "bounds": bounds,
+        "dataset_id": request.dataset_id, "feature_names": names, "bounds": bounds, "domain_policy":policy,
         "fixed_values": fixed, "constraints": request.constraints, "objective_specs": objectives,
         "algorithm": algorithm, "trials": request.trials, "seed": request.seed
     }}))
@@ -253,5 +270,53 @@ mod tests {
     fn formula_cannot_reference_unknown_variables_or_execute_expressions() {
         let request: OptimizeSteelProcessRequest = serde_json::from_value(json!({"datasetId":"dataset","variables":[{"name":"C","min":0,"max":1}],"objectives":[{"name":"cost","source":"formula","direction":"minimize","unit":"CNY","coefficients":{"unknown":1}}],"trials":20})).unwrap();
         assert!(build_joint_payload(&request, &std::collections::HashMap::new()).is_err());
+    }
+    #[test]
+    fn actual_request_shape_compiles_two_frozen_unit_schemas_and_only_explicit_filter() {
+        let request:OptimizeSteelProcessRequest=serde_json::from_value(json!({"datasetId":"dataset","domainPolicy":"within_domain_only",
+            "variables":[{"name":"C","unit":"wt%","min":0.1,"max":0.3},{"name":"temperature","unit":"degC","min":700,"max":730}],
+            "objectives":[{"name":"strength","source":"prediction_model","modelId":"first","direction":"maximize","unit":"GPa","feature_transforms":{"C":{"scale":10000}}},
+                {"name":"toughness","source":"prediction_model","modelId":"second","direction":"minimize","unit":"J"}],"trials":25,"seed":42})).unwrap();
+        let models = std::collections::HashMap::from([
+            (
+                "first".into(),
+                json!({"feature_names":["C","temperature"],"feature_schema":{"fields":[{"name":"C","unit":"wt%"},{"name":"temperature","unit":"degC"}]},"target_schema":{"unit":"MPa"}}),
+            ),
+            (
+                "second".into(),
+                json!({"feature_names":["temperature","C"],"feature_schema":{"fields":[{"name":"temperature","unit":"K"},{"name":"C","unit":"fraction"}]},"target_schema":{"unit":"J"}}),
+            ),
+        ]);
+        let original = models.clone();
+        let payload = build_joint_payload(&request, &models).unwrap();
+        let specs = &payload["payload"]["objective_specs"];
+        assert_eq!(payload["payload"]["domain_policy"], "within_domain_only");
+        assert_eq!(specs[0]["feature_transforms"]["C"]["scale"], 1.);
+        assert_eq!(specs[0]["prediction_transform"]["scale"], 0.001);
+        assert_eq!(specs[1]["feature_transforms"]["C"]["scale"], 0.01);
+        assert_eq!(
+            specs[1]["feature_transforms"]["temperature"]["shift"],
+            273.15
+        );
+        assert_eq!(models, original);
+        let mut default = request.clone();
+        default.domain_policy = None;
+        assert_eq!(
+            build_joint_payload(&default, &models).unwrap()["payload"]["domain_policy"],
+            "annotate_all"
+        );
+    }
+
+    #[test]
+    fn invalid_policy_or_guessed_model_units_fails_before_worker_submission() {
+        let mut request:OptimizeSteelProcessRequest=serde_json::from_value(json!({"datasetId":"dataset","domainPolicy":"fake_physical_constraint", "variables":[{"name":"C","unit":"fraction","min":0.1,"max":0.3}],"objectives":[{"name":"HV","source":"prediction_model","modelId":"first","direction":"maximize","unit":"HV"}],"trials":25})).unwrap();
+        let models =
+            std::collections::HashMap::from([("first".into(), json!({"feature_names":["C"]}))]);
+        assert!(build_joint_payload(&request, &models).is_err());
+        request.domain_policy = None;
+        assert_eq!(
+            build_joint_payload(&request, &models).unwrap_err(),
+            "joint_model_units_unknown"
+        );
     }
 }

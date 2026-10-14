@@ -7,6 +7,8 @@ NSGA-II never collapses competing performances into a weighted scalar.
 from collections.abc import Mapping
 import itertools
 import math
+import json
+from .applicability import assess_model
 
 from .optimization import (
     OptimizationError, _model, _predict, _bounds, _fixed_values, _constraints,
@@ -28,7 +30,10 @@ def optimize_joint(payload, report=None, is_cancelled=None):
     specs = payload.get("objective_specs")
     if not isinstance(specs, list) or not 1 <= len(specs) <= 4:
         raise OptimizationError("invalid_payload", "between 1 and 4 objectives are required")
-    evaluators, directions, metadata = [], [], []
+    evaluators, directions, metadata, model_inputs = [], [], [], []
+    domain_policy = payload.get("domain_policy", "annotate_all")
+    if domain_policy not in {"annotate_all", "within_domain_only"}:
+        raise OptimizationError("invalid_payload", "unknown domain policy")
     for spec in specs:
         if not isinstance(spec, Mapping) or not isinstance(spec.get("name"), str) or not spec["name"].strip():
             raise OptimizationError("invalid_payload", "objective name is required")
@@ -40,7 +45,33 @@ def optimize_joint(payload, report=None, is_cancelled=None):
             model = _model(spec.get("artifact"))
             if len(set(model["feature_names"])) != len(model["feature_names"]) or not set(model["feature_names"]) <= set(names):
                 raise OptimizationError("invalid_payload", "model features are missing from optimization variables")
-            evaluators.append(lambda values, m=model: _predict(m, m["feature_names"], values))
+            transforms = spec.get("feature_transforms", {})
+            if not isinstance(transforms, Mapping) or set(transforms) - set(model["feature_names"]):
+                raise OptimizationError("invalid_payload", "invalid model input transformation schema")
+            plan = {}
+            for feature in model["feature_names"]:
+                transform = transforms.get(feature, {"scale": 1.0, "shift": 0.0})
+                if not isinstance(transform, Mapping) or set(transform) != {"scale", "shift"}:
+                    raise OptimizationError("invalid_payload", "invalid model input transformation")
+                scale, shift = _finite(transform["scale"], "input scale"), _finite(transform["shift"], "input shift")
+                if scale <= 0:
+                    raise OptimizationError("invalid_payload", "input scale must be positive")
+                plan[feature] = (scale, shift)
+            def model_values(values, plan=plan):
+                result = {key: scale * values[key] + shift for key, (scale, shift) in plan.items()}
+                if any(not math.isfinite(v) for v in result.values()):
+                    raise OptimizationError("invalid_payload", "model unit transformation overflow")
+                return result
+            output = spec.get("prediction_transform", {"scale": 1.0, "shift": 0.0})
+            if not isinstance(output, Mapping) or set(output) != {"scale", "shift"}:
+                raise OptimizationError("invalid_payload", "invalid prediction unit transformation")
+            output_scale, output_shift = _finite(output["scale"], "output scale"), _finite(output["shift"], "output shift")
+            if output_scale <= 0:
+                raise OptimizationError("invalid_payload", "output scale must be positive")
+            evaluators.append(lambda values, m=model, convert=model_values, s=output_scale, b=output_shift: s * _predict(m, m["feature_names"], convert(values)) + b)
+            # _model is a numeric prediction representation. Domain evidence
+            # must use the original frozen artifact with its verified digest.
+            model_inputs.append((len(metadata), spec["artifact"], model_values, spec.get("model_sha256")))
         elif source == "formula":
             coefficients = spec.get("coefficients")
             if not isinstance(coefficients, Mapping) or not coefficients or not set(coefficients) <= set(names):
@@ -59,6 +90,7 @@ def optimize_joint(payload, report=None, is_cancelled=None):
         metadata[-1].pop("model_id", None)
         if source == "prediction_model":
             metadata[-1]["modelId"] = spec.get("model_id", spec.get("modelId", model["model_id"]))
+            metadata[-1]["unit_status"] = spec.get("unit_status", "unknown_training_unit")
         else:
             metadata[-1].update(coefficients=coefficients, intercept=intercept)
     trials, seed = _trials(payload.get("trials")), _seed(payload.get("seed"))
@@ -113,9 +145,38 @@ def optimize_joint(payload, report=None, is_cancelled=None):
     signed_rows = [[v if d == "minimize" else -v for v, d in zip(c["objectives"], directions)] for c in candidates]
     front = [candidates[i] for i in _non_dominated_indices(signed_rows)]
     front = front[:MAX_FRONT_POINTS]
+    for candidate in front:
+        candidate["model_applicability"] = []
+    for objective_index, model, convert, model_sha in model_inputs:
+        _check_cancel(is_cancelled)
+        converted = [convert(candidate["values"]) for candidate in front]
+        rows = [[values[n] for n in model["feature_names"]] for values in converted]
+        evidence = assess_model(model, rows)
+        for candidate_index, (candidate, risk) in enumerate(zip(front, evidence["rows"])):
+            candidate["model_applicability"].append({"objective_index": objective_index,
+                "model_id": model["model_id"], "model_sha256": model_sha, "schema_version": evidence["schema_version"],
+                "method": evidence["method"], "support_sha256": evidence["support_sha256"],
+                "dataset_sha256": model.get("applicability_support", {}).get("dataset_sha256"),
+                "candidate_index": candidate_index, "risk": {**risk, "row_index": 0},
+                "probability": None, "physical_feasibility": "not_assessed", "joint_support": "not_assessed",
+                "interval_status": "requires_exchangeability_assumption" if model.get("conformal", {}).get("method") == "split_conformal" else "unknown"})
+        if len(json.dumps(front, allow_nan=False, separators=(",", ":")).encode()) > 2 * 1024 * 1024:
+            raise OptimizationError("invalid_payload", "joint domain evidence exceeds result budget")
+    returned_front_size = len(front)
+    if domain_policy == "within_domain_only":
+        front = [candidate for candidate in front if candidate["model_applicability"] and
+                 all(model["risk"]["state"] == "within_domain" for model in candidate["model_applicability"])]
+    domain_filter = {"policy": domain_policy, "scope": "returned_pareto_front", "before": returned_front_size,
+        "after": len(front), "excluded": returned_front_size-len(front),
+        "status": "insufficient_domain_candidates" if not front else "completed",
+        "joint_probability": None, "physical_constraints_changed": False}
     if report:
         report("validated", 99)
-    return {"method": algorithm, "direction": directions[0], "directions": directions,
+    result = {"method": algorithm, "direction": directions[0], "directions": directions,
         "objectives": [s["name"] for s in specs], "objective_specs": metadata, "feature_names": names,
         "model_id": "joint", "model_type": "joint", "trials_completed": evaluate.count,
-        "deterministic_seed": seed, "recommendations": front[:RECOMMENDATION_LIMIT], "pareto_front": front}
+        "deterministic_seed": seed, "recommendations": front[:RECOMMENDATION_LIMIT], "pareto_front": front,
+        "domain_filter": domain_filter}
+    if len(json.dumps(result, allow_nan=False, separators=(",", ":")).encode()) > 2 * 1024 * 1024:
+        raise OptimizationError("invalid_payload", "joint domain result exceeds result budget")
+    return result

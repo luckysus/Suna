@@ -24,3 +24,7 @@
 .suna-optimization-config fieldset > div { padding: 10px 0; border-bottom: 1px solid var(--suna-line); }
 .suna-optimization-config fieldset p { font-size: 12px; line-height: 1.6; color: var(--suna-text-muted); }
 .suna-optimization-row { grid-template-columns: 80px 100px minmax(150px,1fr) minmax(180px,1fr) 120px; min-width: 650px; }
+/* Per-model evidence spans the candidate row, preserving its numeric columns. */
+.suna-optimization-domain-evidence { grid-column: 1 / -1; font-size: 12px; }
+.suna-optimization-domain-evidence ul { padding-left: 18px; margin: 6px 0; }
+.suna-optimization-domain-evidence details p { overflow-wrap: anywhere; }

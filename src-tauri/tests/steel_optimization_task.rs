@@ -107,6 +107,7 @@ fn optimization_request(training_task_id: uuid::Uuid) -> OptimizeSteelProcessReq
         objectives: vec![],
         variables: vec![],
         dataset_id: "dataset-1".to_string(),
+        domain_policy: None,
         training_task_id: training_task_id.to_string(),
         direction: "minimize".to_string(),
         objective_columns: vec![0],

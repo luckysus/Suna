@@ -529,10 +529,39 @@ export interface OptimizationObjective {
   unit: string;
   coefficients?: Record<string, number>;
   intercept?: number;
+  unit_status?: "verified_conversion" | "verified_training_unit" | "unknown_training_unit";
 }
 export interface OptimizationVariable { fieldId?:string;unit?:string; name: string; min: number; max: number; fixedValue?: number | null }
 
+export type DomainPolicy = "annotate_all" | "within_domain_only";
+export interface ModelDomainEvidence {
+  objective_index: number;
+  candidate_index: number;
+  model_id: string | null;
+  model_sha256: string | null;
+  support_sha256: string | null;
+  dataset_sha256: string | null;
+  schema_version: "applicability-support.v1";
+  method: "marginal_training_ranges";
+  probability: null;
+  physical_feasibility: "not_assessed";
+  joint_support: "not_assessed";
+  interval_status: "unknown" | "requires_exchangeability_assumption";
+  risk: NonNullable<ComputePredictionResult["applicability"]>["rows"][number];
+}
+export interface DomainFilter {
+  policy: DomainPolicy;
+  scope: "returned_pareto_front";
+  before: number;
+  after: number;
+  excluded: number;
+  status: "completed" | "insufficient_domain_candidates";
+  joint_probability: null;
+  physical_constraints_changed: false;
+}
+
 export interface ComputeOptimizationRequest {
+  domainPolicy?: DomainPolicy;
   datasetId: string;
   trainingTaskId?: string;
   direction?: "minimize" | "maximize";
@@ -554,6 +583,7 @@ export interface ComputeOptimizationRequest {
 }
 
 export interface ComputeOptimizationRecommendation {
+  model_applicability?: ModelDomainEvidence[];
   material_assessment?:{hardFeasible:boolean;softPenalty:number;supportRisk:boolean;supportAssessed:boolean};
   values: Record<string, number>;
   objectives: number[];
@@ -563,6 +593,7 @@ export interface ComputeOptimizationRecommendation {
 }
 
 export interface ComputeOptimizationResult {
+  domain_filter?: DomainFilter;
   task_id: string;
   state: "completed";
   method: string;
