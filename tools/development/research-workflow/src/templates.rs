@@ -5,6 +5,42 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 pub fn install_in_temporary_database(c: &Connection) -> Result<(), String> {
+    // Actual Suna fixtures already contain migration 44. Verify and reuse it;
+    // never recreate or replace the original immutable version table.
+    let exists:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='workflow_templates')",[],|r|r.get(0)).map_err(|_|"workflow_template_schema_error")?;
+    if exists {
+        let mut query = c
+            .prepare("PRAGMA table_info(workflow_templates)")
+            .map_err(|_| "workflow_template_schema_error")?;
+        let columns = query
+            .query_map([], |r| Ok((r.get::<_, String>(1)?, r.get::<_, i64>(5)?)))
+            .map_err(|_| "workflow_template_schema_error")?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "workflow_template_schema_error")?;
+        let expected = [
+            ("workspace_id", 1),
+            ("id", 2),
+            ("revision", 3),
+            ("name", 0),
+            ("schema_version", 0),
+            ("payload_json", 0),
+            ("content_sha256", 0),
+            ("created_at", 0),
+        ];
+        if columns
+            .iter()
+            .map(|(name, pk)| (name.as_str(), *pk))
+            .collect::<Vec<_>>()
+            != expected
+        {
+            return Err("workflow_template_schema_error".into());
+        }
+        let triggers:u32=c.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND tbl_name='workflow_templates' AND name IN ('workflow_template_immutable','workflow_template_no_delete')",[],|r|r.get(0)).map_err(|_|"workflow_template_schema_error")?;
+        if triggers != 2 {
+            return Err("workflow_template_schema_error".into());
+        }
+        return Ok(());
+    }
     c.execute_batch("CREATE TABLE workflow_templates(workspace_id TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>0),name TEXT NOT NULL,schema_version TEXT NOT NULL,payload_json TEXT NOT NULL CHECK(json_valid(payload_json)),content_sha256 TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(workspace_id,id,revision));
     CREATE TRIGGER workflow_template_immutable BEFORE UPDATE ON workflow_templates BEGIN SELECT RAISE(ABORT,'immutable_workflow_template'); END;
     CREATE TRIGGER workflow_template_no_delete BEFORE DELETE ON workflow_templates BEGIN SELECT RAISE(ABORT,'immutable_workflow_template'); END;").map_err(|_|"workflow_template_schema_error".into())
@@ -105,6 +141,24 @@ pub fn get(c: &Connection, ws: &str, id: &str, revision: u64) -> Result<Value, S
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn current_suna_migration_is_reused_without_mutating_or_replacing_its_history() {
+        let mut c = Connection::open_in_memory().unwrap();
+        suna::storage::migrations::migrate(&mut c).unwrap();
+        let before: u32 = c
+            .query_row("SELECT total_changes()", [], |r| r.get(0))
+            .unwrap();
+        install_in_temporary_database(&c).unwrap();
+        install_in_temporary_database(&c).unwrap();
+        assert_eq!(
+            c.query_row("SELECT total_changes()", [], |r| r.get::<_, u32>(0))
+                .unwrap(),
+            before
+        );
+        c.execute_batch("DROP TRIGGER workflow_template_no_delete")
+            .unwrap();
+        assert!(install_in_temporary_database(&c).is_err());
+    }
     use crate::tests::fixture;
     #[test]
     fn saves_independent_versions_and_reopens_without_overwriting_history() {
