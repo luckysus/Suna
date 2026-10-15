@@ -22,7 +22,7 @@ export default function LiteratureEvidenceQualityPanel({projectId,service}:{proj
   }
   const r=preview?.report;
   return <details aria-label="文献证据溯源核查"><summary>文献证据溯源核查</summary>
-    <p>仅核查当前项目已归档的数值证据、索引版本、引用和单位。未校验外部原文件、实验条件、测试方法或撤稿状态；本地关联不等于公网DOI验证，也不构成科研可信度评分。</p>
+    <p>仅核查当前项目已归档的数值证据、索引版本、引用和单位。未校验外部原文件、补充记录中的实验条件、测试方法或撤稿状态；本地关联不等于公网DOI验证，也不构成科研可信度评分。</p>
     {!projectId&&<p>请先选择科研项目。</p>}{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
     <fieldset disabled={busy||!projectId}><legend>核对已审核证据</legend>
       <button type="button" onClick={()=>void perform(async current=>{setPreview(null);const result=await service.preview(projectId!);if(!current())return;if(!valid(result,projectId!))throw new Error('invalid_evidence_quality');setOffset(0);setPreview(result);})}>核查项目证据</button>
@@ -31,7 +31,7 @@ export default function LiteratureEvidenceQualityPanel({projectId,service}:{proj
         {!r.checks.length&&<p>尚无已归档证据；检索题录和本页AI草稿不计入已审核证据。</p>}
         <ol>{r.checks.slice(offset,offset+25).map(c=><li key={c.evidenceSha256}>
           <p>{c.field}：{c.value} {c.unit} · {sourceLabels[c.indexedSourceState]} · {doiLabels[c.doiState]} · {unitLabels[c.unitState]}</p>
-          {c.unitState==='normalized'&&<p>规范单位值 {c.normalizedValue} {c.canonicalUnit}；实验条件未记录，不作直接性能比较。</p>}
+          {c.unitState==='normalized'&&<p>规范单位值 {c.normalizedValue} {c.canonicalUnit}；此核查不评价实验条件，不作直接性能比较。</p>}
           <p style={{overflowWrap:'anywhere'}}>版本 {c.versionId} · 片段 {c.chunkId} · 证据摘要 {c.evidenceSha256}</p>
         </li>)}</ol><button type="button" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-25))}>前一页核查记录</button><button type="button" disabled={offset+25>=r.checks.length} onClick={()=>setOffset(offset+25)}>更多核查记录</button>
         <button type="button" disabled={!r.checks.length} onClick={()=>void perform(async current=>{const result=await service.archive(projectId!,preview!.reportSha256);if(!current())return;if(result.reportSha256!==preview!.reportSha256||result.contentSha256!==preview!.reportSha256||!result.artifactId)throw new Error('invalid_evidence_quality_receipt');setNotice(`核查报告已保存为项目不可变成果 ${result.artifactId}。未写入训练数据或实测。`);})}>保存本次核查报告</button>

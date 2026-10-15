@@ -13,6 +13,7 @@ use crate::{
 use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::{path::PathBuf, time::Duration};
+pub(crate) mod context;
 mod persistence;
 pub(crate) mod quality;
 fn validate(s: &Search) -> Result<(), String> {
@@ -337,27 +338,10 @@ pub fn search_local_literature_evidence(
     query: String,
 ) -> Result<Value, String> {
     with_conn(&db, |c| {
-        if query.trim().is_empty() || query.len() > 1000 {
-            return Err("invalid_evidence_query".into());
-        }
-        let hits = crate::rag::index::fts::search(
-            c,
-            &crate::rag::index::fts::FtsSearchRequest {
-                workspace_id: current_workspace_id().into(),
-                query,
-                knowledge_base_ids: vec![],
-                limit: 20,
-            },
-        )
-        .map_err(|e| e.to_string())?;
-        let mut rows = vec![];
-        for h in hits {
-            let location:String=c.query_row("SELECT source_location_json FROM knowledge_chunks WHERE workspace_id=?1 AND version_id=?2 AND id=?3",rusqlite::params![current_workspace_id(),h.version_id.to_string(),h.chunk_id.to_string()],|r|r.get(0)).map_err(|e|e.to_string())?;
-            rows.push(json!({"documentId":h.document_id,"versionId":h.version_id,"chunkId":h.chunk_id,"source":h.source_name,"quote":h.text,"location":serde_json::from_str::<Value>(&location).map_err(|e|e.to_string())?}));
-        }
-        Ok(json!(rows))
+        repo::search_evidence(c, current_workspace_id(), &query)
     })
 }
+
 #[tauri::command]
 pub fn create_literature_evidence_dataset(
     app: tauri::AppHandle,

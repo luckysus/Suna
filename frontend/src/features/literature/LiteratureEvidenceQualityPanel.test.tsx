@@ -11,7 +11,7 @@ beforeEach(()=>{service={preview:vi.fn().mockResolvedValue(preview),archive:vi.f
 async function load(){render(<LiteratureEvidenceQualityPanel projectId="project-a" service={service}/>);expect(service.preview).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'核查项目证据'}));await screen.findByLabelText('证据核查预览');}
 it('requires a project and explicit read-only preview before persisting the exact reviewed hash',async()=>{
   const empty=render(<LiteratureEvidenceQualityPanel projectId={null} service={service}/>);expect(screen.getByRole('button',{name:'核查项目证据'})).toBeDisabled();expect(service.preview).not.toHaveBeenCalled();empty.unmount();
-  await load();expect(service.preview).toHaveBeenCalledWith('project-a');expect(screen.getByText('规范单位值 500 HV；实验条件未记录，不作直接性能比较。')).toBeInTheDocument();
+  await load();expect(service.preview).toHaveBeenCalledWith('project-a');expect(screen.getByText('规范单位值 500 HV；此核查不评价实验条件，不作直接性能比较。')).toBeInTheDocument();
   expect(service.archive).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'保存本次核查报告'}));
   expect(await screen.findByRole('status')).toHaveTextContent('不可变成果 report-a');expect(service.archive).toHaveBeenCalledWith('project-a',preview.reportSha256);
 });

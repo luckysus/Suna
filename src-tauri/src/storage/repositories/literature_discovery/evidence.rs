@@ -213,3 +213,49 @@ pub fn evidence_dataset(
     }
     result
 }
+
+/// Existing local FTS; the empty allowlist remains deny-all in the shared engine.
+pub fn search_evidence(c: &Connection, ws: &str, query: &str) -> Result<Value, String> {
+    if query.trim().is_empty() || query.len() > 1000 {
+        return Err("invalid_evidence_query".into());
+    }
+    // Resolve a bounded allowlist owned by this workspace; shared FTS must keep
+    // treating an empty allowlist as no permission, never as all databases.
+    let mut q = c
+        .prepare("SELECT id FROM knowledge_bases WHERE workspace_id=?1 ORDER BY id LIMIT 257")
+        .map_err(err)?;
+    let raw = q
+        .query_map([ws], |r| r.get::<_, String>(0))
+        .map_err(err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(err)?;
+    if raw.len() > 256 {
+        return Err("literature_evidence_base_budget".into());
+    }
+    let bases = raw
+        .into_iter()
+        .map(|id| {
+            id.parse::<crate::rag::model::KnowledgeBaseId>()
+                .map_err(|_| "invalid_evidence_base".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let hits = crate::rag::index::fts::search(
+        c,
+        &crate::rag::index::fts::FtsSearchRequest {
+            workspace_id: ws.into(),
+            query: query.into(),
+            knowledge_base_ids: bases,
+            limit: 20,
+        },
+    )
+    .map_err(|e| e.to_string())?;
+    let mut rows = vec![];
+    for h in hits {
+        let (location,sha,text):(String,String,String)=c.query_row("SELECT source_location_json,content_sha256,text FROM knowledge_chunks WHERE workspace_id=?1 AND version_id=?2 AND id=?3",params![ws,h.version_id.to_string(),h.chunk_id.to_string()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(err)?;
+        if hash(&text) != sha || h.text != text {
+            return Err("evidence_source_hash_mismatch".into());
+        }
+        rows.push(json!({"documentId":h.document_id,"versionId":h.version_id,"chunkId":h.chunk_id,"chunkSha256":sha,"source":h.source_name,"quote":text,"location":serde_json::from_str::<Value>(&location).map_err(|_|"invalid_evidence_location")?}));
+    }
+    Ok(json!(rows))
+}

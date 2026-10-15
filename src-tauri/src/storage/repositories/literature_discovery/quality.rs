@@ -3,7 +3,7 @@ use super::*;
 use crate::steel::materials::{self, Registry};
 use std::collections::BTreeMap;
 
-fn evidence(value: &Value) -> Result<Evidence, String> {
+pub(super) fn evidence(value: &Value) -> Result<Evidence, String> {
     if value["reviewed"] != true || value["sourceType"] != "literature" {
         return Err("invalid_literature_evidence_snapshot".into());
     }

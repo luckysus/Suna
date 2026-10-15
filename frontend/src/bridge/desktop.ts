@@ -1666,7 +1666,7 @@ export interface ImageAnalysis {id:string;taskId:string;annotationId:string;resu
 
 export type LiteratureMetadataProviderId='crossref'|'europe_pmc'|'openalex';
 export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
-export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;source:string;quote:string;location:Record<string,unknown>}
+export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;chunkSha256?:string;source:string;quote:string;location:Record<string,unknown>}
 export interface MaterialComputeAdapter {id:string;label:string;capability:string;mode:'file_import';inputSchemaVersion:string;outputSchemaVersion:string;requiresLicense:boolean;requiresUserApproval:boolean}
 export interface ProductionReadProfile {connectionId:string;database:string;table:string;columns:string[];batchColumn:string;rowLimit:number}
 export const desktop = {
@@ -1679,6 +1679,9 @@ export const desktop = {
   getProductionQueryPreview:(id:string)=>call<{taskId:string;rowCount:number;columns:string[];previewRows:(string|null)[][];truncated:boolean;queryTime:string}|null>('get_production_query_preview',{id}),
 
   createLiteratureEvidenceDataset:(projectId:string)=>call<SteelDatasetRecord>("create_literature_evidence_dataset",{projectId}),
+  listLiteratureContextSources:(projectId:string,offset=0)=>call<import('./literatureContextTypes').ContextPage<import('./literatureContextTypes').LiteratureContextSource>>('list_literature_context_sources',{projectId,offset}),
+  listLiteratureExperimentalContexts:(projectId:string,evidenceArtifactId:string,offset=0)=>call<import('./literatureContextTypes').ContextPage<import('./literatureContextTypes').LiteratureContextRecord>>('list_literature_experimental_contexts',{projectId,evidenceArtifactId,offset}),
+  archiveLiteratureExperimentalContext:(projectId:string,request:import('./literatureContextTypes').LiteratureContextRequest)=>call<import('./literatureContextTypes').LiteratureContextReceipt>('archive_literature_experimental_context',{projectId,request}),
   previewLiteratureEvidenceQuality:(projectId:string)=>call<EvidenceQualityPreview>('preview_literature_evidence_quality',{projectId}),
   archiveLiteratureEvidenceQuality:(projectId:string,expectedSha256:string)=>call<EvidenceQualityArchive>('archive_literature_evidence_quality',{projectId,expectedSha256}),
   searchPublicLiterature:(request:{provider?:LiteratureMetadataProviderId;query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
