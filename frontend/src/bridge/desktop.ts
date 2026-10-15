@@ -1664,7 +1664,7 @@ export interface ImageAnnotationRecord {id:string;imageId:string;parameters:Micr
 export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[];rasterInput?:MicrostructureRasterInput}
 export interface ImageAnalysis {id:string;taskId:string;annotationId:string;result:MicrostructureStatistics|null;error:string|null;reviewState:'accepted'|'rejected'|null;reviewNote:string|null;createdAt:string}
 
-export type LiteratureMetadataProviderId='crossref'|'europe_pmc';
+export type LiteratureMetadataProviderId='crossref'|'europe_pmc'|'openalex';
 export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
 export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;source:string;quote:string;location:Record<string,unknown>}
 export interface MaterialComputeAdapter {id:string;label:string;capability:string;mode:'file_import';inputSchemaVersion:string;outputSchemaVersion:string;requiresLicense:boolean;requiresUserApproval:boolean}

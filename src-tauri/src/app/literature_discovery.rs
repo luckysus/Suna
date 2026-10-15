@@ -130,6 +130,12 @@ async fn execute(
         if response.status().as_u16() == 429 {
             return Err(HandlerError::retryable("literature_rate_limited"));
         }
+        if matches!(response.status().as_u16(), 401 | 403) {
+            // Never retry authentication indefinitely or persist an upstream body.
+            return Err(HandlerError::permanent(
+                "literature_authentication_required",
+            ));
+        }
         if !response.status().is_success() {
             return Err(HandlerError::retryable("literature_http_error"));
         }
@@ -456,6 +462,9 @@ mod fixture_http_tests {
         fn emit(&self, _: SchedulerEvent) {}
     }
     fn run_provider_http_fixture(source: ProviderId) {
+        run_provider_http_fixture_status(source, 200);
+    }
+    fn run_provider_http_fixture_status(source: ProviderId, status: u16) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let endpoint = format!("http://{}/works", listener.local_addr().unwrap());
         let server = std::thread::spawn(move || {
@@ -466,7 +475,6 @@ mod fixture_http_tests {
             let mut buf = [0; 8192];
             let n = socket.read(&mut buf).unwrap();
             let request = String::from_utf8_lossy(&buf[..n]);
-            assert!(request.contains("query=synthetic"));
             let target = request
                 .lines()
                 .next()
@@ -477,11 +485,26 @@ mod fixture_http_tests {
             let url = reqwest::Url::parse(&format!("http://127.0.0.1{target}")).unwrap();
             let query: std::collections::HashMap<String, String> =
                 url.query_pairs().into_owned().collect();
-            assert_eq!(query.get("query").unwrap(), "synthetic 钢+?");
+            assert_eq!(
+                query
+                    .get(if source == ProviderId::OpenAlex {
+                        "search"
+                    } else {
+                        "query"
+                    })
+                    .unwrap(),
+                "synthetic 钢+?"
+            );
+            assert!(!query.contains_key("api_key") && !query.contains_key("mailto"));
             match source {
                 ProviderId::Crossref => {
                     assert_eq!(query["rows"], "20");
                     assert_eq!(query["cursor"], "*");
+                }
+                ProviderId::OpenAlex => {
+                    assert_eq!(query["per-page"], "20");
+                    assert_eq!(query["cursor"], "*");
+                    assert!(query["select"].contains("abstract_inverted_index"));
                 }
                 ProviderId::EuropePmc => {
                     assert_eq!(query["pageSize"], "20");
@@ -491,10 +514,16 @@ mod fixture_http_tests {
                 }
             }
             let body=match source {
+                ProviderId::OpenAlex=>json!({"results":[{"id":"https://openalex.org/W1234","title":"Synthetic OpenAlex HTTP fixture","doi":"https://doi.org/10.1234/fixture","publication_year":2020}],"meta":{"next_cursor":"next"}}),
                 ProviderId::Crossref=>json!({"message":{"items":[{"DOI":"10.1234/fixture","title":["Synthetic local HTTP provider fixture"],"published":{"date-parts":[[2020]]}}],"next-cursor":"next"}}),
                 ProviderId::EuropePmc=>json!({"resultList":{"result":[{"source":"MED","id":"1234","title":"Synthetic EU HTTP provider fixture","doi":"10.1234/fixture","pubYear":"2020","isOpenAccess":"Y"}]},"nextCursorMark":"next"}),
             }.to_string();
-            write!(socket,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+            let body = if status == 200 {
+                body
+            } else {
+                json!({"error":"synthetic-private-provider-response"}).to_string()
+            };
+            write!(socket,"HTTP/1.1 {status} Fixture\r\nLocation: https://foreign.invalid/do-not-follow\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
         });
         let root =
             std::env::temp_dir().join(format!("suna-metadata-http-{}", uuid::Uuid::new_v4()));
@@ -556,13 +585,38 @@ mod fixture_http_tests {
             scheduler.tick().unwrap();
             let task = repository::get(&c, "local", t.id).unwrap().unwrap();
             if matches!(task.state, TaskState::Completed | TaskState::Failed) {
-                assert_eq!(task.state, TaskState::Completed, "{:?}", task.error_code);
+                if status == 200 {
+                    assert_eq!(task.state, TaskState::Completed, "{:?}", task.error_code);
+                } else {
+                    assert_eq!(task.state, TaskState::Failed);
+                    let expected = match status {
+                        401 | 403 => "literature_authentication_required",
+                        429 => "literature_rate_limited",
+                        _ => "literature_http_error",
+                    };
+                    assert_eq!(task.error_code.as_deref(), Some(expected));
+                    assert!(!task
+                        .checkpoint_json
+                        .as_deref()
+                        .unwrap_or("")
+                        .contains("synthetic-private-provider-response"));
+                }
                 break;
             }
             assert!(Instant::now() < deadline);
             std::thread::sleep(Duration::from_millis(10));
         }
         server.join().unwrap();
+        if status != 200 {
+            assert!(repo::list(&c, "local", "", 0).unwrap().is_empty());
+            assert!(artifacts::list(&c, "local", &p.id, 25, 0)
+                .unwrap()
+                .is_empty());
+            drop(scheduler);
+            drop(c);
+            std::fs::remove_dir_all(root).unwrap();
+            return;
+        }
         let rows = repo::list(&c, "local", "", 0).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].metadata.provider, source.as_str());
@@ -622,6 +676,16 @@ mod fixture_http_tests {
     #[test]
     fn scheduler_real_http_fixture_then_offline_cache_and_project_source() {
         run_provider_http_fixture(ProviderId::Crossref);
+    }
+    #[test]
+    fn provider_http_auth_rate_and_redirect_failures_never_persist_bodies_or_fake_results() {
+        for status in [401, 403, 429, 307] {
+            run_provider_http_fixture_status(ProviderId::OpenAlex, status);
+        }
+    }
+    #[test]
+    fn openalex_provider_uses_real_scheduler_http_storage_and_offline_reopen() {
+        run_provider_http_fixture(ProviderId::OpenAlex);
     }
     #[test]
     fn european_provider_uses_real_scheduler_http_storage_and_offline_reopen() {

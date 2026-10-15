@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 mod crossref;
 mod europe_pmc;
+mod openalex;
 mod types;
 pub use crossref::parse_crossref;
 pub use types::{normalize_doi, Metadata, Search};
@@ -16,18 +17,22 @@ pub enum ProviderId {
     Crossref,
     #[serde(rename = "europe_pmc")]
     EuropePmc,
+    #[serde(rename = "openalex")]
+    OpenAlex,
 }
 impl ProviderId {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Crossref => "crossref",
             Self::EuropePmc => "europe_pmc",
+            Self::OpenAlex => "openalex",
         }
     }
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "crossref" => Some(Self::Crossref),
             "europe_pmc" => Some(Self::EuropePmc),
+            "openalex" => Some(Self::OpenAlex),
             _ => None,
         }
     }
@@ -41,6 +46,7 @@ pub fn provider(id: ProviderId) -> &'static dyn LiteratureMetadataProvider {
     match id {
         ProviderId::Crossref => &Crossref,
         ProviderId::EuropePmc => &europe_pmc::EuropePmc,
+        ProviderId::OpenAlex => &openalex::OpenAlex,
     }
 }
 struct Crossref;
@@ -70,5 +76,7 @@ impl LiteratureMetadataProvider for Crossref {
         parse_crossref(body)
     }
 }
+#[cfg(test)]
+mod openalex_tests;
 #[cfg(test)]
 mod tests;

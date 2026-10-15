@@ -91,6 +91,24 @@ fn providers_share_doi_identity_and_keep_revision_hashes_and_independent_rate_li
         get(&c, "ws", &other.id).unwrap().metadata.provider,
         "europe_pmc"
     );
+    let mut openalex = metadata();
+    openalex.provider = "openalex".into();
+    openalex.external_id = "W1234".into();
+    openalex.source_url = "https://openalex.org/W1234".into();
+    let third = store(&c, "ws", openalex.clone()).unwrap();
+    assert_eq!(third.id, crossref.id);
+    assert_ne!(third.revision_id, other.revision_id);
+    assert_eq!(
+        store(&c, "ws", openalex.clone()).unwrap().revision_id,
+        third.revision_id
+    );
+    openalex.doi = None;
+    let openalex_without_doi = store(&c, "ws", openalex.clone()).unwrap();
+    assert_ne!(openalex_without_doi.id, third.id);
+    assert_eq!(
+        store(&c, "ws", openalex).unwrap().id,
+        openalex_without_doi.id
+    );
     european.doi = None;
     let without_doi = store(&c, "ws", european.clone()).unwrap();
     assert_ne!(without_doi.id, other.id);
@@ -99,6 +117,9 @@ fn providers_share_doi_identity_and_keep_revision_hashes_and_independent_rate_li
     settings::set(&mut c, "ws", NETWORK_KEY, "true").unwrap();
     reserve_for_provider(&c, "ws", ProviderId::Crossref, 1000).unwrap();
     reserve_for_provider(&c, "ws", ProviderId::EuropePmc, 1000).unwrap();
+    reserve_for_provider(&c, "ws", ProviderId::OpenAlex, 1000).unwrap();
+    assert!(reserve_for_provider(&c, "ws", ProviderId::OpenAlex, 1100).is_err());
+    assert!(reserve_for_provider(&c, "other", ProviderId::OpenAlex, 3000).is_err());
     assert!(reserve_for_provider(&c, "ws", ProviderId::EuropePmc, 1100).is_err());
     assert!(reserve_for_provider(&c, "other", ProviderId::EuropePmc, 3000).is_err());
     assert_eq!(

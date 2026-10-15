@@ -43,4 +43,4 @@ Suna 当前是以 Windows 为主要目标的 Tauri 2 本地桌面应用。默认
 
 显微组织模块在数据实验室内使用管理目录中的不可变原图、SQLite标注/审核及analysis_result成果，新增compute_analyze_microstructure任务复用Scheduler和PythonstdioWorker。算法依赖Pillow/NumPy/SciPy并锁定版本；阈值区域不推断材料相，没有标尺时仅像素单位。
 
-文献发现使用显式联网开关、固定Crossref端点与原Scheduler；SQLite保存工作区DOI身份和不可变元数据修订，全文通过已有本地RAG流程关联版本。原生审核验证实际chunk引用/哈希/数值单位配对，创建来源为literature的新草稿数据集，不自动训练。
+文献发现使用显式联网开关、固定来源目录（Crossref / Europe PMC / OpenAlex）与原Scheduler；SQLite保存工作区DOI身份和不可变元数据修订，全文通过已有本地RAG流程关联版本。匿名题录检索不附带个人模型凭据或本地原文，服务端URL不作为任意下载入口。原生审核验证实际chunk引用/哈希/数值单位配对，创建来源为literature的新草稿数据集，不自动训练。

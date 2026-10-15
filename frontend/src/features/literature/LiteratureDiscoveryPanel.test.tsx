@@ -31,6 +31,27 @@ it('persists provider in the task request and paginates the original provider an
  expect(screen.getByRole('button',{name:'下一页公开元数据'})).toBeDisabled();
  expect(desktop.setSetting).not.toHaveBeenCalled();
 });
+it('OpenAlex uses the persisted provider and original search across pagination without credentials',async()=>{
+ vi.mocked(desktop.getSetting).mockResolvedValue('true');
+ const european={...record,metadata:{...record.metadata,provider:'openalex',externalId:'W1234',sourceUrl:'https://openalex.org/W1234'}};
+ vi.mocked(desktop.getLiteratureDiscoveryResult).mockResolvedValue({records:[european],nextCursor:'next-openalex',provider:'openalex',sampleScope:'user_search_results',query:'steel',fromYear:2020,toYear:2024});
+ render(<LiteratureDiscoveryPanel/>);await screen.findByText('Synthetic steel fixture');
+ fireEvent.change(screen.getByLabelText('检索来源'),{target:{value:'online'}});
+ fireEvent.change(screen.getByLabelText('公开元数据服务'),{target:{value:'openalex'}});
+ fireEvent.change(screen.getByLabelText('公开文献检索词'),{target:{value:'steel'}});
+ fireEvent.change(screen.getByLabelText('起始年份'),{target:{value:'2020'}});
+ fireEvent.change(screen.getByLabelText('截止年份'),{target:{value:'2024'}});
+ fireEvent.click(screen.getByRole('button',{name:'检索题录'}));
+ await waitFor(()=>expect(desktop.searchPublicLiterature).toHaveBeenCalledWith({provider:'openalex',query:'steel',fromYear:2020,toYear:2024,cursor:null}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'下一页公开元数据'})).toBeEnabled());
+ fireEvent.change(screen.getByLabelText('公开文献检索词'),{target:{value:'changed'}});
+ fireEvent.click(screen.getByRole('button',{name:'下一页公开元数据'}));
+ await waitFor(()=>expect(desktop.searchPublicLiterature).toHaveBeenLastCalledWith({provider:'openalex',query:'steel',fromYear:2020,toYear:2024,cursor:'next-openalex'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'检索题录'})).toBeEnabled());
+ fireEvent.change(screen.getByLabelText('公开元数据服务'),{target:{value:'crossref'}});
+ expect(screen.getByRole('button',{name:'下一页公开元数据'})).toBeDisabled();
+ expect(desktop.setSetting).not.toHaveBeenCalled();
+});
 it('does not apply a delayed result cursor to a different selected service',async()=>{
  vi.mocked(desktop.getSetting).mockResolvedValue('true');
  let release!:(value:Awaited<ReturnType<typeof desktop.getLiteratureDiscoveryResult>>)=>void;
