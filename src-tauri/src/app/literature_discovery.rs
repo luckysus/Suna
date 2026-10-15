@@ -573,7 +573,35 @@ mod fixture_http_tests {
         assert_eq!(checkpoint["result"]["provider"], source.as_str());
         assert_eq!(checkpoint["result"]["nextCursor"], "next");
         assert_eq!(rows[0].metadata.doi.as_deref(), Some("10.1234/fixture"));
-        assert_eq!(artifacts::list(&c, "local", &p.id, 25, 0).unwrap().len(), 1);
+        let outputs = artifacts::list(&c, "local", &p.id, 25, 0).unwrap();
+        assert_eq!(outputs.len(), 1);
+        let frozen = artifacts::get(&c, "local", &outputs[0].id).unwrap();
+        let frozen_payload = frozen.payload.as_ref().unwrap();
+        assert_eq!(frozen_payload["provider"], source.as_str());
+        assert_eq!(frozen_payload["records"][0]["literatureId"], rows[0].id);
+        assert_eq!(
+            frozen_payload["records"][0]["revisionId"],
+            rows[0].revision_id
+        );
+        assert_eq!(
+            frozen_payload["records"][0]["metadataSha256"],
+            rows[0].revision_sha256
+        );
+        use sha2::{Digest, Sha256};
+        assert_eq!(
+            frozen_payload["querySha256"],
+            format!(
+                "{:x}",
+                Sha256::digest(json!("synthetic 钢+?").to_string().as_bytes())
+            )
+        );
+        artifacts::reconcile_task(&c, "local", &t.id.to_string()).unwrap();
+        assert_eq!(
+            artifacts::get(&c, "local", &frozen.id)
+                .unwrap()
+                .content_sha256,
+            frozen.content_sha256
+        );
         crate::storage::repositories::settings::set(&mut c, "local", repo::NETWORK_KEY, "false")
             .unwrap();
         assert_eq!(repo::list(&c, "local", "", 0).unwrap().len(), 1);
@@ -584,6 +612,9 @@ mod fixture_http_tests {
         let reopened = repo::list(&c, "local", "", 0).unwrap();
         assert_eq!(reopened[0].metadata.provider, source.as_str());
         assert_eq!(reopened[0].revision_sha256, rows[0].revision_sha256);
+        let reopened_output = artifacts::get(&c, "local", &frozen.id).unwrap();
+        assert_eq!(reopened_output.content_sha256, frozen.content_sha256);
+        assert_eq!(reopened_output.payload, frozen.payload);
         drop(c);
         std::fs::remove_dir_all(root).unwrap();
     }

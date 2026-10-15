@@ -232,10 +232,17 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
             continue;
         }
         if task_kind == "literature_metadata_search" {
-            let records = cp["result"]["records"]
-                .as_array()
-                .ok_or("missing_literature_result")?;
-            let sources=records.iter().map(|r|json!({"literatureId":r["id"],"revisionId":r["revisionId"],"metadataSha256":r["revisionSha256"]})).collect::<Vec<_>>();
+            // Old frozen results retain their exact bytes and historical digest,
+            // including snapshots created before multiple providers were supported.
+            let existing: Option<String> = c.query_row(
+                "SELECT id FROM research_artifacts WHERE workspace_id=?1 AND project_id=?2 AND kind='analysis_result' AND source_key=?3",
+                params![ws, p, task], |r| r.get(0),
+            ).optional().map_err(err)?;
+            if let Some(id) = existing {
+                get(c, ws, &id)?;
+                continue;
+            }
+            let frozen = super::literature_snapshot::payload(c, ws, &payload, &cp["result"])?;
             create(
                 c,
                 ws,
@@ -244,7 +251,7 @@ pub fn reconcile_task(c: &Connection, ws: &str, task: &str) -> Result<(), String
                 "公开元数据检索清单",
                 task,
                 Some(&run),
-                json!({"provider":"crossref","querySha256":format!("{:x}",Sha256::digest(payload["query"].to_string().as_bytes())),"fromYear":payload["fromYear"],"toYear":payload["toYear"],"sampleScope":"user_search_results","records":sources}),
+                frozen,
             )?;
             continue;
         }

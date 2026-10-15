@@ -364,6 +364,7 @@ pub fn registered_model(c: &Connection, ws: &str, id: &str) -> Result<(), String
     Ok(())
 }
 
+mod literature_snapshot;
 mod metadata;
 pub use metadata::{safe_metadata, safe_request};
 
