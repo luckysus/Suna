@@ -33,10 +33,16 @@ export default function CorrelationHeatmap({
   }
 
   const tone = (value: number) => {
-    // 正相关 -> 蓝，负相关 -> 红；透明度表示强度。
-    const alpha = Math.min(1, Math.abs(value));
-    const rgb = value >= 0 ? "37, 99, 235" : "198, 69, 69";
-    return `rgba(${rgb}, ${alpha.toFixed(2)})`;
+    const alpha = Math.min(0.88, Math.max(0.08, Math.abs(value) * 0.88));
+    return value >= 0
+      ? `rgba(var(--suna-text-rgb), ${alpha.toFixed(2)})`
+      : `rgba(128, 128, 128, ${(alpha * 0.5).toFixed(2)})`;
+  };
+
+  const cellColor = (value: number | undefined) => {
+    if (value === undefined) return "var(--suna-text-muted)";
+    if (value >= 0 && Math.abs(value) > 0.45) return "var(--suna-bg)";
+    return "var(--suna-text)";
   };
 
   return (
@@ -62,7 +68,10 @@ export default function CorrelationHeatmap({
                 <span
                   className="suna-correlation-cell"
                   key={`${row.ordinal}-${column.ordinal}`}
-                  style={{ background: value === undefined ? "transparent" : tone(value) }}
+                  style={{
+                    background: value === undefined ? "transparent" : tone(value),
+                    color: cellColor(value),
+                  }}
                   title={value === undefined
                     ? `${row.name} × ${column.name}：样本不足`
                     : `${row.name} × ${column.name}：r = ${value.toFixed(3)}`}

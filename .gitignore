@@ -68,6 +68,8 @@ src-tauri/test_results_*.txt
 # =========================
 .vscode/
 .idea/
+.workbuddy-ai/
+.zcodeignore
 *.swp
 *.swo
 Thumbs.db

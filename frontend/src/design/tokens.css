@@ -1,49 +1,53 @@
 :root {
   color-scheme: light;
-  /* 第 15 章主色板：Primary #2563EB / 浅蓝 #EFF6FF / 背景 #F8FAFC / 白 #FFFFFF
-     边框 #E5E7EB / 主文字 #111827 / 次文字 #6B7280 / 成功 #22C55E / 警告 #F59E0B / 错误 #EF4444 */
-  --suna-bg: #f8fafc;
+  /* 极简纯黑白模式 (Pure Monochrome Light Mode)
+     画布纯白 #FFFFFF / 侧边栏微白 #FAFAFA / 柔和底色 #F4F4F5 / 悬停 #EAEAEA
+     边线 #E4E4E7 / 强边线 #D4D4D8 / 主文字 #000000 / 次文字 #27272A / 弱文字 #71717A
+     主操作 #000000 / 悬停 #262626 */
+  --suna-bg: #ffffff;
   --suna-bg-raised: #ffffff;
-  --suna-bg-soft: #eff6ff;
-  --suna-bg-hover: #e6efff;
-  --suna-sidebar: #f8fafc;
-  --suna-line: #e5e7eb;
-  --suna-line-strong: #d1d5db;
-  --suna-text: #111827;
-  --suna-text-soft: #374151;
-  --suna-text-muted: #6b7280;
-  --suna-steel: #2563eb;
-  --suna-primary: #2563eb;
-  --suna-primary-fill: #2563eb;
-  --suna-primary-fill-hover: #1d4ed8;
-  --suna-amber: #2563eb;
-  --suna-amber-soft: #eff6ff;
-  --suna-green: #22c55e;
+  --suna-bg-soft: #f4f4f5;
+  --suna-bg-hover: #ebebeb;
+  --suna-sidebar: #fafafa;
+  --suna-line: #e4e4e7;
+  --suna-line-strong: #d4d4d8;
+  --suna-text: #000000;
+  --suna-text-soft: #27272a;
+  --suna-text-muted: #71717a;
+  --suna-text-rgb: 0, 0, 0;
+  --suna-bg-rgb: 255, 255, 255;
+  --suna-steel: #000000;
+  --suna-primary: #000000;
+  --suna-primary-fill: #000000;
+  --suna-primary-fill-hover: #262626;
+  --suna-amber: #000000;
+  --suna-amber-soft: #f4f4f5;
+  --suna-green: #16a34a;
   --suna-success-text: #15803d;
-  --suna-green-soft: #dcfce7;
-  --suna-red: #ef4444;
+  --suna-green-soft: #f0fdf4;
+  --suna-red: #dc2626;
   --suna-error-text: #b91c1c;
-  --suna-red-soft: #fee2e2;
-  --suna-warning: #f59e0b;
+  --suna-red-soft: #fef2f2;
+  --suna-warning: #d97706;
   --suna-warning-text: #92400e;
-  --suna-warning-soft: #fef3c7;
-  --suna-accent: #2563eb;
+  --suna-warning-soft: #fffbeb;
+  --suna-accent: #000000;
   --suna-sidebar-width: 258px;
   --suna-sidebar-collapsed-width: 72px;
-  --suna-topbar-height: 64px;
+  --suna-topbar-height: 56px;
   --suna-chat-session-width: 220px;
   --suna-chat-inspector-width: 286px;
   --suna-chat-session-compact-width: 204px;
   --suna-chat-inspector-compact-width: 252px;
-  --suna-radius: 12px;
-  --suna-radius-small: 8px;
-  --suna-shadow: 0 16px 36px rgba(72, 52, 38, 0.1);
-  --suna-shadow-soft: 0 4px 14px rgba(72, 52, 38, 0.07);
-  --suna-focus: rgba(37, 99, 235, 0.24);
-  --suna-scrollbar: rgba(108, 106, 100, 0.22);
-  --suna-scrollbar-hover: rgba(108, 106, 100, 0.36);
-  --suna-range-track: #e6dfd8;
-  --suna-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  --suna-radius: 8px;
+  --suna-radius-small: 6px;
+  --suna-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --suna-shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.04);
+  --suna-focus: rgba(0, 0, 0, 0.16);
+  --suna-scrollbar: rgba(0, 0, 0, 0.2);
+  --suna-scrollbar-hover: rgba(0, 0, 0, 0.4);
+  --suna-range-track: #e4e4e7;
+  --suna-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
   --suna-ui-font-scale: 1;
   --suna-ui-space-scale: 1;
 }
@@ -62,34 +66,42 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --suna-bg: #101a2e;
-  --suna-bg-raised: #16243c;
-  --suna-bg-soft: #1c2d49;
-  --suna-bg-hover: #253b5f;
-  --suna-sidebar: #122139;
-  --suna-line: #2b4163;
-  --suna-line-strong: #3d5982;
-  --suna-text: #edf4ff;
-  --suna-text-soft: #d0def2;
-  --suna-text-muted: #91a7c6;
-  --suna-steel: #5b9cff;
-  --suna-primary: #5b9cff;
-  --suna-amber: #5b9cff;
-  --suna-amber-soft: #1d3e74;
-  --suna-green: #69c39b;
-  --suna-success-text: #69c39b;
-  --suna-green-soft: #1d463d;
-  --suna-red: #f08b94;
-  --suna-error-text: #f08b94;
-  --suna-red-soft: #4b2737;
-  --suna-warning: #f0b45b;
-  --suna-warning-text: #f0b45b;
-  --suna-warning-soft: #4a3a1e;
-  --suna-accent: #5b9cff;
-  --suna-shadow: 0 16px 36px rgba(0, 0, 0, 0.36);
-  --suna-shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.24);
-  --suna-focus: rgba(91, 156, 255, 0.36);
-  --suna-scrollbar: rgba(145, 167, 198, 0.3);
-  --suna-scrollbar-hover: rgba(91, 156, 255, 0.58);
-  --suna-range-track: #2b4163;
+  /* 极简纯黑模式 (Pure Monochrome Dark OLED Mode)
+     画布纯黑 #000000 / 微升表面 #0A0A0A / 次级表面 #121212 / 悬停 #1C1C1C
+     边线 #262626 / 强边线 #383838 / 主文字 #FFFFFF / 次文字 #E5E5E5 / 弱文字 #888888
+     主操作 #FFFFFF / 悬停 #E5E5E5 */
+  --suna-bg: #000000;
+  --suna-bg-raised: #0a0a0a;
+  --suna-bg-soft: #121212;
+  --suna-bg-hover: #1c1c1c;
+  --suna-sidebar: #050505;
+  --suna-line: #222222;
+  --suna-line-strong: #333333;
+  --suna-text: #ffffff;
+  --suna-text-soft: #e5e5e5;
+  --suna-text-muted: #888888;
+  --suna-text-rgb: 255, 255, 255;
+  --suna-bg-rgb: 0, 0, 0;
+  --suna-steel: #ffffff;
+  --suna-primary: #ffffff;
+  --suna-primary-fill: #ffffff;
+  --suna-primary-fill-hover: #e5e5e5;
+  --suna-amber: #ffffff;
+  --suna-amber-soft: #141414;
+  --suna-green: #4ade80;
+  --suna-success-text: #4ade80;
+  --suna-green-soft: #052e16;
+  --suna-red: #f87171;
+  --suna-error-text: #f87171;
+  --suna-red-soft: #450a0a;
+  --suna-warning: #fbbf24;
+  --suna-warning-text: #fbbf24;
+  --suna-warning-soft: #451a03;
+  --suna-accent: #ffffff;
+  --suna-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  --suna-shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --suna-focus: rgba(255, 255, 255, 0.25);
+  --suna-scrollbar: rgba(255, 255, 255, 0.2);
+  --suna-scrollbar-hover: rgba(255, 255, 255, 0.4);
+  --suna-range-track: #262626;
 }

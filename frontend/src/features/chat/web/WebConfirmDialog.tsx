@@ -26,28 +26,28 @@ function ConfirmCard({
   const estimatedTime = readArg(item, ["estimated_time", "estimated_duration", "duration", "time"]);
   const resource = readArg(item, ["resource_usage", "resource", "cost", "resources"]);
   return (
-    <div className={`rounded-lg border bg-white p-3 ${danger ? "border-red-300" : "border-amber-200"}`}>
+    <div className="rounded-xl border border-[var(--suna-line-strong)] bg-[var(--suna-bg-raised)] p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        {danger && <AlertTriangle size={16} className="text-red-600" />}
-        <div className="font-semibold text-slate-900">{item.title}</div>
-        <Badge className={danger ? "bg-red-100 text-red-700 hover:bg-red-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>{danger ? "高风险" : "需确认"}</Badge>
+        <AlertTriangle size={16} className="text-[var(--suna-text)]" />
+        <div className="font-semibold text-[var(--suna-text)]">{item.title}</div>
+        <Badge variant="outline" className="border-[var(--suna-line-strong)] bg-[var(--suna-bg-soft)] text-[var(--suna-text)] font-semibold">{danger ? "高风险" : "需确认"}</Badge>
       </div>
-      {(item.warning || danger) && <p className={`mt-1 text-sm leading-relaxed ${danger ? "text-red-700" : "text-amber-700"}`}>{item.warning || "此操作无法撤销，请谨慎确认。"}</p>}
+      {(item.warning || danger) && <p className="mt-1 text-sm leading-relaxed text-[var(--suna-text-muted)]">{item.warning || "此操作无法撤销，请谨慎确认。"}</p>}
       {(estimatedTime || resource) && (
-        <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--suna-text-muted)]">
           {estimatedTime && <span className="inline-flex items-center gap-1"><Clock size={13} />预估耗时：{estimatedTime}</span>}
           {resource && <span className="inline-flex items-center gap-1"><Cpu size={13} />资源占用：{resource}</span>}
         </div>
       )}
       {danger && (
         <div className="mt-3">
-          <label className="block text-xs font-medium text-red-700">请输入 <code className="rounded bg-red-50 px-1 py-0.5 font-mono">confirm</code> 以确认执行</label>
-          <Input value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="confirm" className="mt-1 w-full rounded-md border border-red-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" />
+          <label className="block text-xs font-medium text-[var(--suna-text)]">请输入 <code className="rounded bg-[var(--suna-bg-soft)] border border-[var(--suna-line)] px-1 py-0.5 font-mono text-[var(--suna-text)]">confirm</code> 以确认执行</label>
+          <Input value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="confirm" className="mt-1 w-full rounded-md border border-[var(--suna-line)] bg-[var(--suna-bg)] px-2 py-1.5 text-sm text-[var(--suna-text)] outline-none focus:border-[var(--suna-text)]" />
         </div>
       )}
       <div className="mt-3 flex gap-2">
-        <button type="button" onClick={() => onConfirm(item, true)} disabled={!unlocked} className={`rounded-md px-3 py-1.5 text-base font-semibold text-white disabled:opacity-40 ${danger ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"}`}>确认执行</button>
-        <button type="button" onClick={() => onConfirm(item, false)} className="rounded-md border border-slate-200 px-3 py-1.5 text-base text-slate-600 hover:bg-slate-50">取消</button>
+        <button type="button" onClick={() => onConfirm(item, true)} disabled={!unlocked} className="rounded-md bg-[var(--suna-text)] px-3 py-1.5 text-base font-semibold text-[var(--suna-bg)] hover:opacity-90 disabled:opacity-40">确认执行</button>
+        <button type="button" onClick={() => onConfirm(item, false)} className="rounded-md border border-[var(--suna-line)] bg-transparent px-3 py-1.5 text-base text-[var(--suna-text)] hover:bg-[var(--suna-bg-hover)]">取消</button>
       </div>
     </div>
   );

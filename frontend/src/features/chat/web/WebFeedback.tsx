@@ -27,21 +27,21 @@ export default function WebFeedback({
   };
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1">
-      <button type="button" onClick={() => send("up")} aria-label="有用" title="有用" className={`flex h-7 w-7 items-center justify-center rounded-md ${rating === "up" ? "bg-emerald-50 text-emerald-600" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}>
+      <button type="button" onClick={() => send("up")} aria-label="有用" title="有用" className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${rating === "up" ? "bg-[var(--suna-text)] text-[var(--suna-bg)]" : "text-[var(--suna-text-muted)] hover:bg-[var(--suna-bg-hover)] hover:text-[var(--suna-text)]"}`}>
         <ThumbsUp size={15} />
       </button>
-      <button type="button" onClick={() => send("down")} aria-label="无用" title="无用" className={`flex h-7 w-7 items-center justify-center rounded-md ${rating === "down" ? "bg-red-50 text-red-600" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}>
+      <button type="button" onClick={() => send("down")} aria-label="无用" title="无用" className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${rating === "down" ? "bg-[var(--suna-text)] text-[var(--suna-bg)]" : "text-[var(--suna-text-muted)] hover:bg-[var(--suna-bg-hover)] hover:text-[var(--suna-text)]"}`}>
         <ThumbsDown size={15} />
       </button>
       {showReason && (
         <div className="ml-1 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-slate-500">原因：</span>
+          <span className="text-xs text-[var(--suna-text-muted)]">原因：</span>
           {REASONS.map(([value, label]) => (
-            <button key={value} type="button" onClick={() => setReason(value)} className={`rounded-full border px-2.5 py-0.5 text-xs ${reason === value ? "border-red-300 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            <button key={value} type="button" onClick={() => setReason(value)} className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${reason === value ? "border-[var(--suna-text)] bg-[var(--suna-text)] text-[var(--suna-bg)] font-medium" : "border-[var(--suna-line)] bg-[var(--suna-bg-raised)] text-[var(--suna-text-soft)] hover:bg-[var(--suna-bg-hover)]"}`}>
               {label}
             </button>
           ))}
-          <button type="button" onClick={() => { onFeedback?.("down", reason || "other"); setShowReason(false); }} disabled={!reason} className="rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white disabled:opacity-40">
+          <button type="button" onClick={() => { onFeedback?.("down", reason || "other"); setShowReason(false); }} disabled={!reason} className="rounded-full bg-[var(--suna-text)] px-2.5 py-0.5 text-xs font-medium text-[var(--suna-bg)] disabled:opacity-40">
             提交
           </button>
         </div>

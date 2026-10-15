@@ -182,7 +182,7 @@ function Pareto3D({ points, objectives }: { points: Point[]; objectives: string[
           </g>
         ))}
       </svg>
-      <p className="suna-optimization-muted">拖拽旋转视角；蓝色点为非支配前沿解，灰色点为其余候选。</p>
+      <p className="suna-optimization-muted">拖拽旋转视角；高亮标点为非支配前沿解，灰色点为其余候选。</p>
     </div>
   );
 }

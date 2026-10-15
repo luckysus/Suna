@@ -3345,11 +3345,15 @@ body {
 }
 
 [data-theme="dark"] .suna-chat-user-bubble {
-  color: #fffaf5;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #ffffff;
 }
 
 [data-theme="dark"] .suna-chat-composer {
-  box-shadow: var(--suna-shadow-soft);
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
 }
 
 /* ========================= Full Web conversation replica ========================= */

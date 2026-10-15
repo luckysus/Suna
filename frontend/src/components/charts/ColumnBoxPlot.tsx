@@ -67,9 +67,9 @@ export default function ColumnBoxPlot({ columns }: { columns: DatasetColumnAnaly
                 y={Math.min(y(q1), y(q3))}
                 width="32"
                 height={Math.max(1, Math.abs(y(q3) - y(q1)))}
-                fill="rgba(37, 99, 235, 0.16)"
+                fill="var(--suna-bg-soft)"
                 stroke="var(--suna-accent)"
-                strokeWidth="0.8"
+                strokeWidth="1"
               />
               <line x1="284" x2="316" y1={y(mid)} y2={y(mid)} stroke="var(--suna-accent)" strokeWidth="1.6" />
               <text x="330" y={top + height / 2} fontSize="10" fill="var(--suna-text-muted)" dominantBaseline="central">

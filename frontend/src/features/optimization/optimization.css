@@ -1,30 +1,382 @@
-.suna-optimization-page{max-width:1380px;margin:0 auto;padding:28px 32px 52px;color:var(--suna-text)}.suna-optimization-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.suna-optimization-header h1{display:flex;align-items:center;gap:9px;margin-top:8px;color:var(--suna-text);font-size:calc(24px * var(--suna-ui-font-scale))}.suna-optimization-header h1 svg{color:var(--suna-primary)}.suna-optimization-header p{margin-top:6px;color:var(--suna-text-soft);font-size:calc(13px * var(--suna-ui-font-scale))}.suna-optimization-actions{display:flex;gap:8px}.suna-optimization-alert{display:flex;align-items:center;gap:8px;margin-top:15px;padding:10px 12px;border:1px solid var(--suna-red-soft);border-radius:7px;background:var(--suna-red-soft);color:var(--suna-error-text);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-optimization-layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;margin-top:18px;align-items:start}.suna-optimization-config,.suna-optimization-result{padding:20px;border:1px solid var(--suna-line);border-radius:9px;background:var(--suna-bg-raised)}.suna-optimization-title{display:flex;gap:9px;align-items:flex-start;margin-bottom:18px}.suna-optimization-title>svg{color:var(--suna-primary);margin-top:2px}.suna-optimization-title h2{color:var(--suna-text);font-size:calc(16px * var(--suna-ui-font-scale))}.suna-optimization-title span{display:block;margin-top:4px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-config>label{display:flex;flex-direction:column;gap:6px;margin-top:13px;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-config select,.suna-optimization-config input{padding:8px 9px;border:1px solid var(--suna-line);border-radius:6px;background:var(--suna-bg-raised);color:var(--suna-text-soft);font:inherit;font-size:calc(12px * var(--suna-ui-font-scale))}.suna-optimization-config fieldset{margin-top:15px;padding:10px;border:1px solid var(--suna-line);border-radius:7px}.suna-optimization-config legend{padding:0 4px;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-check{display:flex;align-items:center;gap:7px;padding:6px 0;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-check small{margin-left:auto;color:var(--suna-text-muted)}.suna-optimization-muted{color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-run{width:100%;justify-content:center;margin-top:17px}.suna-optimization-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:440px;gap:9px;color:var(--suna-text-muted);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-optimization-empty svg{color:var(--suna-text-muted)}.suna-optimization-empty strong{color:var(--suna-text-soft);font-size:calc(14px * var(--suna-ui-font-scale))}.suna-optimization-table{overflow:auto;border:1px solid var(--suna-line);border-radius:7px}.suna-optimization-row{display:grid;grid-template-columns:100px 130px minmax(160px,1fr) 100px;min-width:530px;border-bottom:1px solid var(--suna-line)}.suna-optimization-row:last-child{border-bottom:0}.suna-optimization-row>*{padding:11px 12px;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-optimization-row-head>*{background:var(--suna-bg-soft);color:var(--suna-text-soft);font-weight:600}.suna-optimization-row .is-feasible{color:var(--suna-success-text)}.suna-optimization-row .is-invalid{color:var(--suna-error-text)}.suna-spin{animation:suna-spin 1s linear infinite}@keyframes suna-spin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.suna-optimization-page{padding:22px 18px 42px}.suna-optimization-header{display:block}.suna-optimization-actions{margin-top:14px}.suna-optimization-layout{grid-template-columns:1fr}}
+/* ==========================================================================
+   Process Optimization Styles (Monochrome Architecture)
+   ========================================================================== */
+
+.suna-optimization-page {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 28px 32px 52px;
+  color: var(--suna-text);
+}
+
+.suna-optimization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.suna-optimization-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  color: var(--suna-text);
+  font-size: calc(24px * var(--suna-ui-font-scale));
+  font-weight: 700;
+}
+
+.suna-optimization-header h1 svg {
+  color: var(--suna-text);
+}
+
+.suna-optimization-header p {
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.suna-optimization-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-text);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+  align-items: start;
+}
+
+.suna-optimization-config,
+.suna-optimization-result {
+  padding: 20px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-optimization-title {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.suna-optimization-title > svg {
+  color: var(--suna-text);
+  margin-top: 2px;
+}
+
+.suna-optimization-title h2 {
+  color: var(--suna-text);
+  font-size: calc(16px * var(--suna-ui-font-scale));
+  font-weight: 700;
+}
+
+.suna-optimization-title span {
+  display: block;
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-config > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 13px;
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-config select,
+.suna-optimization-config input {
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-config fieldset {
+  margin-top: 15px;
+  padding: 12px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+}
+
+.suna-optimization-config legend {
+  padding: 0 4px;
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-optimization-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 0;
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-check small {
+  margin-left: auto;
+  color: var(--suna-text-muted);
+}
+
+.suna-optimization-muted {
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-run {
+  width: 100%;
+  justify-content: center;
+  margin-top: 17px;
+}
+
+.suna-optimization-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 440px;
+  gap: 9px;
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-empty svg {
+  color: var(--suna-text-muted);
+}
+
+.suna-optimization-empty strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-optimization-table {
+  overflow: auto;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+}
+
+.suna-optimization-row {
+  display: grid;
+  grid-template-columns: 80px 100px minmax(150px, 1fr) minmax(180px, 1fr) 120px;
+  min-width: 650px;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-optimization-row:last-child {
+  border-bottom: 0;
+}
+
+.suna-optimization-row > * {
+  padding: 11px 12px;
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-row-head > * {
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-weight: 650;
+}
+
+.suna-optimization-row .is-feasible {
+  color: var(--suna-text);
+  font-weight: 650;
+}
+
+.suna-optimization-row .is-invalid {
+  color: var(--suna-text-muted);
+}
+
+.suna-spin {
+  animation: suna-spin 1s linear infinite;
+}
+
+@keyframes suna-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* 第 41–43 章：算法选择、Pareto 图、候选方案入库 */
-.suna-optimization-notice{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--suna-line);border-radius:8px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(12px * var(--suna-ui-font-scale))}
-.suna-optimization-chart{padding:12px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised);margin-bottom:12px}
-.suna-optimization-values{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:calc(11px * var(--suna-ui-font-scale));color:var(--suna-text-muted)}
-.suna-optimization-actions-cell .suna-ghost-button{padding:4px 8px;font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-plan-list{display:grid;gap:10px;margin-top:12px}
-.suna-plan-card{display:grid;gap:8px;padding:12px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
-.suna-plan-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.suna-plan-card-head strong{color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
-.suna-plan-card-head small{color:var(--suna-text-muted)}
-.suna-plan-values{display:flex;flex-wrap:wrap;gap:6px}
-.suna-plan-values span{padding:2px 8px;border-radius:6px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-plan-actions{display:flex;gap:8px;align-items:center}
+.suna-optimization-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-optimization-chart {
+  padding: 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+  margin-bottom: 14px;
+}
+
+.suna-optimization-values {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+.suna-optimization-actions-cell .suna-ghost-button {
+  padding: 4px 8px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-plan-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.suna-plan-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-plan-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suna-plan-card-head strong {
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-plan-card-head small {
+  color: var(--suna-text-muted);
+}
+
+.suna-plan-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suna-plan-values span {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-plan-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 
 /* 第 80 章：历史优化任务（optimization_tasks 表） */
-.suna-optimization-history{margin-top:18px;padding:16px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
-.suna-optimization-history h2{display:flex;align-items:center;gap:7px;margin:0 0 12px;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
+.suna-optimization-history {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
 
-.suna-optimization-config fieldset label { display: grid; gap: 6px; margin: 8px 0; font-size: 12px; }
-.suna-optimization-config fieldset select { width: 100%; }
-.suna-optimization-config fieldset > div { padding: 10px 0; border-bottom: 1px solid var(--suna-line); }
-.suna-optimization-config fieldset p { font-size: 12px; line-height: 1.6; color: var(--suna-text-muted); }
-.suna-optimization-row { grid-template-columns: 80px 100px minmax(150px,1fr) minmax(180px,1fr) 120px; min-width: 650px; }
-/* Per-model evidence spans the candidate row, preserving its numeric columns. */
-.suna-optimization-domain-evidence { grid-column: 1 / -1; font-size: 12px; }
-.suna-optimization-domain-evidence ul { padding-left: 18px; margin: 6px 0; }
-.suna-optimization-domain-evidence details p { overflow-wrap: anywhere; }
+.suna-optimization-history h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-optimization-config fieldset label {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.suna-optimization-config fieldset select {
+  width: 100%;
+}
+
+.suna-optimization-config fieldset > div {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-optimization-config fieldset p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--suna-text-muted);
+}
+
+.suna-optimization-domain-evidence {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+
+.suna-optimization-domain-evidence ul {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.suna-optimization-domain-evidence details p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .suna-optimization-page {
+    padding: 22px 18px 42px;
+  }
+  .suna-optimization-header {
+    display: block;
+  }
+  .suna-optimization-actions {
+    margin-top: 14px;
+  }
+  .suna-optimization-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,7 +7,7 @@ import type { MultivariateResult } from "../../bridge/desktop";
  * 主成分与聚类标签都由后端计算（`analyze_steel_dataset_multivariate`），
  * 前端只负责按簇着色绘制，不自行做降维或聚类。
  */
-const clusterColors = ["#2563eb", "#c64545", "#3f8b75", "#bf7229", "#7f77dd", "#1d9e75", "#a32d2d", "#534ab7"];
+const clusterColors = ["#000000", "#71717a", "#a1a1aa", "#3f3f46", "#888888", "#52525b", "#27272a", "#d4d4d8"];
 
 export default function PcaScatter({ result }: { result: MultivariateResult }) {
   const first = result.pca.components[0]?.explainedVarianceRatio ?? 0;

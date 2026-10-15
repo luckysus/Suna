@@ -81,13 +81,13 @@ export default function WebTurnNavigator({
                 onMouseEnter={() => setHovered(index)}
                 onMouseLeave={() => setHovered(null)}
               >
-                <span className={`block h-0.5 rounded-full ${revealed === index ? "w-8 bg-[#8a7668]" : active === index ? "w-6 bg-[#cc785c]" : "w-2 bg-[#b9aa9b]/70"}`} />
+                <span className={`block h-0.5 rounded-full transition-all duration-150 ${revealed === index ? "w-8 bg-zinc-700 dark:bg-zinc-300" : active === index ? "w-6 bg-black dark:bg-white" : "w-2 bg-zinc-400/60 dark:bg-zinc-600/60"}`} />
               </button>
             ))}
           </div>
         </div>
         {revealed !== null && (
-          <div className="pointer-events-none absolute left-14 top-1/2 z-30 w-max max-w-72 -translate-y-1/2 rounded-md border border-[#e3d7ca] bg-[#fffaf3] px-3 py-2 text-sm leading-5 text-[#2b2118] shadow-[0_10px_24px_rgba(72,52,38,0.14)]">
+          <div className="pointer-events-none absolute left-14 top-1/2 z-30 w-max max-w-72 -translate-y-1/2 rounded-md border border-[var(--suna-line)] bg-[var(--suna-bg-raised)] px-3 py-2 text-sm leading-5 text-[var(--suna-text)] shadow-lg">
             <span className="line-clamp-3">{turns[revealed]?.question}</span>
           </div>
         )}
