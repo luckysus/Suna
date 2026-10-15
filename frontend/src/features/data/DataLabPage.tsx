@@ -5,7 +5,7 @@ import { Input } from "../../components/ui/input";
 import { DataLabAnalysisPanel, DataLabVisualizePanel } from "./DataLabPanels";
 import IndustrialSourcesPanel from "./IndustrialSourcesPanel";
 import MicrostructurePanel from "./MicrostructurePanel";
-import MaterialMappingPanel from "./MaterialMappingPanel";
+import DatasetVersionPanel from "./DatasetVersionPanel";
 import { DataLabTablePanel } from "./DataLabTablePanel";
 import { FileDropZone } from "../../components/common/FileDropZone";
 import "./data-lab.css";
@@ -57,6 +57,13 @@ export default function DataLabPage() {
     }
   };
   useEffect(() => { void load(); }, []);
+
+  const selectSavedVersion = (saved: SteelDatasetRecord) => {
+    setDatasets(current => [saved, ...current.filter(item => item.id !== saved.id)]);
+    setSelected(saved.id);
+    setAnalysis(null);setSeries(null);setTableSeries(null);setMultivariate(null);
+    setMessage(saved.mappingState === "ready" ? "数据集已激活" : "已选择规范化新版本，请核对字段和单位后显式激活");
+  };
 
   const importFile = async () => {
     const path = await desktop.openFileDialog({ multiple: false, directory: false, filters: [{ name: "数据文件", extensions: DATA_EXTENSIONS }] });
@@ -262,7 +269,7 @@ export default function DataLabPage() {
             </div>
           )}
 
-          {tab === "manage" && dataset && <MaterialMappingPanel dataset={dataset} onSaved={()=>void load()}/>}
+          {tab === "manage" && dataset && <DatasetVersionPanel key={`${dataset.id}:${dataset.sourceSha256}`} dataset={dataset} disabled={busy} onSaved={selectSavedVersion}/>}
           {tab === "table" && <DataLabTablePanel series={tableSeries} datasetName={dataset?.sourceName} busy={tableBusy} />}
 
           {tab === "analysis" && analysis && (

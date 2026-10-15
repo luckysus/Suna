@@ -1853,8 +1853,8 @@ export const desktop = {
     sheet?: string;
     mappings?: DatasetColumnMapping[];
   }) => call<SteelDatasetRecord>("save_steel_dataset", { request }),
-  activateSteelDataset: (datasetId: string) =>
-    call<SteelDatasetRecord>("activate_steel_dataset", { datasetId }),
+  activateSteelDataset: (datasetId: string, review?: {sourceSha256:string;updatedAt:string}) =>
+    call<SteelDatasetRecord>("activate_steel_dataset", { datasetId, ...(review ? {review} : {}) }),
   analyzeSteelDataset: (request: {
     datasetId: string;
     selectedColumns?: number[];

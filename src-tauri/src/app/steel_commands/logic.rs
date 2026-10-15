@@ -87,23 +87,55 @@ pub fn save_steel_dataset(
     })
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DatasetActivationReview {
+    pub source_sha256: String,
+    pub updated_at: String,
+}
+
+pub(crate) fn activate_on_connection(
+    connection: &mut rusqlite::Connection,
+    workspace_id: &str,
+    dataset_id: &str,
+    review: Option<&DatasetActivationReview>,
+) -> Result<SteelDatasetRecord, String> {
+    let dataset = repository::get(connection, workspace_id, &dataset_id)?
+        .ok_or_else(|| "steel dataset was not found in the local workspace".to_string())?;
+    if let Some(review) = review {
+        if review.source_sha256 != dataset.source_sha256 || review.updated_at != dataset.updated_at
+        {
+            return Err("dataset_activation_review_changed".into());
+        }
+    }
+    let current_hash = hash_dataset_source(&dataset.source_path)?;
+    if current_hash != dataset.source_sha256 {
+        return Err(
+            "steel dataset source changed since it was saved; preview and save it again"
+                .to_string(),
+        );
+    }
+    repository::activate_version(
+        connection,
+        workspace_id,
+        &dataset_id,
+        review.map(|r| (r.source_sha256.as_str(), r.updated_at.as_str())),
+    )?
+    .ok_or_else(|| "steel dataset was removed before activation".to_string())
+}
+
 pub fn activate_steel_dataset(
     db: tauri::State<DbState>,
     dataset_id: String,
+    review: Option<DatasetActivationReview>,
 ) -> Result<SteelDatasetRecord, String> {
     with_conn_mut(&db, |connection| {
-        let workspace_id = current_workspace_id();
-        let dataset = repository::get(connection, workspace_id, &dataset_id)?
-            .ok_or_else(|| "steel dataset was not found in the local workspace".to_string())?;
-        let current_hash = hash_dataset_source(&dataset.source_path)?;
-        if current_hash != dataset.source_sha256 {
-            return Err(
-                "steel dataset source changed since it was saved; preview and save it again"
-                    .to_string(),
-            );
-        }
-        repository::activate(connection, workspace_id, &dataset_id)?
-            .ok_or_else(|| "steel dataset was removed before activation".to_string())
+        activate_on_connection(
+            connection,
+            current_workspace_id(),
+            &dataset_id,
+            review.as_ref(),
+        )
     })
 }
 

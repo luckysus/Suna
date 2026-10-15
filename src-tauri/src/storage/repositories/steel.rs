@@ -171,20 +171,31 @@ pub fn activate(
     workspace_id: &str,
     dataset_id: &str,
 ) -> Result<Option<SteelDatasetRecord>, String> {
+    activate_version(connection, workspace_id, dataset_id, None)
+}
+
+pub(crate) fn activate_version(
+    connection: &mut Connection,
+    workspace_id: &str,
+    dataset_id: &str,
+    expected: Option<(&str, &str)>,
+) -> Result<Option<SteelDatasetRecord>, String> {
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|error| error.to_string())?;
-    let exists = transaction
+    let version = transaction
         .query_row(
-            "SELECT 1 FROM steel_datasets WHERE workspace_id = ?1 AND id = ?2",
+            "SELECT source_sha256, updated_at FROM steel_datasets WHERE workspace_id = ?1 AND id = ?2",
             params![workspace_id, dataset_id],
-            |_| Ok(()),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .optional()
-        .map_err(|error| error.to_string())?
-        .is_some();
-    if !exists {
+        .map_err(|error| error.to_string())?;
+    let Some((source_sha256, updated_at)) = version else {
         return Ok(None);
+    };
+    if expected.is_some_and(|(hash, updated)| hash != source_sha256 || updated != updated_at) {
+        return Err("dataset_activation_review_changed".into());
     }
 
     let has_canonical_field = {

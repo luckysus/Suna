@@ -39,8 +39,9 @@ pub fn save_steel_dataset(
 pub fn activate_steel_dataset(
     db: tauri::State<DbState>,
     dataset_id: String,
+    review: Option<logic::DatasetActivationReview>,
 ) -> Result<SteelDatasetRecord, String> {
-    logic::activate_steel_dataset(db, dataset_id)
+    logic::activate_steel_dataset(db, dataset_id, review)
 }
 
 #[tauri::command]

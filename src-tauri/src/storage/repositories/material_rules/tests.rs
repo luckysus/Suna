@@ -112,3 +112,194 @@ fn normalization_writes_new_file_and_mapping_without_touching_original() {
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn explicit_activation_reopens_normalized_training_fields_without_rewriting_frozen_sources() {
+    use crate::storage::repositories::steel as datasets;
+    let root = std::env::temp_dir().join(format!("suna-activation-中文-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&root).unwrap();
+    let database = root.join("验收.sqlite3");
+    let (mut c, _) = crate::storage::database::open(&database).unwrap();
+    let project = projects::save(
+        &mut c,
+        "ws",
+        SaveResearchProject {
+            id: None,
+            name: "合成激活回归".into(),
+            description: "非真实测量".into(),
+            material_system: None,
+            tags: vec![],
+            expected_updated_at: None,
+        },
+    )
+    .unwrap();
+    let path = root.join("原始合成.csv");
+    let raw = "C,temp,HV,J,time\n0.004,1173.15,100,50,1\n0.005,1183.15,101,51,2\n0.006,1193.15,102,52,3\n0.007,1203.15,103,53,4\n0.008,1213.15,104,54,5\n0.009,1223.15,105,55,6\n";
+    std::fs::write(&path, raw).unwrap();
+    let source = path.to_string_lossy().to_string();
+    let hash = crate::steel::hash_dataset_source(&source).unwrap();
+    let preview = crate::steel::preview_dataset(&crate::steel::DatasetPreviewRequest {
+        source_path: source.clone(),
+        sheet: None,
+    })
+    .unwrap();
+    let original =
+        datasets::save_preview_on_connection(&c, "ws", &source, &hash, &preview, &[]).unwrap();
+    assert!(datasets::activate(&mut c, "ws", &original.id).is_err());
+    let normalized = normalize_dataset(
+        &c,
+        "ws",
+        &root,
+        NormalizeRequest {
+            project_id: project.id.clone(),
+            dataset_id: original.id.clone(),
+            mappings: [
+                (0, "chem.c", "fraction"),
+                (1, "process.quench_temperature", "K"),
+                (2, "property.hardness_hv", "HV"),
+                (3, "property.impact_energy", "J"),
+            ]
+            .into_iter()
+            .map(|(ordinal, field, unit)| ColumnMapping {
+                ordinal,
+                field_id: field.into(),
+                source_unit: unit.into(),
+            })
+            .collect(),
+        },
+    )
+    .unwrap();
+    assert_eq!(normalized.mapping_state, "draft");
+    assert_ne!(original.source_sha256, normalized.source_sha256);
+    let frozen: Vec<_> = [&original.id, &normalized.id]
+        .into_iter()
+        .map(|id| {
+            let snapshot = artifacts::dataset_snapshot(&c, "ws", &project.id, id)
+                .unwrap()
+                .unwrap();
+            let body = serde_json::to_value(artifacts::get(&c, "ws", &snapshot).unwrap()).unwrap();
+            (snapshot, body)
+        })
+        .collect();
+    assert!(datasets::activate(&mut c, "other", &normalized.id)
+        .unwrap()
+        .is_none());
+    use crate::app::steel_commands::logic::{activate_on_connection, DatasetActivationReview};
+    let review = DatasetActivationReview {
+        source_sha256: normalized.source_sha256.clone(),
+        updated_at: normalized.updated_at.clone(),
+    };
+    let stale = DatasetActivationReview {
+        source_sha256: review.source_sha256.clone(),
+        updated_at: "stale".into(),
+    };
+    assert_eq!(
+        activate_on_connection(&mut c, "ws", &normalized.id, Some(&stale)).unwrap_err(),
+        "dataset_activation_review_changed"
+    );
+    // Check again under the same IMMEDIATE transaction that changes readiness.
+    assert_eq!(
+        datasets::activate_version(
+            &mut c,
+            "ws",
+            &normalized.id,
+            Some((&review.source_sha256, "stale"))
+        )
+        .unwrap_err(),
+        "dataset_activation_review_changed"
+    );
+    let normalized_bytes = std::fs::read(&normalized.source_path).unwrap();
+    std::fs::write(&normalized.source_path, "tampered synthetic fixture").unwrap();
+    assert!(
+        activate_on_connection(&mut c, "ws", &normalized.id, Some(&review))
+            .unwrap_err()
+            .contains("source changed")
+    );
+    assert_eq!(
+        datasets::get(&c, "ws", &normalized.id)
+            .unwrap()
+            .unwrap()
+            .mapping_state,
+        "draft"
+    );
+    std::fs::write(&normalized.source_path, normalized_bytes).unwrap();
+    let activated = activate_on_connection(&mut c, "ws", &normalized.id, Some(&review)).unwrap();
+    assert_eq!(activated.mapping_state, "ready");
+    assert_eq!(activated.source_sha256, normalized.source_sha256);
+    assert_eq!(
+        activate_on_connection(&mut c, "ws", &normalized.id, None)
+            .unwrap()
+            .mapping_state,
+        "ready"
+    );
+    drop(c);
+    let (c, _) = crate::storage::database::open(&database).unwrap();
+    let reopened = datasets::get(&c, "ws", &normalized.id).unwrap().unwrap();
+    assert_eq!(reopened.mapping_state, "ready");
+    assert_eq!(
+        datasets::get(&c, "ws", &original.id)
+            .unwrap()
+            .unwrap()
+            .mapping_state,
+        "draft"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), raw.as_bytes());
+    assert_eq!(crate::steel::hash_dataset_source(&source).unwrap(), hash);
+    for (id, body) in frozen {
+        assert_eq!(
+            serde_json::to_value(artifacts::get(&c, "ws", &id).unwrap()).unwrap(),
+            body
+        );
+    }
+    let table = crate::steel::read_dataset_table(&crate::steel::DatasetPreviewRequest {
+        source_path: reopened.source_path.clone(),
+        sheet: None,
+    })
+    .unwrap();
+    let payload = crate::app::compute_commands::logic::build_linear_regression_payload(
+        &table,
+        &reopened.columns,
+        &crate::app::compute_commands::logic::TrainSteelDatasetRequest {
+            dataset_id: reopened.id,
+            feature_columns: vec![1, 0],
+            target_column: 2,
+            split_policy: None,
+            algorithm: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        payload["feature_names"],
+        json!(["process.quench_temperature", "chem.c"])
+    );
+    assert!((payload["features"][0][0].as_f64().unwrap() - 900.).abs() < 1e-9);
+    assert_eq!(payload["features"][0][1], 0.4);
+    assert_eq!(payload["feature_metadata"][0]["unit"], "degC");
+    assert_eq!(payload["feature_metadata"][1]["unit"], "wt%");
+    assert_eq!(
+        payload["target_schema"],
+        json!({"name":"property.hardness_hv", "unit":"HV"})
+    );
+    assert!(reopened.columns[4].canonical_field.is_none());
+    assert_eq!(
+        c.query_row("SELECT COUNT(*) FROM material_mapping_versions", [], |r| {
+            r.get::<_, u32>(0)
+        })
+        .unwrap(),
+        1
+    );
+    assert_eq!(
+        c.query_row("SELECT COUNT(*) FROM background_tasks", [], |r| r
+            .get::<_, u32>(0))
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        c.query_row("SELECT COUNT(*) FROM experiment_measurements", [], |r| r
+            .get::<_, u32>(0))
+            .unwrap(),
+        0
+    );
+    drop(c);
+    std::fs::remove_dir_all(root).unwrap();
+}
