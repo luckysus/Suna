@@ -1,4 +1,5 @@
 import type {ManagedInventory,ManagedSelection,ManagedPreview,ManagedSaved,ManagedSummary,ManagedIsolation} from "./managedPackageTypes";
+import type {IsolationList,IsolationView} from './isolationLibraryTypes';
 import type {PackagePreview, PackageSaved, PackageInspection} from "./researchPackageTypes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -1700,6 +1701,8 @@ export const desktop = {
   getMicrostructureTaskResult:(id:string)=>call<{images:{imageId:string;result?:MicrostructureStatistics;error?:string}[]}|null>('get_microstructure_task_result',{id}),
 
   listResearchManagedAssets:(projectId:string)=>call<ManagedInventory>('list_research_managed_assets',{projectId}),
+  listResearchPackageIsolations:(offset:number)=>call<IsolationList>('list_research_package_isolations',{offset}),
+  openResearchPackageIsolation:(isolationId:string,offset:number)=>call<IsolationView>('open_research_package_isolation',{isolationId,offset}),
   previewResearchManagedPackage:(request:ManagedSelection)=>call<ManagedPreview>('preview_research_managed_package',{request}),
   exportResearchManagedPackage:(request:ManagedSelection,expectedSha256:string)=>call<ManagedSaved|null>('export_research_managed_package',{request,expectedSha256}),
   inspectResearchManagedPackageFile:()=>call<ManagedSummary|null>('inspect_research_managed_package_file',{}),

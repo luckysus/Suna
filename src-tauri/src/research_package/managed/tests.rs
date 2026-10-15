@@ -410,8 +410,12 @@ fn actual_registered_models_dataset_and_original_image_survive_managed_package_i
             .count(),
         2
     );
-    let imported = staging::import(&verified, &f.root, &verified.package_sha256).unwrap();
+    let imported =
+        staging::import_with_archive(&verified, &bytes, &f.root, &verified.package_sha256).unwrap();
     assert_eq!(imported["assetCount"], 4);
+    let reopened = library::open(&f.root, &verified.package_sha256, 0).unwrap();
+    assert_eq!(reopened["isolation"], imported);
+    assert_eq!(reopened["isolation"]["originalArchiveStored"], true);
     for (asset, body) in &verified.assets {
         assert_eq!(
             std::fs::read(

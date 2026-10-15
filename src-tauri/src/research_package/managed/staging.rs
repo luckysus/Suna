@@ -3,13 +3,13 @@ use super::*;
 use crate::permissions::path::AuthorizedRoots;
 use rusqlite::{params, Connection, OpenFlags};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs::{File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
 };
 
-fn ordinary_directory(path: &Path) -> bool {
+pub(super) fn ordinary_directory(path: &Path) -> bool {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return false;
     };
@@ -73,7 +73,7 @@ fn write_new(root: &Path, relative: &str, bytes: &[u8]) -> Result<(), String> {
         .and_then(|_| file.sync_all())
         .map_err(|_| "package_isolation_write_failed".to_string())
 }
-fn read_owned(root: &Path, relative: &str, budget: usize) -> Result<Vec<u8>, String> {
+pub(super) fn read_owned(root: &Path, relative: &str, budget: usize) -> Result<Vec<u8>, String> {
     let roots = AuthorizedRoots::new(vec![root.to_path_buf()])
         .map_err(|_| "package_isolation_path_invalid")?;
     let path = root.join(relative);
@@ -101,7 +101,7 @@ fn read_owned(root: &Path, relative: &str, budget: usize) -> Result<Vec<u8>, Str
     Ok(bytes)
 }
 
-fn verify_existing(package: &Verified, root: &Path) -> Result<Value, String> {
+pub(super) fn verify_existing(package: &Verified, root: &Path) -> Result<Value, String> {
     if !ordinary_directory(root) || !ordinary_directory(&root.join("assets")) {
         return Err("package_isolation_path_invalid".into());
     }
@@ -113,6 +113,15 @@ fn verify_existing(package: &Verified, root: &Path) -> Result<Value, String> {
     if receipt["schemaVersion"] != "research-managed-isolation.v1"
         || receipt["packageSha256"] != package.package_sha256
         || receipt["sourceProjectId"] != package.metadata.source_project_id
+    {
+        return Err("package_isolation_conflict".into());
+    }
+    let archive_stored = match receipt.get("originalArchiveStored") {
+        None => false, // Existing isolation receipts remain unchanged.
+        Some(value) => value.as_bool().ok_or("package_isolation_conflict")?,
+    };
+    if archive_stored
+        && digest(&read_owned(root, "package.zip", MAX_TOTAL)?) != package.package_sha256
     {
         return Err("package_isolation_conflict".into());
     }
@@ -184,6 +193,7 @@ fn verify_existing(package: &Verified, root: &Path) -> Result<Value, String> {
     result["assetsRestoredToLiveWorkspace"] = json!(false);
     result["readyForComputation"] = json!(false);
     result["reopenVerified"] = json!(true);
+    result["originalArchiveStored"] = json!(archive_stored);
     Ok(result)
 }
 
@@ -192,16 +202,31 @@ pub fn import(
     data_root: &Path,
     expected_sha256: &str,
 ) -> Result<Value, String> {
-    import_with(package, data_root, expected_sha256, || Ok(()))
+    import_with(package, None, data_root, expected_sha256, || Ok(()))
+}
+/// Retain the host-selected archive for independent read-only reopening later.
+pub fn import_with_archive(
+    package: &Verified,
+    bytes: &[u8],
+    data_root: &Path,
+    expected_sha256: &str,
+) -> Result<Value, String> {
+    import_with(package, Some(bytes), data_root, expected_sha256, || Ok(()))
 }
 fn import_with(
     package: &Verified,
+    original_archive: Option<&[u8]>,
     data_root: &Path,
     expected_sha256: &str,
     after_assets: impl FnOnce() -> Result<(), String>,
 ) -> Result<Value, String> {
     if !valid_sha(expected_sha256) || package.package_sha256 != expected_sha256 {
         return Err("package_preview_changed".into());
+    }
+    if original_archive
+        .is_some_and(|bytes| bytes.len() > MAX_TOTAL || digest(bytes) != package.package_sha256)
+    {
+        return Err("package_hash_mismatch".into());
     }
     let guard = AuthorizedRoots::new(vec![data_root.to_path_buf()])
         .map_err(|_| "package_isolation_path_invalid")?;
@@ -232,9 +257,15 @@ fn import_with(
         committed: false,
     };
     create_private(&root.join("assets")).map_err(|_| "package_isolation_write_failed")?;
+    if let Some(bytes) = original_archive {
+        write_new(&root, "package.zip", bytes)?;
+    }
     write_new(&root, "metadata.zip", &package.metadata_bytes)?;
+    let mut written = BTreeSet::new();
     for (asset, bytes) in &package.assets {
-        write_new(&root, &asset.name(), bytes)?;
+        if written.insert(asset.name()) {
+            write_new(&root, &asset.name(), bytes)?;
+        }
     }
     after_assets()?;
     let mut c = Connection::open(root.join("metadata.sqlite3"))
@@ -280,7 +311,7 @@ fn import_with(
     tx.commit().map_err(|_| "package_isolation_storage_error")?;
     c.close().map_err(|_| "package_isolation_storage_error")?;
     let db = read_owned(&root, "metadata.sqlite3", MAX_TOTAL)?;
-    let receipt = json!({"schemaVersion":"research-managed-isolation.v1","packageSha256":package.package_sha256,"sourceProjectId":package.metadata.source_project_id,"databaseSha256":digest(&db),"idMapping":mapping});
+    let receipt = json!({"schemaVersion":"research-managed-isolation.v1","packageSha256":package.package_sha256,"sourceProjectId":package.metadata.source_project_id,"databaseSha256":digest(&db),"idMapping":mapping,"originalArchiveStored":original_archive.is_some()});
     write_new(
         &root,
         "receipt.json",
@@ -296,7 +327,18 @@ pub(super) fn import_failing_after_assets(
     package: &Verified,
     root: &Path,
 ) -> Result<Value, String> {
-    import_with(package, root, &package.package_sha256, || {
+    import_with(package, None, root, &package.package_sha256, || {
+        Err("synthetic_import_failure".into())
+    })
+}
+
+#[cfg(test)]
+pub(super) fn import_failing_with_archive(
+    package: &Verified,
+    bytes: &[u8],
+    root: &Path,
+) -> Result<Value, String> {
+    import_with(package, Some(bytes), root, &package.package_sha256, || {
         Err("synthetic_import_failure".into())
     })
 }

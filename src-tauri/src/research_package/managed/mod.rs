@@ -1,6 +1,7 @@
 //! Explicitly selected managed assets. Imported assets are isolated and never executed.
 pub mod archive;
 pub mod catalog;
+pub mod library;
 pub mod staging;
 use super::{digest, identity, valid_sha};
 use serde::{Deserialize, Serialize};
@@ -99,6 +100,8 @@ impl Prepared {
     }
 }
 
+#[cfg(test)]
+mod library_tests;
 #[cfg(test)]
 mod security_tests;
 #[cfg(test)]

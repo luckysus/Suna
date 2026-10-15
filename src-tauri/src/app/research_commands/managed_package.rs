@@ -79,7 +79,7 @@ pub async fn export_research_managed_package(
     .await
     .map_err(|_| "package_export_failed")?
 }
-fn selected(app: &tauri::AppHandle) -> Result<Option<managed::Verified>, String> {
+fn selected(app: &tauri::AppHandle) -> Result<Option<(Vec<u8>, managed::Verified)>, String> {
     let Some(file) = app
         .dialog()
         .file()
@@ -92,14 +92,15 @@ fn selected(app: &tauri::AppHandle) -> Result<Option<managed::Verified>, String>
         .into_path()
         .map_err(|_| "package_selected_path_not_authorized")?;
     let bytes = selected_file::read_bytes(&path, managed::MAX_TOTAL)?;
-    managed::archive::inspect(&bytes).map(Some)
+    let package = managed::archive::inspect(&bytes)?;
+    Ok(Some((bytes, package)))
 }
 #[tauri::command]
 pub async fn inspect_research_managed_package_file(
     app: tauri::AppHandle,
 ) -> Result<Option<Value>, String> {
     tauri::async_runtime::spawn_blocking(move || -> Result<Option<Value>, String> {
-        let Some(package) = selected(&app)? else {
+        let Some((_, package)) = selected(&app)? else {
             return Ok(None);
         };
         Ok(Some(package.summary()))
@@ -118,10 +119,10 @@ pub async fn import_research_managed_package_isolated(
     }
     let root = app_data_directory(&app)?;
     tauri::async_runtime::spawn_blocking(move || -> Result<Option<Value>, String> {
-        let Some(package) = selected(&app)? else {
+        let Some((bytes, package)) = selected(&app)? else {
             return Ok(None);
         };
-        managed::staging::import(&package, &root, &expected_sha256).map(Some)
+        managed::staging::import_with_archive(&package, &bytes, &root, &expected_sha256).map(Some)
     })
     .await
     .map_err(|_| "package_isolation_import_failed")?

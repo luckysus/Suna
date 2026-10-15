@@ -17,6 +17,8 @@ macro_rules! handler {
             research_commands::managed_package::export_research_managed_package,
             research_commands::managed_package::inspect_research_managed_package_file,
             research_commands::managed_package::import_research_managed_package_isolated,
+            research_commands::package_library::list_research_package_isolations,
+            research_commands::package_library::open_research_package_isolation,
             research_commands::package::preview_research_package,
             research_commands::package::export_research_package,
             research_commands::package::inspect_research_package_file,
