@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {collectProductionFiles} from './lib/production-graph.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(frontendRoot, "src");
@@ -27,28 +28,7 @@ for (const forbidden of ["AuthProvider", "RagAppPage", "DesktopApp"]) {
   if (main.includes(forbidden)) failures.push(`src/main.tsx contains ${forbidden}`);
 }
 
-const productionFiles = [];
-const visited = new Set();
-const importPattern = /(?:import|export)\s+(?:[^"']*?\sfrom\s*)?["'](\.[^"']+)["']/g;
-
-function resolveModule(from, specifier) {
-  const base = resolve(dirname(from), specifier);
-  return [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx")]
-    .find((candidate) => existsSync(candidate) && [".ts", ".tsx"].includes(extname(candidate)));
-}
-
-function visit(path) {
-  if (visited.has(path)) return;
-  visited.add(path);
-  productionFiles.push(path);
-  const text = readFileSync(path, "utf8");
-  for (const match of text.matchAll(importPattern)) {
-    const dependency = resolveModule(path, match[1]);
-    if (dependency) visit(dependency);
-  }
-}
-
-visit(mainPath);
+const productionFiles = collectProductionFiles(mainPath);
 
 const forbiddenPatterns = [
   [/["'`]\/api\//, "Web API route"],

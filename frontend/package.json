@@ -12,8 +12,9 @@
     "build": "node --require ./scripts/libuv-fix.cjs node_modules/typescript/bin/tsc --noEmit && node --require ./scripts/libuv-fix.cjs node_modules/vite/bin/vite.js build",
     "test": "node --require ./scripts/libuv-fix.cjs node_modules/vitest/vitest.mjs run",
     "test:watch": "node --require ./scripts/libuv-fix.cjs node_modules/vitest/vitest.mjs",
-    "test:boundaries": "node scripts/check-runtime-boundaries.mjs",
+    "test:boundaries": "node --test scripts/production-graph.test.mjs && node scripts/check-runtime-boundaries.mjs",
     "test:e2e": "node --require ./scripts/libuv-fix.cjs node_modules/playwright/cli.js test",
+    "test:e2e:production": "node --require ./scripts/libuv-fix.cjs node_modules/playwright/cli.js test --config playwright.production.config.ts",
     "preview": "node --require ./scripts/libuv-fix.cjs node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {

@@ -5,20 +5,7 @@ import { desktop, isDesktopRuntime } from "../bridge/desktop";
 import ChatPage from "../features/chat/ChatPage";
 import { ChatControllerProvider } from "../features/chat/chatController";
 import { useChatControllerContext } from "../features/chat/chatController";
-import DiagnosticsPage from "../features/diagnostics/DiagnosticsPage";
-import KnowledgeCenterPage from "../features/knowledge/KnowledgeCenterPage";
-import ResearchProjectsPage from "../features/research/ResearchProjectsPage";
 import ResearchProjectContext from "../features/research/ResearchProjectContext";
-import ResearchModulePage from "../features/research/ResearchModulePage";
-import LiteratureResearchPage from "../features/literature/LiteratureResearchPage";
-import PerformancePredictionPage from "../features/prediction/PerformancePredictionPage";
-import ProcessOptimizationPage from "../features/optimization/ProcessOptimizationPage";
-import McpManagementPage from "../features/mcp/McpManagementPage";
-import ExperimentAssistantPage from "../features/experiment/ExperimentAssistantPage";
-import ResearchReportPage from "../features/reports/ResearchReportPage";
-import DataLabPage from "../features/data/DataLabPage";
-import CapabilityManagementPage from "../features/management/CapabilityManagementPage";
-import SettingsPage from "../features/settings/SettingsPage";
 import { getNavigationSection, navigationSections, primaryNavigationSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
 import { isRootPath, useSectionRoute } from "./sectionRoute";
 import { defaultShortcuts, normalizeShortcuts, parseShortcut, type ShortcutSettings } from "./shortcuts";
@@ -29,7 +16,22 @@ import { LocaleProvider } from "../i18n/locale";
 import { ThemeProvider, useTheme } from "../theme/theme";
 import { AppearanceProvider, useAppearanceSettings } from "../settings/appearance";
 import SunaLogo from "../components/SunaLogo";
+import {deferredPage} from "./deferredPage";
 import "./suna-shell.css";
+
+const DiagnosticsPage = deferredPage(() => import("../features/diagnostics/DiagnosticsPage"));
+const KnowledgeCenterPage = deferredPage(() => import("../features/knowledge/KnowledgeCenterPage"));
+const ResearchProjectsPage = deferredPage(() => import("../features/research/ResearchProjectsPage"));
+const ResearchModulePage = deferredPage(() => import("../features/research/ResearchModulePage"));
+const LiteratureResearchPage = deferredPage(() => import("../features/literature/LiteratureResearchPage"));
+const PerformancePredictionPage = deferredPage(() => import("../features/prediction/PerformancePredictionPage"));
+const ProcessOptimizationPage = deferredPage(() => import("../features/optimization/ProcessOptimizationPage"));
+const McpManagementPage = deferredPage(() => import("../features/mcp/McpManagementPage"));
+const ExperimentAssistantPage = deferredPage(() => import("../features/experiment/ExperimentAssistantPage"));
+const ResearchReportPage = deferredPage(() => import("../features/reports/ResearchReportPage"));
+const DataLabPage = deferredPage(() => import("../features/data/DataLabPage"));
+const CapabilityManagementPage = deferredPage(() => import("../features/management/CapabilityManagementPage"));
+const SettingsPage = deferredPage(() => import("../features/settings/SettingsPage"));
 
 export default function SunaApp() { return <ToastProvider><LocaleProvider><ThemeProvider><AppearanceProvider><ChatControllerProvider><SunaAppShell /></ChatControllerProvider></AppearanceProvider></ThemeProvider></LocaleProvider></ToastProvider>; }
 function SunaMark() { return <SunaLogo size={37} title="Suna" aria-hidden="true" />; }
