@@ -13,6 +13,7 @@ use crate::{
 use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::{path::PathBuf, time::Duration};
+mod persistence;
 fn validate(s: &Search) -> Result<(), String> {
     if s.query.trim().is_empty()
         || s.query.len() > 1000
@@ -166,18 +167,13 @@ async fn execute(
     if context.cancellation_requested().unwrap_or(true) {
         return Ok(HandlerOutcome::Cancelled);
     }
-    let (c, _) = crate::storage::database::open(&db)
+    let (mut c, _) = crate::storage::database::open(&db)
         .map_err(|_| HandlerError::retryable("storage_unavailable"))?;
-    if !repo::online(&c, &task.workspace_id).map_err(HandlerError::permanent)? {
+    let Some(saved) = persistence::store_page(&mut c, &task.workspace_id, records)
+        .map_err(persistence::handler_error)?
+    else {
         return Ok(HandlerOutcome::Cancelled);
-    }
-    let saved = artifacts::atomic(&c, || {
-        records
-            .into_iter()
-            .map(|m| repo::store(&c, &task.workspace_id, m))
-            .collect::<Result<Vec<_>, _>>()
-    })
-    .map_err(HandlerError::permanent)?;
+    };
     let result = json!({"records":saved,"nextCursor":cursor,"provider":s.provider,"sampleScope":"user_search_results","query":s.query,"fromYear":s.from_year,"toYear":s.to_year});
     context
         .checkpoint(
