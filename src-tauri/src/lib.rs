@@ -7,6 +7,7 @@ mod db;
 pub mod diagnostics;
 pub mod domains;
 pub mod knowledge_db;
+pub mod literature_metadata;
 pub mod mcp;
 pub mod models;
 pub mod permissions;

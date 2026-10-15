@@ -65,6 +65,53 @@ fn provider_rate_limit_is_workspace_scoped_and_defaults_off() {
     assert!(reserve_request(&c, "other", 2000).is_err());
 }
 #[test]
+fn providers_share_doi_identity_and_keep_revision_hashes_and_independent_rate_limits() {
+    let mut c = fixture();
+    let crossref = store(&c, "ws", metadata()).unwrap();
+    let old_body: String = c
+        .query_row(
+            "SELECT metadata_json FROM literature_metadata_revisions WHERE id=?1",
+            [&crossref.revision_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let mut european = metadata();
+    european.provider = "europe_pmc".into();
+    european.external_id = "MED:1234".into();
+    european.source_url = "https://europepmc.org/article/MED/1234".into();
+    let other = store(&c, "ws", european.clone()).unwrap();
+    assert_eq!(crossref.id, other.id);
+    assert_ne!(crossref.revision_id, other.revision_id);
+    assert_eq!(
+        store(&c, "ws", european.clone()).unwrap().revision_id,
+        other.revision_id
+    );
+    assert_eq!(hash(&old_body), crossref.revision_sha256);
+    assert_eq!(
+        get(&c, "ws", &other.id).unwrap().metadata.provider,
+        "europe_pmc"
+    );
+    european.doi = None;
+    let without_doi = store(&c, "ws", european.clone()).unwrap();
+    assert_ne!(without_doi.id, other.id);
+    assert_eq!(store(&c, "ws", european).unwrap().id, without_doi.id);
+    assert!(reserve_for_provider(&c, "ws", ProviderId::EuropePmc, 1000).is_err());
+    settings::set(&mut c, "ws", NETWORK_KEY, "true").unwrap();
+    reserve_for_provider(&c, "ws", ProviderId::Crossref, 1000).unwrap();
+    reserve_for_provider(&c, "ws", ProviderId::EuropePmc, 1000).unwrap();
+    assert!(reserve_for_provider(&c, "ws", ProviderId::EuropePmc, 1100).is_err());
+    assert!(reserve_for_provider(&c, "other", ProviderId::EuropePmc, 3000).is_err());
+    assert_eq!(
+        c.query_row(
+            "SELECT metadata_json FROM literature_metadata_revisions WHERE id=?1",
+            [&crossref.revision_id],
+            |r| r.get::<_, String>(0)
+        )
+        .unwrap(),
+        old_body
+    );
+}
+#[test]
 fn fulltext_requires_owned_source_and_rights_and_does_not_download_non_oa() {
     let mut c = fixture();
     let r = store(&c, "ws", metadata()).unwrap();

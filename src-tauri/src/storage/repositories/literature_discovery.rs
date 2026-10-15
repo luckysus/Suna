@@ -13,47 +13,8 @@ fn hash(s: &str) -> String {
     format!("{:x}", Sha256::digest(s.as_bytes()))
 }
 pub const NETWORK_KEY: &str = "suna.literature.online_enabled";
-pub fn normalize_doi(s: &str) -> Result<String, String> {
-    let mut s = s.trim().to_lowercase();
-    for prefix in [
-        "https://doi.org/",
-        "http://doi.org/",
-        "https://dx.doi.org/",
-        "http://dx.doi.org/",
-        "doi:",
-    ] {
-        if let Some(v) = s.strip_prefix(prefix) {
-            s = v.trim().into();
-            break;
-        }
-    }
-    let (prefix, suffix) = s.split_once('/').ok_or("invalid_doi")?;
-    if !prefix.starts_with("10.")
-        || !prefix[3..].chars().all(|c| c.is_ascii_digit())
-        || prefix.len() < 7
-        || suffix.is_empty()
-        || s.len() > 300
-        || s.chars().any(|c| c.is_whitespace() || c.is_control())
-    {
-        return Err("invalid_doi".into());
-    }
-    Ok(s)
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Metadata {
-    pub provider: String,
-    pub external_id: String,
-    pub doi: Option<String>,
-    pub title: String,
-    pub authors: Vec<String>,
-    pub journal: Option<String>,
-    pub year: Option<i64>,
-    pub abstract_text: Option<String>,
-    pub source_url: String,
-    pub license: Option<String>,
-    pub fulltext_state: String,
-}
+use crate::literature_metadata::ProviderId;
+pub use crate::literature_metadata::{normalize_doi, Metadata};
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
@@ -65,7 +26,7 @@ pub struct Record {
     pub already_existed: bool,
 }
 pub fn store(c: &Connection, ws: &str, mut m: Metadata) -> Result<Record, String> {
-    if m.provider != "crossref"
+    if ProviderId::parse(&m.provider).is_none()
         || m.title.is_empty()
         || m.title.chars().count() > 2000
         || m.authors.len() > 100
@@ -152,10 +113,18 @@ pub fn online(c: &Connection, ws: &str) -> Result<bool, String> {
     Ok(settings::get(c, ws, NETWORK_KEY)?.is_some_and(|v| v == "true" || v == "\"true\""))
 }
 pub fn reserve_request(c: &Connection, ws: &str, now: i64) -> Result<(), String> {
+    reserve_for_provider(c, ws, ProviderId::Crossref, now)
+}
+pub fn reserve_for_provider(
+    c: &Connection,
+    ws: &str,
+    provider: ProviderId,
+    now: i64,
+) -> Result<(), String> {
     if !online(c, ws)? {
         return Err("literature_network_disabled".into());
     }
-    let changed=c.execute("INSERT INTO literature_provider_rate VALUES(?1,'crossref',?2) ON CONFLICT(workspace_id,provider) DO UPDATE SET last_request_ms=excluded.last_request_ms WHERE literature_provider_rate.last_request_ms<=excluded.last_request_ms-1000",params![ws,now]).map_err(err)?;
+    let changed=c.execute("INSERT INTO literature_provider_rate VALUES(?1,?2,?3) ON CONFLICT(workspace_id,provider) DO UPDATE SET last_request_ms=excluded.last_request_ms WHERE literature_provider_rate.last_request_ms<=excluded.last_request_ms-1000",params![ws,provider.as_str(),now]).map_err(err)?;
     if changed == 0 {
         return Err("literature_rate_limited".into());
     }

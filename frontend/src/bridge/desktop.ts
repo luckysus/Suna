@@ -1661,6 +1661,7 @@ export interface ImageAnnotationRecord {id:string;imageId:string;parameters:Micr
 export interface MicrostructureStatistics {algorithm:string;sourceSha256:string;scaleMicronsPerPixel:number|null;threshold:number;histogram:number[];metrics:Record<string,{value:number;unit:string;qualifiedName:string}>;regions:Record<string,number>[];reviewed:boolean;limitations:string[];rasterInput?:MicrostructureRasterInput}
 export interface ImageAnalysis {id:string;taskId:string;annotationId:string;result:MicrostructureStatistics|null;error:string|null;reviewState:'accepted'|'rejected'|null;reviewNote:string|null;createdAt:string}
 
+export type LiteratureMetadataProviderId='crossref'|'europe_pmc';
 export interface DiscoveredLiterature {id:string;revisionId:string;metadata:{provider:string;externalId:string;doi:string|null;title:string;authors:string[];journal:string|null;year:number|null;abstractText:string|null;sourceUrl:string;license:string|null;fulltextState:string};retrievedAt:string;revisionSha256:string;alreadyExisted:boolean}
 export interface LocalLiteratureEvidence {documentId:string;versionId:string;chunkId:string;source:string;quote:string;location:Record<string,unknown>}
 export interface MaterialComputeAdapter {id:string;label:string;capability:string;mode:'file_import';inputSchemaVersion:string;outputSchemaVersion:string;requiresLicense:boolean;requiresUserApproval:boolean}
@@ -1675,7 +1676,7 @@ export const desktop = {
   getProductionQueryPreview:(id:string)=>call<{taskId:string;rowCount:number;columns:string[];previewRows:(string|null)[][];truncated:boolean;queryTime:string}|null>('get_production_query_preview',{id}),
 
   createLiteratureEvidenceDataset:(projectId:string)=>call<SteelDatasetRecord>("create_literature_evidence_dataset",{projectId}),
-  searchPublicLiterature:(request:{query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
+  searchPublicLiterature:(request:{provider?:LiteratureMetadataProviderId;query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
   listDiscoveredLiterature:(query:string,offset=0)=>call<DiscoveredLiterature[]>('list_discovered_literature',{query,offset}),
   getLiteratureDiscoveryResult:(id:string)=>call<{records:DiscoveredLiterature[];nextCursor:string|null;provider:string;sampleScope:string;query:string;fromYear:number|null;toYear:number|null}|null>('get_literature_discovery_result',{id}),
   attachDiscoveredLiterature:(projectId:string,id:string)=>call<void>('attach_discovered_literature',{projectId,id}),

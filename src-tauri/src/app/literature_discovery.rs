@@ -1,4 +1,6 @@
-//! Opt-in Crossref metadata search uses the existing cancellable task scheduler.
+//! Opt-in bibliographic adapters reuse the existing cancellable task scheduler.
+use crate::literature_metadata::provider;
+pub use crate::literature_metadata::{parse_crossref, ProviderId, Search};
 use crate::{
     db::{current_workspace_id, with_conn, with_conn_mut, DbState},
     storage::repositories::{literature_discovery as repo, research_artifacts as artifacts},
@@ -9,72 +11,8 @@ use crate::{
     },
 };
 use rusqlite::Connection;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{path::PathBuf, time::Duration};
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Search {
-    pub query: String,
-    pub cursor: Option<String>,
-    pub from_year: Option<u32>,
-    pub to_year: Option<u32>,
-}
-pub fn parse_crossref(body: &Value) -> Result<(Vec<repo::Metadata>, Option<String>), String> {
-    let items = body["message"]["items"]
-        .as_array()
-        .ok_or("crossref_invalid_response")?;
-    if items.len() > 20 {
-        return Err("crossref_item_limit".into());
-    }
-    let mut records = vec![];
-    for item in items {
-        let doi = item["DOI"].as_str().map(repo::normalize_doi).transpose()?;
-        let title = item["title"][0].as_str().unwrap_or("").to_string();
-        if title.is_empty() {
-            continue;
-        }
-        let Some(id) = doi.clone() else { continue };
-        let authors = item["author"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .take(100)
-                    .map(|r| {
-                        format!(
-                            "{} {}",
-                            r["given"].as_str().unwrap_or(""),
-                            r["family"].as_str().unwrap_or("")
-                        )
-                        .trim()
-                        .into()
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let year = item["published"]["date-parts"][0][0]
-            .as_i64()
-            .or(item["issued"]["date-parts"][0][0].as_i64());
-        records.push(repo::Metadata {
-            provider: "crossref".into(),
-            external_id: id.clone(),
-            doi: Some(id.clone()),
-            title,
-            authors,
-            journal: item["container-title"][0].as_str().map(str::to_string),
-            year,
-            abstract_text: item["abstract"].as_str().map(str::to_string),
-            source_url: format!("https://doi.org/{id}"),
-            license: item["license"][0]["URL"].as_str().map(str::to_string),
-            fulltext_state: "link_only".into(),
-        });
-    }
-    let cursor = body["message"]["next-cursor"]
-        .as_str()
-        .filter(|_| !records.is_empty())
-        .map(str::to_string);
-    Ok((records, cursor))
-}
 fn validate(s: &Search) -> Result<(), String> {
     if s.query.trim().is_empty()
         || s.query.len() > 1000
@@ -128,7 +66,15 @@ impl TaskHandler for MetadataSearchHandler {
     }
     fn run(&self, task: TaskRecord, context: HandlerContext) -> HandlerFuture {
         let db = self.database.clone();
-        let endpoint = "https://api.crossref.org/works".to_string();
+        let source: Search = match serde_json::from_str(&task.payload_json) {
+            Ok(source) => source,
+            Err(_) => {
+                return Box::pin(async {
+                    Err(HandlerError::permanent("invalid_literature_search"))
+                })
+            }
+        };
+        let endpoint = provider(source.provider).endpoint().to_string();
         #[cfg(test)]
         let endpoint = self.endpoint.clone().unwrap_or(endpoint);
         Box::pin(async move { execute(task, context, db, endpoint).await })
@@ -145,9 +91,10 @@ async fn execute(
     validate(&s).map_err(HandlerError::permanent)?;
     let (c, _) = crate::storage::database::open(&db)
         .map_err(|_| HandlerError::retryable("storage_unavailable"))?;
-    let reserve = repo::reserve_request(
+    let reserve = repo::reserve_for_provider(
         &c,
         &task.workspace_id,
+        s.provider,
         chrono::Utc::now().timestamp_millis(),
     );
     if let Err(e) = reserve {
@@ -170,21 +117,8 @@ async fn execute(
             },
         )
         .map_err(|_| HandlerError::permanent("literature_client_failed"))?;
-        let mut q = vec![
-            ("query".to_string(), s.query.clone()),
-            ("rows".into(), "20".into()),
-            ("cursor".into(), s.cursor.clone().unwrap_or("*".into())),
-        ];
-        let mut filters = vec![];
-        if let Some(y) = s.from_year {
-            filters.push(format!("from-pub-date:{y}-01-01"))
-        }
-        if let Some(y) = s.to_year {
-            filters.push(format!("until-pub-date:{y}-12-31"))
-        }
-        if !filters.is_empty() {
-            q.push(("filter".into(), filters.join(",")));
-        }
+        let adapter = provider(s.provider);
+        let q = adapter.parameters(&s);
         let mut response = client
             .get(&endpoint)
             .query(&q)
@@ -209,8 +143,8 @@ async fn execute(
             bytes.extend_from_slice(&chunk);
         }
         let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|_| HandlerError::permanent("crossref_invalid_response"))?;
-        parse_crossref(&value).map_err(HandlerError::permanent)
+            .map_err(|_| HandlerError::permanent("literature_invalid_response"))?;
+        adapter.parse(&value).map_err(HandlerError::permanent)
     };
     let stop = async {
         loop {
@@ -244,7 +178,7 @@ async fn execute(
             .collect::<Result<Vec<_>, _>>()
     })
     .map_err(HandlerError::permanent)?;
-    let result = json!({"records":saved,"nextCursor":cursor,"provider":"crossref","sampleScope":"user_search_results","query":s.query,"fromYear":s.from_year,"toYear":s.to_year});
+    let result = json!({"records":saved,"nextCursor":cursor,"provider":s.provider,"sampleScope":"user_search_results","query":s.query,"fromYear":s.from_year,"toYear":s.to_year});
     context
         .checkpoint(
             Some(&json!({"result":result,"stage":"completed"}).to_string()),
@@ -365,6 +299,7 @@ mod tests {
         let mut c = Connection::open_in_memory().unwrap();
         crate::storage::migrations::migrate(&mut c).unwrap();
         let valid = Search {
+            provider: ProviderId::Crossref,
             query: "steel".into(),
             cursor: None,
             from_year: None,
@@ -382,6 +317,7 @@ mod tests {
             &c,
             "local",
             Search {
+                provider: ProviderId::Crossref,
                 query: "steel".into(),
                 cursor: None,
                 from_year: Some(2020),
@@ -456,6 +392,7 @@ mod network_tests {
             &c,
             "local",
             Search {
+                provider: ProviderId::Crossref,
                 query: "martensitic steel".into(),
                 cursor: None,
                 from_year: None,
@@ -521,8 +458,7 @@ mod fixture_http_tests {
     impl EventSink for Sink {
         fn emit(&self, _: SchedulerEvent) {}
     }
-    #[test]
-    fn scheduler_real_http_fixture_then_offline_cache_and_project_source() {
+    fn run_provider_http_fixture(source: ProviderId) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let endpoint = format!("http://{}/works", listener.local_addr().unwrap());
         let server = std::thread::spawn(move || {
@@ -534,8 +470,33 @@ mod fixture_http_tests {
             let n = socket.read(&mut buf).unwrap();
             let request = String::from_utf8_lossy(&buf[..n]);
             assert!(request.contains("query=synthetic"));
-            assert!(request.contains("rows=20"));
-            let body=json!({"message":{"items":[{"DOI":"10.1234/fixture","title":["Synthetic local HTTP provider fixture"],"published":{"date-parts":[[2020]]}}],"next-cursor":"next"}}).to_string();
+            let target = request
+                .lines()
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .nth(1)
+                .unwrap();
+            let url = reqwest::Url::parse(&format!("http://127.0.0.1{target}")).unwrap();
+            let query: std::collections::HashMap<String, String> =
+                url.query_pairs().into_owned().collect();
+            assert_eq!(query.get("query").unwrap(), "synthetic 钢+?");
+            match source {
+                ProviderId::Crossref => {
+                    assert_eq!(query["rows"], "20");
+                    assert_eq!(query["cursor"], "*");
+                }
+                ProviderId::EuropePmc => {
+                    assert_eq!(query["pageSize"], "20");
+                    assert_eq!(query["cursorMark"], "*");
+                    assert_eq!(query["resultType"], "core");
+                    assert_eq!(query["format"], "json");
+                }
+            }
+            let body=match source {
+                ProviderId::Crossref=>json!({"message":{"items":[{"DOI":"10.1234/fixture","title":["Synthetic local HTTP provider fixture"],"published":{"date-parts":[[2020]]}}],"next-cursor":"next"}}),
+                ProviderId::EuropePmc=>json!({"resultList":{"result":[{"source":"MED","id":"1234","title":"Synthetic EU HTTP provider fixture","doi":"10.1234/fixture","pubYear":"2020","isOpenAccess":"Y"}]},"nextCursorMark":"next"}),
+            }.to_string();
             write!(socket,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
         });
         let root =
@@ -569,7 +530,8 @@ mod fixture_http_tests {
             &c,
             "local",
             Search {
-                query: "synthetic".into(),
+                provider: source,
+                query: "synthetic 钢+?".into(),
                 cursor: None,
                 from_year: None,
                 to_year: None,
@@ -581,7 +543,7 @@ mod fixture_http_tests {
             endpoint: Some(endpoint),
         };
         let mut scheduler = Scheduler::new(
-            db,
+            db.clone(),
             "local".into(),
             SchedulerConfig {
                 max_attempts: 1,
@@ -606,6 +568,14 @@ mod fixture_http_tests {
         server.join().unwrap();
         let rows = repo::list(&c, "local", "", 0).unwrap();
         assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].metadata.provider, source.as_str());
+        assert_eq!(rows[0].metadata.fulltext_state, "link_only");
+        assert!(rows[0].metadata.license.is_none());
+        let task = repository::get(&c, "local", t.id).unwrap().unwrap();
+        let checkpoint: Value =
+            serde_json::from_str(task.checkpoint_json.as_deref().unwrap()).unwrap();
+        assert_eq!(checkpoint["result"]["provider"], source.as_str());
+        assert_eq!(checkpoint["result"]["nextCursor"], "next");
         assert_eq!(rows[0].metadata.doi.as_deref(), Some("10.1234/fixture"));
         assert_eq!(artifacts::list(&c, "local", &p.id, 25, 0).unwrap().len(), 1);
         crate::storage::repositories::settings::set(&mut c, "local", repo::NETWORK_KEY, "false")
@@ -613,6 +583,20 @@ mod fixture_http_tests {
         assert_eq!(repo::list(&c, "local", "", 0).unwrap().len(), 1);
         drop(scheduler);
         drop(c);
+        let (c, _) = crate::storage::database::open(&db).unwrap();
+        assert!(!repo::online(&c, "local").unwrap());
+        let reopened = repo::list(&c, "local", "", 0).unwrap();
+        assert_eq!(reopened[0].metadata.provider, source.as_str());
+        assert_eq!(reopened[0].revision_sha256, rows[0].revision_sha256);
+        drop(c);
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn scheduler_real_http_fixture_then_offline_cache_and_project_source() {
+        run_provider_http_fixture(ProviderId::Crossref);
+    }
+    #[test]
+    fn european_provider_uses_real_scheduler_http_storage_and_offline_reopen() {
+        run_provider_http_fixture(ProviderId::EuropePmc);
     }
 }
