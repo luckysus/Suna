@@ -1,4 +1,5 @@
 import type {Algorithm, Column, Dataset, ModelNode, Template} from "./types";
+import TrainingEvaluationConfig from "../../prediction/TrainingEvaluationConfig";
 export const algorithms: Record<Algorithm, string> = {linear_regression:"线性回归",elasticnet:"ElasticNet",random_forest:"Random Forest",hist_gradient_boosting:"HistGradientBoosting",lightgbm:"LightGBM",xgboost:"XGBoost",svr:"SVR",mlp:"MLP",transformer:"Transformer"};
 function field(c:Column){return c.canonicalField || c.originalName;}
 export function newTemplate():Template {
@@ -11,7 +12,10 @@ export default function TemplateEditor({template,dataset,disabled,onChange}:{tem
   const updateModel=(index:number,patch:Partial<ModelNode>)=>{
     const next=template.models.map((m,i)=>i===index?{...m,...patch}:m);
     const targets=new Set(next.map(m=>m.targetColumn));
-    const models=next.map(m=>({...m,featureColumns:m.featureColumns.filter(v=>!targets.has(v))}));
+    const models=next.map(m=>{
+      const auxiliary=m.splitPolicy.kind==="group"?m.splitPolicy.groupColumn:m.splitPolicy.kind==="time"?m.splitPolicy.timeColumn:undefined;
+      return {...m,featureColumns:m.featureColumns.filter(v=>!targets.has(v)&&v!==auxiliary)};
+    });
     const ordinals=new Set(models.flatMap(m=>m.featureColumns));
     const variables=numeric.filter(c=>ordinals.has(c.ordinal)).map(c=>template.variables.find(v=>v.name===field(c))||{
       name:field(c),...(c.unit?{unit:c.unit}:{}),min:c.min??NaN,max:c.max??NaN});
@@ -24,10 +28,8 @@ export default function TemplateEditor({template,dataset,disabled,onChange}:{tem
       <label>预测算法 {i+1}<select value={m.algorithm} onChange={e=>updateModel(i,{algorithm:e.target.value as Algorithm})}>{Object.entries(algorithms).map(([key,text])=><option key={key} value={key}>{text}</option>)}</select></label>
       <label>目标性能列 {i+1}<select value={m.targetColumn} onChange={e=>{const c=numeric.find(c=>c.ordinal===Number(e.target.value));if(c)updateModel(i,{targetColumn:c.ordinal,unit:c.unit,featureColumns:m.featureColumns.filter(v=>v!==c.ordinal)});}}><option value={-1}>选择性能列</option>{numeric.filter(c=>!template.models.some((other,n)=>n!==i&&other.targetColumn===c.ordinal)).map(c=><option key={c.ordinal} value={c.ordinal}>{field(c)}{c.unit?` (${c.unit})`:""}</option>)}</select></label>
       <label>优化方向 {i+1}<select value={m.direction} onChange={e=>updateModel(i,{direction:e.target.value as ModelNode["direction"]})}><option value="maximize">最大化</option><option value="minimize">最小化</option></select></label>
-      <fieldset><legend>输入特征 {i+1}</legend>{numeric.filter(c=>!template.models.some(m=>m.targetColumn===c.ordinal)).map(c=><label key={c.ordinal}><input type="checkbox" checked={m.featureColumns.includes(c.ordinal)} onChange={e=>updateModel(i,{featureColumns:e.target.checked?[...m.featureColumns,c.ordinal]:m.featureColumns.filter(v=>v!==c.ordinal)})}/>{field(c)}</label>)}</fieldset>
-      <label>评估划分 {i+1}<select value={m.splitPolicy.kind} onChange={e=>updateModel(i,{splitPolicy:{...m.splitPolicy,kind:e.target.value as ModelNode["splitPolicy"]["kind"],groupColumn:undefined,timeColumn:undefined}})}><option value="random">随机划分</option><option value="group">按炉次／批次划分</option><option value="time">按时间划分</option></select></label>
-      {m.splitPolicy.kind!=="random"&&<label>划分辅助列 {i+1}<select value={(m.splitPolicy.kind==="group"?m.splitPolicy.groupColumn:m.splitPolicy.timeColumn)??-1} onChange={e=>updateModel(i,{splitPolicy:{...m.splitPolicy,[m.splitPolicy.kind==="group"?"groupColumn":"timeColumn"]:Number(e.target.value)}})}><option value={-1}>选择辅助列</option>{dataset?.columns.filter(c=>!template.models.some(m=>m.targetColumn===c.ordinal)&&!m.featureColumns.includes(c.ordinal)).map(c=><option key={c.ordinal} value={c.ordinal}>{field(c)}</option>)}</select></label>}
-      <label>验证集比例 {i+1}<input type="number" min={0.01} max={0.99} step={0.01} value={m.splitPolicy.validationFraction} onChange={e=>updateModel(i,{splitPolicy:{...m.splitPolicy,validationFraction:e.target.valueAsNumber}})}/></label>
+      <fieldset><legend>输入特征 {i+1}</legend>{numeric.filter(c=>!template.models.some(m=>m.targetColumn===c.ordinal)).map(c=><label key={c.ordinal}><input type="checkbox" checked={m.featureColumns.includes(c.ordinal)} disabled={c.ordinal===(m.splitPolicy.kind==="group"?m.splitPolicy.groupColumn:m.splitPolicy.kind==="time"?m.splitPolicy.timeColumn:undefined)} onChange={e=>updateModel(i,{featureColumns:e.target.checked?[...m.featureColumns,c.ordinal]:m.featureColumns.filter(v=>v!==c.ordinal)})}/>{field(c)}</label>)}</fieldset>
+      <TrainingEvaluationConfig value={m.splitPolicy} onChange={splitPolicy=>updateModel(i,{splitPolicy})} columns={dataset?.columns.filter(c=>!template.models.some(m=>m.targetColumn===c.ordinal))||[]}/>
     </fieldset>)}
     <fieldset><legend>优化变量与工艺范围</legend>{template.variables.map((v,i)=><div key={v.name}><strong>{v.name}{v.unit?` (${v.unit})`:""}</strong>{(["min","max"] as const).map(key=><label key={key}>{v.name} {key==="min"?"下限":"上限"}<input type="number" step="any" value={Number.isFinite(v[key])?v[key]:""} onChange={e=>onChange({...template,variables:template.variables.map((a,n)=>n===i?{...a,[key]:e.target.valueAsNumber}:a)})}/></label>)}<label>{v.name} 专业字段<input value={v.fieldId||""} placeholder="已有约束使用的字段标识" onChange={e=>onChange({...template,variables:template.variables.map((a,n)=>n===i?{...a,fieldId:e.target.value||undefined}:a)})}/></label></div>)}{!template.variables.length&&<p>选择模型输入特征后配置范围。</p>}</fieldset>
     <label>优化评估次数<input type="number" min={1} max={500} value={template.trials} onChange={e=>onChange({...template,trials:e.target.valueAsNumber})}/></label>

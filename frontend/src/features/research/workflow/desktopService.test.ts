@@ -26,3 +26,10 @@ it('projects dataset metadata and subscribes through the original Scheduler even
   const listener=vi.mocked(listen).mock.calls[0][1];listener({event:'scheduler:progress',id:1,payload:{Progress:{id:'root',state:'completed'}}});
   expect(receive).toHaveBeenCalledWith({id:'root',state:'completed'});stop();expect(unsubscribe).toHaveBeenCalledOnce();
 });
+it('passes each complete scientific policy to the existing immutable template command',async()=>{
+  const policy={kind:'group' as const,groupColumn:4,validationFraction:0.2,testFraction:0.15,calibrationFraction:0.2,folds:3,searchTrials:2,learningCurve:true,seed:7};
+  const template={id:'template',revision:2,models:[{splitPolicy:policy},{splitPolicy:{...policy,kind:'time' as const,groupColumn:undefined,timeColumn:5,seed:17}}]} as Template;
+  vi.mocked(invoke).mockResolvedValue({template,repositoryDryRunRequired:true});
+  await workflowService.saveTemplate(template,2);
+  expect(invoke).toHaveBeenCalledWith('save_research_workflow_template',{template,expectedRevision:2});
+});

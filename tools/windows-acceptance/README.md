@@ -4,10 +4,10 @@
 
 工具会生成 W01–W13 的 Markdown / JSON 记录，按已选择的发布目录核对现有 `release-manifest.json` 的 SHA、字节数与提交身份，并可核对现有 `worker-artifact-manifest.json`。不启动应用、安装器、Worker、外部服务，不读取凭据或用户数据库。不替代仓库现有 `build-release.ps1` 或 `release-check.ps1`。
 
-第一次仅生成待验收记录（Windows PowerShell，在新建隔离测试位置运行；盘符可换成实际存在的盘）：
+以下命令均从仓库根目录运行。第一次仅生成待验收记录（Windows PowerShell，使用新的隔离输出目录；盘符可换成实际存在的盘）：
 
 ```powershell
-pwsh -NoProfile -File .\scripts\prepare-windows-acceptance.ps1 `
+pwsh -NoProfile -File .\tools\windows-acceptance\scripts\prepare-windows-acceptance.ps1 `
   -OutputDirectory 'D:\Suna-Acceptance\中文 验收记录' `
   -Commit '6e8a172a43c762f12ff70feee5872abce3e9b330' `
   -ActionsUrl 'https://github.com/luckysus/Suna/actions/runs/38517617942'
@@ -22,7 +22,7 @@ pwsh -NoProfile -File .\scripts\prepare-windows-acceptance.ps1 `
 独立合同测试：
 
 ```powershell
-pwsh -NoProfile -NonInteractive -File .\scripts\tests\acceptance-evidence.contract.ps1
+pwsh -NoProfile -NonInteractive -File .\tools\windows-acceptance\scripts\tests\acceptance-evidence.contract.ps1
 ```
 
 测试在 Linux PowerShell 7.6.6 上执行，使用文本冒充二进制的**合成夹具**检查哈希/篡改/路径/不覆盖/未验收状态；夹具从未作为程序执行。这些结果不能代替 Windows 原生测试。附带 `fixtures/research-synthetic.csv` 是仓库已有演示数据的逐字节副本，不是真实实验测量。

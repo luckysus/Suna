@@ -20,6 +20,9 @@ impl Drop for Fixture {
     }
 }
 pub(crate) fn fixture() -> Fixture {
+    fixture_with_csv("C,temp,HV,J,time\n0.1,700,100,50,1\n0.2,710,110,52,2\n0.3,720,120,54,3\n0.4,730,130,56,4\n0.5,740,140,58,5\n0.6,750,150,60,6\n")
+}
+pub(crate) fn fixture_with_csv(csv: &str) -> Fixture {
     let root = std::env::temp_dir().join(format!(
         "suna-workflow-dry-run-中文-{}",
         uuid::Uuid::new_v4()
@@ -41,7 +44,7 @@ pub(crate) fn fixture() -> Fixture {
     )
     .unwrap();
     let source = root.join("合成 数据.csv");
-    std::fs::write(&source,"C,temp,HV,J,time\n0.1,700,100,50,1\n0.2,710,110,52,2\n0.3,720,120,54,3\n0.4,730,130,56,4\n0.5,740,140,58,5\n0.6,750,150,60,6\n").unwrap();
+    std::fs::write(&source, csv).unwrap();
     let path = source.to_string_lossy().to_string();
     let sha = steel::hash_dataset_source(&path).unwrap();
     let table = steel::preview_dataset(&steel::DatasetPreviewRequest {

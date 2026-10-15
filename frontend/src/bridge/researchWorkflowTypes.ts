@@ -1,15 +1,17 @@
+import type { TrainingSplitPolicy } from './desktop';
+
 export type Algorithm = "linear_regression" | "elasticnet" | "random_forest" | "hist_gradient_boosting" | "lightgbm" | "xgboost" | "svr" | "mlp" | "transformer";
 export interface ModelNode {
   name: string; algorithm: Algorithm; targetColumn: number; featureColumns: number[];
   direction: "maximize" | "minimize"; unit: string | null;
-  splitPolicy: {kind: "random" | "group" | "time"; validationFraction: number; seed?: number; groupColumn?: number; timeColumn?: number};
+  splitPolicy: TrainingSplitPolicy;
 }
 export interface Template {
   schemaVersion: "research-workflow-template.v1"; id: string; revision: number; name: string;
   models: ModelNode[]; variables: {name: string; unit?: string; fieldId?: string; min: number; max: number; fixedValue?: number}[];
   constraints: unknown[]; trials: number; seed: number; timeoutSeconds: number;
 }
-export interface Column {ordinal: number; originalName: string; canonicalField: string | null; inferredType: "number" | "text" | "date"; unit: string | null; min: number | null; max: number | null}
+export interface Column {ordinal: number; originalName: string; canonicalField: string | null; inferredType: "number" | "text" | "date"; unit: string | null; min: number | null; max: number | null; duplicate?: boolean}
 export interface Dataset {id: string; sourceName: string; sourceSha256: string; mappingState: "draft" | "ready"; columns: Column[]}
 export interface SavedTemplate {template: Template; contentSha256: string; validationStatus: "saved_schema_only"; repositoryDryRunRequired: true}
 export interface TemplateSummary {id: string; revision: number; name: string; contentSha256: string}

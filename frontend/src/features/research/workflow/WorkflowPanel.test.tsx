@@ -1,4 +1,4 @@
-import {act,fireEvent,render,screen,waitFor} from "@testing-library/react";
+import {act,fireEvent,render,screen,waitFor,within} from "@testing-library/react";
 import {beforeEach,expect,it,vi} from "vitest";
 import WorkflowPanel from "./WorkflowPanel";
 import type {Dataset,Preview,Service,Template,WorkflowRun} from "./types";
@@ -70,4 +70,65 @@ it("does not apply an old project preview after switching projects",async()=>{
   fireEvent.change(screen.getByLabelText("工作流数据集"),{target:{value:dataset.id}});fireEvent.click(screen.getByRole("button",{name:"只读预览"}));await waitFor(()=>expect(service.dryRun).toHaveBeenCalled());
   view.rerender(<WorkflowPanel projectId="project-b" service={service}/>);await act(async()=>resolve(preview));
   expect(screen.queryByLabelText("已校验运行预览")).not.toBeInTheDocument();expect(service.start).not.toHaveBeenCalled();
+});
+
+it("persists independent scientific evaluation policies and requires a fresh preview before starting",async()=>{
+  await inspected();
+  const second=within(screen.getByRole("group",{name:"独立性能模型 2"}));
+  for(const [name,value] of [["独立测试集比例","0.2"],["校准集比例","0.2"],["交叉验证折数","3"],["超参数搜索次数","2"],["随机种子","7"]]){
+    fireEvent.change(second.getByLabelText(name),{target:{value}});
+  }
+  fireEvent.click(second.getByRole("checkbox",{name:"计算学习曲线"}));
+  expect(screen.queryByLabelText("已校验运行预览")).not.toBeInTheDocument();
+  expect(service.start).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button",{name:"保存独立模板版本"}));
+  await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
+  const saved=vi.mocked(service.saveTemplate).mock.calls[0][0];
+  expect(saved.models[0].splitPolicy).toEqual(template.models[0].splitPolicy);
+  expect(saved.models[1].splitPolicy).toEqual({...template.models[1].splitPolicy,testFraction:0.2,calibrationFraction:0.2,folds:3,searchTrials:2,seed:7,learningCurve:true});
+  await waitFor(()=>expect(screen.getByRole("button",{name:"只读预览"})).not.toBeDisabled());
+  vi.mocked(service.dryRun).mockResolvedValue({...preview,templateRevision:2,dryRunSha256:"f".repeat(64)});
+  vi.mocked(service.start).mockResolvedValue({...run,templateRevision:2});
+  fireEvent.click(screen.getByRole("button",{name:"只读预览"}));
+  await screen.findByLabelText("已校验运行预览");
+  expect(service.start).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox",{name:"确认创建训练任务、模型版本、优化结果和待确认计划"}));
+  fireEvent.click(screen.getByRole("button",{name:"确认并开始工作流"}));
+  await waitFor(()=>expect(service.start).toHaveBeenCalledWith(expect.objectContaining({templateRevision:2,dryRunSha256:"f".repeat(64),confirmed:true})));
+});
+
+it("excludes split labels and both targets from model inputs and clears inactive split columns",async()=>{
+  await configured();
+  const first=within(screen.getByRole("group",{name:"独立性能模型 1"}));
+  fireEvent.change(first.getByLabelText("划分策略"),{target:{value:"group"}});
+  const auxiliary=within(first.getByLabelText("分组或时间列"));
+  expect(auxiliary.queryByRole("option",{name:"HV"})).not.toBeInTheDocument();
+  expect(auxiliary.queryByRole("option",{name:"J"})).not.toBeInTheDocument();
+  fireEvent.change(first.getByLabelText("分组或时间列"),{target:{value:"0"}});
+  expect(first.getByRole("checkbox",{name:"c"})).toBeDisabled();
+  expect(first.getByRole("checkbox",{name:"c"})).not.toBeChecked();
+  expect(within(screen.getByRole("group",{name:"独立性能模型 2"})).getByRole("checkbox",{name:"c"})).toBeChecked();
+  fireEvent.change(first.getByLabelText("划分策略"),{target:{value:"time"}});
+  expect(first.getByLabelText("分组或时间列")).toHaveValue("");
+  fireEvent.change(first.getByLabelText("分组或时间列"),{target:{value:"4"}});
+  fireEvent.change(first.getByLabelText("划分策略"),{target:{value:"random"}});
+  expect(first.getByRole("checkbox",{name:"c"})).not.toBeDisabled();
+  fireEvent.click(screen.getByRole("button",{name:"保存独立模板版本"}));
+  await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
+  const model=vi.mocked(service.saveTemplate).mock.calls[0][0].models[0];
+  expect(model.splitPolicy.kind).toBe("random");
+  expect(model.splitPolicy.groupColumn).toBeUndefined();
+  expect(model.splitPolicy.timeColumn).toBeUndefined();
+});
+
+it("does not silently enable advanced evaluation or change a legacy unspecified seed",async()=>{
+  await configured();
+  const second=within(screen.getByRole("group",{name:"独立性能模型 2"}));
+  expect(second.getByLabelText("随机种子")).toHaveValue(0);
+  expect(second.getByLabelText("独立测试集比例")).toHaveValue(0);
+  expect(second.getByLabelText("校准集比例")).toHaveValue(0);
+  fireEvent.change(screen.getByLabelText("模板名称"),{target:{value:"保留原评估条件"}});
+  fireEvent.click(screen.getByRole("button",{name:"保存独立模板版本"}));
+  await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
+  expect(vi.mocked(service.saveTemplate).mock.calls[0][0].models.map(m=>m.splitPolicy)).toEqual(template.models.map(m=>m.splitPolicy));
 });

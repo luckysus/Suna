@@ -67,6 +67,13 @@ pub fn dry_run_on_connection(
         };
         let mut payload = build_linear_regression_payload(&table, &dataset.columns, &request)
             .map_err(|_| "workflow_training_configuration_invalid")?;
+        if payload.get("evaluation").is_some()
+            && payload["features"]
+                .as_array()
+                .is_none_or(|rows| rows.len() < 10)
+        {
+            return Err("workflow_scientific_evaluation_requires_10_valid_rows".into());
+        }
         payload["data_version"] = json!(dataset.source_sha256);
         payload["algorithm"] = json!(model.algorithm);
         for name in payload["feature_names"]
@@ -139,5 +146,7 @@ mod runtime_recovery_tests;
 pub(crate) mod runtime_support;
 #[cfg(test)]
 mod runtime_tests;
+#[cfg(test)]
+mod scientific_evaluation_tests;
 #[cfg(test)]
 mod testing;

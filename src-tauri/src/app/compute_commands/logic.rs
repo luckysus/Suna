@@ -465,11 +465,11 @@ pub fn build_linear_regression_payload(
     if kind == "time" {
         payload["timestamps"] = json!(auxiliary_values);
     }
-    if policy.get("folds").is_some()
-        || policy.get("testFraction").is_some()
-        || policy.get("calibrationFraction").is_some()
-    {
-        payload["evaluation"] = json!({"folds": policy.get("folds").cloned().unwrap_or(json!(0)), "test_fraction": policy.get("testFraction").cloned().unwrap_or(json!(0.0)), "calibration_fraction": policy.get("calibrationFraction").cloned().unwrap_or(json!(0.0)), "search_trials": policy.get("searchTrials").cloned().unwrap_or(json!(0)), "learning_curve": policy.get("learningCurve").cloned().unwrap_or(json!(false))});
+    if let Some(options) = super::evaluation::options(
+        &policy,
+        request.algorithm.as_deref().unwrap_or("linear_regression"),
+    )? {
+        payload["evaluation"] = options;
     }
     Ok(payload)
 }
@@ -2277,3 +2277,7 @@ mod scientific_split_binding_tests {
         assert_eq!(payload["evaluation"]["folds"], json!(3));
     }
 }
+
+#[cfg(test)]
+#[path = "evaluation_tests.rs"]
+mod evaluation_tests;
