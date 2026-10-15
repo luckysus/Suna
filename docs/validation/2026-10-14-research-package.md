@@ -30,6 +30,8 @@
 
 云端原始记录位于 `/workspace/suna-independent-development/`：`package-main-rust-summary.json`、`package-main-rust-all-targets.log`、`package-main-frontend-tests.log`、`package-main-frontend-build.log`、`package-main-frontend-boundaries.log`、`research-package-v1-cross-check.log`。这些临时测试文件和二进制不提交到仓库。
 
+提交 `c6eabf8a7726ef881ff1852e40122fdd36e61b19` 的 [Run 38654574937](https://github.com/luckysus/Suna/actions/runs/38654574937) 后续实际失败：用户提供的真实日志显示科研包18项测试全部通过，库测试整体476 passed / 1 failed / 3 ignored，唯一失败为工作流恢复测试等待中间状态超时。后续安全、案例及基准步骤未执行，不能视为科研包的完整Windows验证；修复及最终提交CI记录见 [工作流恢复记录](2026-10-15-workflow-recovery.md)。
+
 Python Worker 源码本次未改；基线完整 Windows CI 已通过其锁定测试，新提交 CI 仍须按精确 SHA 重跑。现有 Agent 继续从 ProviderProfile 读取地址/模型、通过 SecretRef 取得凭据；本功能没有外部模型 API、硬编码用户服务或真实大模型调用验收。无 API 配置不会影响本地归档/预测/优化开发，真实服务兼容性仍 pending-network。
 
 ## 剩余验收

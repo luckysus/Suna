@@ -13,6 +13,6 @@
 
 临时证据在 `/workspace/suna-independent-development/acceptance-components-worker-all.log` 和 `acceptance-components-evidence-20261015.json`；不提交生成报告或临时数据库。
 
-当前已推送的 `c6eabf8` 对应 [Run 38654574937](https://github.com/luckysus/Suna/actions/runs/38654574937) 仍是 Rust步骤失败、具体错误日志读取受限，尚未修复或宣称CI通过。本工具及前两项新功能先本地独立提交；需要实际失败测试/编译错误证据后优先修复并检查新的完整Windows CI。
+先前已推送的 `c6eabf8` 对应 [Run 38654574937](https://github.com/luckysus/Suna/actions/runs/38654574937) 为Rust步骤失败。10月15日用户已提供真实失败日志，唯一失败为工作流恢复测试超时；修复及后续完整Windows CI结论见 [工作流恢复记录](2026-10-15-workflow-recovery.md)。本工具及前两项功能有独立本地提交与测试记录，仍须核对最终推送SHA的完整CI。
 
 个人 Windows 原生安装、Credential Manager、弹窗、DPI、图像导入显示、备份迁移、SQL Server和授权真实服务仍全部待验收。操作和状态定义见 [工具说明](../../tools/windows-acceptance/README.md) 与 [Windows手册](../development/windows-research-acceptance.md)。

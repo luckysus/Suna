@@ -29,11 +29,11 @@ pub(crate) fn scheduler_with_override_and_clock(
 ) -> Scheduler {
     let worker = worker_config();
     let mut handlers = crate::compute::handler::compute_task_handlers(Some(worker));
+    handlers.push(Arc::new(runtime::ModelingWorkflowHandler::new(path.into())));
     if let Some(replacement) = replacement {
         handlers.retain(|h| h.kind() != replacement.kind());
         handlers.push(replacement);
     }
-    handlers.push(Arc::new(runtime::ModelingWorkflowHandler::new(path.into())));
     Scheduler::new(
         path.into(),
         "local".into(),
@@ -66,7 +66,19 @@ pub(crate) fn wait_until(
         if condition(&r) {
             return r;
         }
-        assert!(Instant::now() < until, "workflow deadline");
+        assert!(
+            !matches!(r.state, TaskState::Completed | TaskState::Failed | TaskState::Cancelled),
+            "workflow ended before requested observation: state={:?} progress={} attempt={} error={:?}",
+            r.state, r.progress, r.attempt, r.error_code
+        );
+        assert!(
+            Instant::now() < until,
+            "workflow deadline: state={:?} progress={} attempt={} error={:?}",
+            r.state,
+            r.progress,
+            r.attempt,
+            r.error_code
+        );
         std::thread::sleep(Duration::from_millis(10));
     }
 }

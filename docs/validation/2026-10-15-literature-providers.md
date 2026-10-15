@@ -26,7 +26,7 @@
 
 前端测试使用真实 `useComputeTask` 和明确的桌面桥夹具，不当作原生或真实服务调用。完整 Rust 枚举全部目标，未减少用例或新增忽略。
 
-当前远端仍是归档提交 `c6eabf8a7726ef881ff1852e40122fdd36e61b19`；其 [Run 38654574937](https://github.com/luckysus/Suna/actions/runs/38654574937) 实际在 Run deterministic Rust suite 失败，后续业务检查未执行。公开页面只有退出码1，gh返回Forbidden、日志页面404，具体失败测试/编译错误尚缺证据，不能猜测。本地两个新里程碑尚未推送，不能将本地通过或更早提交的绿色CI称为它们的Windows验证。
+归档提交 `c6eabf8a7726ef881ff1852e40122fdd36e61b19` 的 [Run 38654574937](https://github.com/luckysus/Suna/actions/runs/38654574937) 在 Run deterministic Rust suite 失败，后续业务检查未执行。用户于10月15日提供真实日志：编译通过，库测试476 passed / 1 failed / 3 ignored，唯一失败为工作流重启恢复测试等待中间状态超时；归档18项及旧路径重定位测试均通过。修复及新提交的完整Windows结论见 [工作流恢复记录](2026-10-15-workflow-recovery.md)，不将本地通过或较早绿色CI当作本里程碑的Windows验证。
 
 证据位于云端 `/workspace/suna-independent-development/literature-provider-*`；仅使用合成题录及本机回环 HTTP，没有公开服务访问、用户文献、账号或凭据。Python Worker 未改；其本轮图像扩展后的锁定测试为217 passed/2项原有打包 skipped，最终完整 CI 仍需重跑。
 
