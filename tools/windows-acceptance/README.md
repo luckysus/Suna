@@ -28,3 +28,19 @@ pwsh -NoProfile -NonInteractive -File .\scripts\tests\acceptance-evidence.contra
 测试在 Linux PowerShell 7.6.6 上执行，使用文本冒充二进制的**合成夹具**检查哈希/篡改/路径/不覆盖/未验收状态；夹具从未作为程序执行。这些结果不能代替 Windows 原生测试。附带 `fixtures/research-synthetic.csv` 是仓库已有演示数据的逐字节副本，不是真实实验测量。
 
 明日仍需人工或本地授权 Codex 验证安装、WebView2、Worker 实际加载、中文路径导出、迁移、办公格式、Windows Credential Manager、离线边界、真实服务、长任务及备份恢复；保留上传手册的全部确认与隔离要求。
+
+## 显微输入组件核对（源码 Python，不是安装包验收）
+
+在仓库根目录使用已经按锁文件安装的计算 Worker Python，先运行上面的准备脚本创建记录目录，再执行：
+
+```powershell
+.\compute-worker\.venv\Scripts\python.exe .\tools\windows-acceptance\scripts\verify-scientific-input.py `
+  --output 'D:\Suna-Acceptance\中文 验收记录\scientific-input.json' `
+  --expected-commit '<当前待验收的完整40位提交SHA>'
+```
+
+工具实际调用本检出源码的 Pillow/NumPy/SciPy 分析组件，核对8个 CC0 合成 TIFF/PNG 原文件 SHA、两种字节序/16位量程与窗口像素、阈值占比、ROI/物理标尺、RGB与EXIF原始坐标，以及不支持输入的拒绝结果。源图不修改，报告只创建一次，不覆盖；需要已存在的本地绝对路径目录。记录模块内容摘要、实际 Git HEAD、检出是否有修改、工具摘要、平台和Python版本；不导出主机名、用户名、绝对源码路径或用户数据。旧安装的其他副本模块会被拒绝，不能拿它冒充当前检出的验证。
+
+报告中的 `componentState=passed` 只表示源码组件/合成像素核对通过。`nativeAcceptance`、安装包Worker、原生弹窗、DPI、Credential Manager仍 `NOT_RUN`，Crossref/EuropePMC/模型API/SQL Server仍 pending-network；`ciConclusion=not-verified-by-this-tool`、`stableReleaseAccepted=false`。有未提交修改或未指定期望 SHA 时不能标记 cleanCommitVerified。此工具不运行 Tauri、安装器、服务、模型API或用户数据库，不能将其报告填写成个人 Windows 原生验收通过。
+
+组件工具测试可用 `compute-worker/.venv/bin/python -m pytest compute-worker/tests/test_acceptance_input_tool.py -q`；Linux源组件检查不代表 Windows 已执行。
