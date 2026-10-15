@@ -199,10 +199,17 @@ pub fn candidate_plan(
         let variables: Vec<Value> = values
             .iter()
             .map(|(name, value)| {
-                let unit = payload["request"]["material_rule_snapshot"]["variables"]
+                let variable = payload["request"]["variables"]
                     .as_array()
                     .and_then(|a| a.iter().find(|v| v["name"] == *name))
-                    .and_then(|v| v["unit"].as_str());
+                    .or_else(|| {
+                        payload["request"]["material_rule_snapshot"]["variables"]
+                            .as_array()
+                            .and_then(|a| a.iter().find(|v| v["name"] == *name))
+                    });
+                // Legacy artifacts without either frozen schema stay unknown.
+                // Current dataset units need not match these candidate values.
+                let unit = variable.and_then(|v| v["unit"].as_str());
                 json!({"name":name,"value":value,"unit":unit})
             })
             .collect();

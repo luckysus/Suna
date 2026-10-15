@@ -2,6 +2,8 @@ import type { ComputeTrainingResult, OptimizationObjective, OptimizationVariable
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 
+import LinearConstraintsEditor from "./LinearConstraintsEditor";
+
 type Constraint = ComputeOptimizationRequest["constraints"][number];
 export function OptimizationObjectives({ objectives, setObjectives, models, variables, setVariables, constraints, setConstraints, availableVariables, additionalVariables, onAddVariable, onRemoveVariable }: {
   objectives: OptimizationObjective[]; setObjectives: (v: OptimizationObjective[]) => void;
@@ -23,9 +25,6 @@ export function OptimizationObjectives({ objectives, setObjectives, models, vari
       const change = (patch: Partial<OptimizationVariable>) => setVariables(variables.map((item, j) => j === i ? { ...item, ...patch } : item));
       return <div key={v.name}><strong>{v.name}</strong>{additionalVariables.includes(v.name) && <Button variant="ghost" onClick={() => onRemoveVariable(v.name)}>删除附加变量 {v.name}</Button>}<label>下限<Input type="number" aria-label={`${v.name} 下限`} value={v.min} onChange={(e) => change({ min: Number(e.target.value) })} /></label><label>上限<Input type="number" aria-label={`${v.name} 上限`} value={v.max} onChange={(e) => change({ max: Number(e.target.value) })} /></label><label>固定值（留空可搜索）<Input type="number" aria-label={`${v.name} 固定值`} value={v.fixedValue ?? ""} onChange={(e) => change({ fixedValue: e.target.value === "" ? null : Number(e.target.value) })} /></label></div>;
     })}</fieldset>
-    <fieldset><legend>线性配比约束</legend><p>Σ（系数 × 变量）等于或不小于阈值；上限约束可使用负系数与负阈值。</p>{constraints.map((c, i) => {
-      const change = (patch: Partial<Constraint>) => setConstraints(constraints.map((item, j) => j === i ? { ...item, ...patch } : item));
-      return <div key={i}><select aria-label={`约束 ${i+1} 类型`} value={c.kind} onChange={(e) => change({ kind: e.target.value as Constraint["kind"] })}><option value="equality">等于</option><option value="inequality">不小于</option></select>{variables.map((v) => <label key={v.name}>{v.name} 系数<Input type="number" value={(c.coefficients as Record<string,number>)[v.name] ?? 0} onChange={(e) => change({ coefficients: { ...c.coefficients, [v.name]: Number(e.target.value) } })} /></label>)}<label>阈值<Input type="number" value={c.value} onChange={(e) => change({ value: Number(e.target.value) })} /></label><label>容差<Input type="number" min="0" value={c.tolerance ?? 1e-6} onChange={(e) => change({ tolerance: Number(e.target.value) })} /></label><Button variant="ghost" onClick={() => setConstraints(constraints.filter((_, j) => j !== i))}>删除约束</Button></div>;
-    })}<Button variant="ghost" onClick={() => setConstraints([...constraints, { kind: "equality", coefficients: {}, value: 100, tolerance: 1e-6 }])}>添加配比约束</Button></fieldset>
+    <LinearConstraintsEditor variables={variables} constraints={constraints} onChange={setConstraints}/>
   </>;
 }

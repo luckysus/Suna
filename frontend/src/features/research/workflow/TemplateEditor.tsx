@@ -1,5 +1,6 @@
 import type {Algorithm, Column, Dataset, ModelNode, Template} from "./types";
 import TrainingEvaluationConfig from "../../prediction/TrainingEvaluationConfig";
+import LinearConstraintsEditor from "../../optimization/LinearConstraintsEditor";
 export const algorithms: Record<Algorithm, string> = {linear_regression:"线性回归",elasticnet:"ElasticNet",random_forest:"Random Forest",hist_gradient_boosting:"HistGradientBoosting",lightgbm:"LightGBM",xgboost:"XGBoost",svr:"SVR",mlp:"MLP",transformer:"Transformer"};
 function field(c:Column){return c.canonicalField || c.originalName;}
 export function newTemplate():Template {
@@ -32,6 +33,8 @@ export default function TemplateEditor({template,dataset,disabled,onChange}:{tem
       <TrainingEvaluationConfig value={m.splitPolicy} onChange={splitPolicy=>updateModel(i,{splitPolicy})} columns={dataset?.columns.filter(c=>!template.models.some(m=>m.targetColumn===c.ordinal))||[]}/>
     </fieldset>)}
     <fieldset><legend>优化变量与工艺范围</legend>{template.variables.map((v,i)=><div key={v.name}><strong>{v.name}{v.unit?` (${v.unit})`:""}</strong>{(["min","max"] as const).map(key=><label key={key}>{v.name} {key==="min"?"下限":"上限"}<input type="number" step="any" value={Number.isFinite(v[key])?v[key]:""} onChange={e=>onChange({...template,variables:template.variables.map((a,n)=>n===i?{...a,[key]:e.target.valueAsNumber}:a)})}/></label>)}<label>{v.name} 专业字段<input value={v.fieldId||""} placeholder="已有约束使用的字段标识" onChange={e=>onChange({...template,variables:template.variables.map((a,n)=>n===i?{...a,fieldId:e.target.value||undefined}:a)})}/></label></div>)}{!template.variables.length&&<p>选择模型输入特征后配置范围。</p>}</fieldset>
+    <fieldset><legend>固定变量（留空可搜索）</legend>{template.variables.map((v,i)=><label key={v.name}>{v.name}{v.unit?` (${v.unit})`:"（单位未记录）"}<input type="number" step="any" aria-label={`${v.name} 固定值`} min={v.min} max={v.max} value={v.fixedValue??""} onChange={e=>onChange({...template,variables:template.variables.map((item,j)=>j===i?{...item,fixedValue:e.target.value===""?null:e.target.valueAsNumber}:item)})}/></label>)}</fieldset>
+    <LinearConstraintsEditor variables={template.variables} constraints={template.constraints} onChange={constraints=>onChange({...template,constraints})}/>
     <label>优化评估次数<input type="number" min={1} max={500} value={template.trials} onChange={e=>onChange({...template,trials:e.target.valueAsNumber})}/></label>
     <label>优化随机种子<input type="number" min={0} value={template.seed} onChange={e=>onChange({...template,seed:e.target.valueAsNumber})}/></label>
     <label>总运行时间上限（秒）<input type="number" min={30} max={86400} value={template.timeoutSeconds} onChange={e=>onChange({...template,timeoutSeconds:e.target.valueAsNumber})}/></label>

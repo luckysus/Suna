@@ -132,3 +132,57 @@ it("does not silently enable advanced evaluation or change a legacy unspecified 
   await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
   expect(vi.mocked(service.saveTemplate).mock.calls[0][0].models.map(m=>m.splitPolicy)).toEqual(template.models.map(m=>m.splitPolicy));
 });
+
+it("saves fixed variables and named constraints as a new version and invalidates approval",async()=>{
+  await inspected();
+  fireEvent.click(screen.getByRole("checkbox",{name:"确认创建训练任务、模型版本、优化结果和待确认计划"}));
+  fireEvent.change(screen.getByLabelText("c 固定值"),{target:{value:"0.3"}});
+  expect(screen.queryByLabelText("已校验运行预览")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"添加配比约束"}));
+  fireEvent.change(screen.getByLabelText("约束 1 类型"),{target:{value:"inequality"}});
+  fireEvent.change(screen.getByLabelText("约束 1 temperature 系数"),{target:{value:"-1"}});
+  fireEvent.change(screen.getByLabelText("约束 1 阈值"),{target:{value:"-725"}});
+  fireEvent.change(screen.getByLabelText("约束 1 容差"),{target:{value:"0.000001"}});
+  fireEvent.click(screen.getByRole("button",{name:"保存独立模板版本"}));
+  await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
+  const saved=vi.mocked(service.saveTemplate).mock.calls[0][0];
+  expect(saved.variables[0]).toEqual({...template.variables[0],fixedValue:0.3});
+  expect(saved.constraints).toEqual([{kind:"inequality",coefficients:{temperature:-1},value:-725,tolerance:1e-6}]);
+  expect(template.variables[0].fixedValue).toBeUndefined();
+  expect(template.constraints).toEqual([]);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"只读预览"})).not.toBeDisabled());
+  vi.mocked(service.dryRun).mockResolvedValue({...preview,templateRevision:2});
+  fireEvent.click(screen.getByRole("button",{name:"只读预览"}));
+  await screen.findByLabelText("已校验运行预览");
+  expect(screen.getByRole("checkbox",{name:"确认创建训练任务、模型版本、优化结果和待确认计划"})).not.toBeChecked();
+  expect(screen.getByRole("button",{name:"确认并开始工作流"})).toBeDisabled();
+  expect(service.start).not.toHaveBeenCalled();
+});
+
+it("reopens saved constraint values without deleting references when a feature is removed",async()=>{
+  const constrained={...template,variables:template.variables.map((v,i)=>i===0?{...v,fixedValue:0.3}:v),
+    constraints:[{kind:"equality" as const,coefficients:{c:1,temperature:2},value:1400.3,tolerance:1e-5}]};
+  vi.mocked(service.getTemplate).mockResolvedValue({template:constrained,contentSha256:"f".repeat(64),validationStatus:"saved_schema_only",repositoryDryRunRequired:true});
+  await configured();
+  expect(screen.getByLabelText("c 固定值")).toHaveValue(0.3);
+  expect(screen.getByLabelText("约束 1 c 系数")).toHaveValue(1);
+  expect(screen.getByLabelText("约束 1 temperature 系数")).toHaveValue(2);
+  expect(screen.getByLabelText("约束 1 阈值")).toHaveValue(1400.3);
+  fireEvent.change(screen.getByLabelText("c 固定值"),{target:{value:""}});
+  for(const i of [1,2])fireEvent.click(within(screen.getByRole("group",{name:`独立性能模型 ${i}`})).getByRole("checkbox",{name:"c"}));
+  expect(screen.getByRole("status")).toHaveTextContent("约束引用了已移除的变量：c");
+  fireEvent.click(screen.getByRole("button",{name:"保存独立模板版本"}));
+  await waitFor(()=>expect(service.saveTemplate).toHaveBeenCalledOnce());
+  expect(vi.mocked(service.saveTemplate).mock.calls[0][0].constraints).toEqual(constrained.constraints);
+  fireEvent.click(screen.getByRole("button",{name:"删除约束 1"}));
+  expect(screen.queryByLabelText("约束 1 类型")).not.toBeInTheDocument();
+});
+
+it("reports a verified constraint conflict without starting tasks or exposing raw errors",async()=>{
+  vi.mocked(service.dryRun).mockRejectedValue("workflow_constraint_system_infeasible");
+  await configured();
+  fireEvent.click(screen.getByRole("button",{name:"只读预览"}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("固定变量、工艺范围与约束互相冲突");
+  expect(service.start).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button",{name:"确认并开始工作流"})).not.toBeInTheDocument();
+});

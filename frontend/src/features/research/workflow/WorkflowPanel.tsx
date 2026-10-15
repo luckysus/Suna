@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from "react";
 import TemplateEditor,{algorithms,newTemplate} from "./TemplateEditor";
 import type {Dataset,Preview,Service,Template,TemplateSummary,WorkflowRun} from "./types";
 const states:Record<string,string>={queued:"等待执行",running:"正在执行",waiting_external:"等待子任务",paused:"已暂停",completed:"已完成",failed:"失败",cancelled:"已取消",interrupted:"已中断"};
+const failures:Record<string,string>={workflow_constraint_system_infeasible:"固定变量、工艺范围与约束互相冲突，请调整后重新预览。",workflow_constraint_budget:"合并项目专业规则后最多支持 64 条约束，请减少约束后重试。",workflow_constraint_preflight_variable_budget:"线性约束预检最多支持 24 个变量，请缩小变量范围后重试。",workflow_constraint_preflight_complexity_budget:"约束组合过于复杂，请简化约束后重新预览。",workflow_constraint_preflight_overflow:"约束数值超出计算范围，请核对系数、阈值和单位。"};
 export default function WorkflowPanel({projectId,archived=false,service,onOpenPlan}:{projectId:string;archived?:boolean;service:Service;onOpenPlan?:()=>void}){
   const [datasets,setDatasets]=useState<Dataset[]>([]),[versions,setVersions]=useState<TemplateSummary[]>([]);
   const [datasetId,setDatasetId]=useState(""),[template,setTemplate]=useState<Template>(newTemplate),[savedRevision,setSavedRevision]=useState(0),[dirty,setDirty]=useState(true);
@@ -20,7 +21,7 @@ export default function WorkflowPanel({projectId,archived=false,service,onOpenPl
     window.addEventListener("focus",refresh);
     return()=>{epoch.current++;loading.current++;runRequest.current++;clearTimeout(timer);window.removeEventListener("focus",refresh);unlisten?.();};
   },[projectId,service]);
-  const perform=async(work:()=>Promise<void>)=>{const token=epoch.current;setBusy(true);setError("");try{await work();}catch{if(token===epoch.current)setError("操作未完成，请检查数据、模板版本和规则后重试。");}finally{if(token===epoch.current)setBusy(false);}};
+  const perform=async(work:()=>Promise<void>)=>{const token=epoch.current;setBusy(true);setError("");try{await work();}catch(e){if(token===epoch.current){const code=typeof e==="string"?e:e instanceof Error?e.message:"";setError(Object.prototype.hasOwnProperty.call(failures,code)?failures[code]:"操作未完成，请检查数据、模板版本和规则后重试。");}}finally{if(token===epoch.current)setBusy(false);}};
   const load=async(value:string)=>{invalidate();const request=loading.current;const [id,rev]=value.split("@");const version=await service.getTemplate(id,Number(rev));if(request!==loading.current)return;setTemplate(version.template);setSavedRevision(version.template.revision);setDirty(false);};
   const save=async()=>{const request=loading.current;const token=epoch.current;const version=await service.saveTemplate(template,savedRevision);if(request!==loading.current)return;setTemplate(version.template);setSavedRevision(version.template.revision);setDirty(false);invalidate();const items=await service.listTemplates();if(token===epoch.current)setVersions(items);};
   const inspect=async()=>{if(!dataset)return;invalidate();const request=loading.current;const result=await service.dryRun(template,{projectId,datasetId:dataset.id,datasetSha256:dataset.sourceSha256});if(request!==loading.current)return;
@@ -38,7 +39,7 @@ export default function WorkflowPanel({projectId,archived=false,service,onOpenPl
     <TemplateEditor template={template} dataset={dataset} disabled={busy||archived} onChange={edit}/>
     <button type="button" disabled={busy||archived||!dirty||!dataset} onClick={()=>void perform(save)}>保存独立模板版本</button>
     <button type="button" disabled={busy||archived||dirty||!dataset} onClick={()=>void perform(inspect)}>只读预览</button>
-    {preview&&<div aria-label="已校验运行预览"><p>项目 {projectId} · 模板 v{preview.templateRevision} · 数据 SHA256 {preview.datasetSha256}</p><ol>{preview.validatedModels.map(m=><li key={m.name}>{m.name} · {algorithms[m.algorithm as keyof typeof algorithms]||m.algorithm} · 有效样本 {m.validRowCount} · 排除 {m.filteredRowCount}</li>)}<li>NSGA-II 联合优化 · {template.trials} 次评估</li><li>实验计划：待人工确认；不会写入测量数据</li></ol><p>运行上限 {preview.timeoutSeconds} 秒 · {preview.materialRules?.ruleCount||0} 条专业规则 · {preview.networkRequired?"需要外部服务":"本地计算"}</p>
+    {preview&&<div aria-label="已校验运行预览"><p>项目 {projectId} · 模板 v{preview.templateRevision} · 数据 SHA256 {preview.datasetSha256}</p><ol>{preview.validatedModels.map(m=><li key={m.name}>{m.name} · {algorithms[m.algorithm as keyof typeof algorithms]||m.algorithm} · 有效样本 {m.validRowCount} · 排除 {m.filteredRowCount}</li>)}<li>NSGA-II 联合优化 · {template.trials} 次评估 · {template.constraints.length} 条线性约束 · {template.variables.filter(v=>v.fixedValue!=null).length} 项固定变量</li><li>实验计划：待人工确认；不会写入测量数据</li></ol><p>运行上限 {preview.timeoutSeconds} 秒 · {preview.materialRules?.ruleCount||0} 条专业规则 · {preview.networkRequired?"需要外部服务":"本地计算"}</p>
       <p>计算依赖已实际检查：{preview.workerValidation.dependencies.map(d=>`${d.name} ${d.version||"版本未记录"}`).join(" · ")}</p><p>生成的模型版本保持未激活状态。</p><label><input type="checkbox" checked={confirmed} disabled={busy||archived} onChange={e=>setConfirmed(e.target.checked)}/>确认创建训练任务、模型版本、优化结果和待确认计划</label>
       <button type="button" disabled={busy||archived||!confirmed||dirty} onClick={()=>void perform(start)}>确认并开始工作流</button>
     </div>}

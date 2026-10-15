@@ -138,8 +138,16 @@ pub fn build_joint_payload(
         }
         finite(&c["value"])?;
     }
+    // Freeze the units of the *optimization variables*. They may differ from
+    // model input units and cannot be reconstructed from a later dataset.
+    let variables = request
+        .variables
+        .iter()
+        .map(|v| json!({"name":v["name"],"unit":v["unit"]}))
+        .collect::<Vec<_>>();
     Ok(json!({"operation": "optimize_constrained", "payload": {
         "dataset_id": request.dataset_id, "feature_names": names, "bounds": bounds, "domain_policy":policy,
+        "variables": variables,
         "fixed_values": fixed, "constraints": request.constraints, "objective_specs": objectives,
         "algorithm": algorithm, "trials": request.trials, "seed": request.seed
     }}))

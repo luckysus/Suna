@@ -1,5 +1,6 @@
 //! Versioned scientific workflows with read-only preflight and original task orchestration.
 use crate::steel;
+mod constraints;
 pub mod entry;
 pub mod lifecycle;
 pub mod provenance;
@@ -125,6 +126,7 @@ pub fn dry_run_on_connection(
         &input.dataset_id,
         &template.variables,
     )?;
+    constraints::preflight(template, snapshot.as_ref())?;
     preview["materialRules"] = rules::summary(snapshot.as_ref());
     preview.as_object_mut().unwrap().remove("dryRunSha256");
     preview["dryRunSha256"] = json!(format!(
@@ -134,6 +136,8 @@ pub fn dry_run_on_connection(
     Ok(preview)
 }
 
+#[cfg(test)]
+mod constraint_tests;
 #[cfg(test)]
 mod entry_tests;
 #[cfg(test)]

@@ -1,4 +1,4 @@
-import type { TrainingSplitPolicy } from './desktop';
+import type { ComputeOptimizationRequest, OptimizationVariable, TrainingSplitPolicy } from './desktop';
 
 export type Algorithm = "linear_regression" | "elasticnet" | "random_forest" | "hist_gradient_boosting" | "lightgbm" | "xgboost" | "svr" | "mlp" | "transformer";
 export interface ModelNode {
@@ -8,8 +8,8 @@ export interface ModelNode {
 }
 export interface Template {
   schemaVersion: "research-workflow-template.v1"; id: string; revision: number; name: string;
-  models: ModelNode[]; variables: {name: string; unit?: string; fieldId?: string; min: number; max: number; fixedValue?: number}[];
-  constraints: unknown[]; trials: number; seed: number; timeoutSeconds: number;
+  models: ModelNode[]; variables: OptimizationVariable[];
+  constraints: ComputeOptimizationRequest["constraints"]; trials: number; seed: number; timeoutSeconds: number;
 }
 export interface Column {ordinal: number; originalName: string; canonicalField: string | null; inferredType: "number" | "text" | "date"; unit: string | null; min: number | null; max: number | null; duplicate?: boolean}
 export interface Dataset {id: string; sourceName: string; sourceSha256: string; mappingState: "draft" | "ready"; columns: Column[]}
