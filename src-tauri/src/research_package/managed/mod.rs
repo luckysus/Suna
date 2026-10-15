@@ -2,6 +2,7 @@
 pub mod archive;
 pub mod catalog;
 pub mod library;
+mod snapshot;
 pub mod staging;
 use super::{digest, identity, valid_sha};
 use serde::{Deserialize, Serialize};
@@ -104,5 +105,7 @@ impl Prepared {
 mod library_tests;
 #[cfg(test)]
 mod security_tests;
+#[cfg(test)]
+mod snapshot_tests;
 #[cfg(test)]
 mod tests;

@@ -1,7 +1,7 @@
 //! A separate on-disk isolation store. Never accepts a live application connection.
 use super::*;
 use crate::permissions::path::AuthorizedRoots;
-use rusqlite::{params, Connection, OpenFlags};
+use rusqlite::{params, Connection};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{File, OpenOptions},
@@ -102,6 +102,13 @@ pub(super) fn read_owned(root: &Path, relative: &str, budget: usize) -> Result<V
 }
 
 pub(super) fn verify_existing(package: &Verified, root: &Path) -> Result<Value, String> {
+    verify_existing_with(package, root, || {})
+}
+pub(super) fn verify_existing_with(
+    package: &Verified,
+    root: &Path,
+    after_database_read: impl FnOnce(),
+) -> Result<Value, String> {
     if !ordinary_directory(root) || !ordinary_directory(&root.join("assets")) {
         return Err("package_isolation_path_invalid".into());
     }
@@ -135,56 +142,11 @@ pub(super) fn verify_existing(package: &Verified, root: &Path) -> Result<Value, 
     if receipt["databaseSha256"] != digest(&db) {
         return Err("package_isolation_conflict".into());
     }
-    // The database is new, local to this isolation and is only opened read-only.
-    let c = Connection::open_with_flags(
-        root.join("metadata.sqlite3"),
-        OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|_| "package_isolation_storage_error")?;
-    let mut query=c.prepare("SELECT original_id,id,body_json,source_sha256 FROM package_objects ORDER BY original_id").map_err(|_|"package_isolation_conflict")?;
-    let rows = query
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, String>(3)?,
-            ))
-        })
-        .map_err(|_| "package_isolation_conflict")?;
-    let mut mapping = BTreeMap::new();
-    for row in rows {
-        let (original, id, body, sha) = row.map_err(|_| "package_isolation_conflict")?;
-        let expected = package
-            .metadata
-            .objects
-            .iter()
-            .find(|(o, _, _)| o == &original)
-            .ok_or("package_isolation_conflict")?;
-        if identity(&id).is_err()
-            || sha != expected.2
-            || serde_json::from_str::<Value>(&body).ok().as_ref() != Some(&expected.1)
-        {
-            return Err("package_isolation_conflict".into());
-        }
-        mapping.insert(original, id);
-    }
-    if mapping.len() != package.metadata.objects.len() || receipt["idMapping"] != json!(mapping) {
+    after_database_read();
+    let mapping = snapshot::verify(package, &db)?;
+    if receipt["idMapping"] != json!(mapping) {
         return Err("package_isolation_conflict".into());
     }
-    let stored_assets: u64 = c
-        .query_row("SELECT COUNT(*) FROM package_assets", [], |r| r.get(0))
-        .map_err(|_| "package_isolation_conflict")?;
-    let edges: u64 = c
-        .query_row("SELECT COUNT(*) FROM package_edges", [], |r| r.get(0))
-        .map_err(|_| "package_isolation_conflict")?;
-    if stored_assets as usize != package.assets.len()
-        || edges as usize != package.metadata.edges.len()
-    {
-        return Err("package_isolation_conflict".into());
-    }
-    drop(query);
-    c.close().map_err(|_| "package_isolation_storage_error")?;
     let mut result = package.summary();
     result["isolationId"] = json!(package.package_sha256);
     result["idMapping"] = json!(mapping);

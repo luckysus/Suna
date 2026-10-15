@@ -29,7 +29,7 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 log = "0.4"
 env_logger = "0.11"
 base64 = "0.22"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled", "serialize"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
