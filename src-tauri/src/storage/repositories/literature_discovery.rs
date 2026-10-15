@@ -197,3 +197,6 @@ mod tests;
 
 mod evidence;
 pub use evidence::{evidence_dataset, evidence_rows, save_evidence, verify_evidence, Evidence};
+pub mod quality;
+#[cfg(test)]
+mod quality_tests;

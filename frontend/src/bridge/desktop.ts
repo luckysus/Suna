@@ -1,5 +1,6 @@
 import type {ManagedInventory,ManagedSelection,ManagedPreview,ManagedSaved,ManagedSummary,ManagedIsolation} from "./managedPackageTypes";
 import type {IsolationList,IsolationView} from './isolationLibraryTypes';
+import type {EvidenceQualityPreview,EvidenceQualityArchive} from './evidenceQualityTypes';
 import type {PackagePreview, PackageSaved, PackageInspection} from "./researchPackageTypes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -1678,6 +1679,8 @@ export const desktop = {
   getProductionQueryPreview:(id:string)=>call<{taskId:string;rowCount:number;columns:string[];previewRows:(string|null)[][];truncated:boolean;queryTime:string}|null>('get_production_query_preview',{id}),
 
   createLiteratureEvidenceDataset:(projectId:string)=>call<SteelDatasetRecord>("create_literature_evidence_dataset",{projectId}),
+  previewLiteratureEvidenceQuality:(projectId:string)=>call<EvidenceQualityPreview>('preview_literature_evidence_quality',{projectId}),
+  archiveLiteratureEvidenceQuality:(projectId:string,expectedSha256:string)=>call<EvidenceQualityArchive>('archive_literature_evidence_quality',{projectId,expectedSha256}),
   searchPublicLiterature:(request:{provider?:LiteratureMetadataProviderId;query:string;cursor?:string|null;fromYear?:number|null;toYear?:number|null})=>call<BackgroundTask>('search_public_literature',{request}),
   listDiscoveredLiterature:(query:string,offset=0)=>call<DiscoveredLiterature[]>('list_discovered_literature',{query,offset}),
   getLiteratureDiscoveryResult:(id:string)=>call<{records:DiscoveredLiterature[];nextCursor:string|null;provider:string;sampleScope:string;query:string;fromYear:number|null;toYear:number|null}|null>('get_literature_discovery_result',{id}),

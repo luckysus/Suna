@@ -6,8 +6,13 @@ use crate::rag::{
     parse::{parse_document_bytes, ParseLimits},
 };
 use crate::storage::repositories::knowledge;
-#[test]
-fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
+pub(super) struct Fixture {
+    pub root: std::path::PathBuf,
+    pub connection: Connection,
+    pub project_id: String,
+    pub evidence: Evidence,
+}
+pub(super) fn fixture() -> Fixture {
     let root = std::env::temp_dir().join(format!("suna-文献合成-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&root).unwrap();
     let mut c = Connection::open(root.join("研究.sqlite")).unwrap();
@@ -43,7 +48,7 @@ fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
         },
     )
     .unwrap();
-    let bytes=b"# Synthetic measurements\n\nSynthetic fixture hardness 500 HV and strength 1500 MPa. Not real research evidence.\n";
+    let bytes=b"# Synthetic measurements\n\nSynthetic fixture hardness 500 HV and strength 1500 MPa. Not real research evidence. Tensile strength 1.5 GPa and custom marker 2 arb. Synthetic overflow 1e308 GPa.\n";
     let parsed =
         parse_document_bytes(bytes, SourceFormat::Markdown, ParseLimits::default()).unwrap();
     let chunks = chunk_document(&parsed, &ChunkPolicy::default()).unwrap();
@@ -114,6 +119,21 @@ fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
         conclusion: "合成夹具数据，非科研事实".into(),
         doi: Some("10.1234/synthetic".into()),
     };
+    Fixture {
+        root,
+        connection: c,
+        project_id: p.id,
+        evidence,
+    }
+}
+#[test]
+fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
+    let Fixture {
+        root,
+        connection: c,
+        project_id,
+        evidence,
+    } = fixture();
     assert!(verify_evidence(&c, "other", &evidence).is_err());
     let mut bad = evidence.clone();
     bad.value = 500.;
@@ -123,9 +143,9 @@ fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
     bad = evidence.clone();
     bad.unit = "J".into();
     assert!(verify_evidence(&c, "ws", &bad).is_err());
-    let id = save_evidence(&c, "ws", &p.id, evidence.clone()).unwrap();
-    assert_eq!(id, save_evidence(&c, "ws", &p.id, evidence).unwrap());
-    let dataset = evidence_dataset(&c, "ws", &p.id, &root).unwrap();
+    let id = save_evidence(&c, "ws", &project_id, evidence.clone()).unwrap();
+    assert_eq!(id, save_evidence(&c, "ws", &project_id, evidence).unwrap());
+    let dataset = evidence_dataset(&c, "ws", &project_id, &root).unwrap();
     assert_eq!(dataset.row_count, 1);
     assert_eq!(dataset.mapping_state, "draft");
     let rows = crate::steel::read_dataset_table(&crate::steel::DatasetPreviewRequest {
@@ -134,12 +154,12 @@ fn real_local_parser_evidence_review_dataset_and_missing_source_gates() {
     })
     .unwrap();
     assert!(rows.headers.contains(&"sourceType".into()));
-    assert!(evidence_dataset(&c, "ws", &p.id, &root).is_err());
-    assert_eq!(evidence_rows(&c, "ws", &p.id).unwrap().len(), 1);
+    assert!(evidence_dataset(&c, "ws", &project_id, &root).is_err());
+    assert_eq!(evidence_rows(&c, "ws", &project_id).unwrap().len(), 1);
     drop(c);
     let mut c = Connection::open(root.join("研究.sqlite")).unwrap();
     crate::storage::migrations::migrate(&mut c).unwrap();
-    assert_eq!(evidence_rows(&c, "ws", &p.id).unwrap().len(), 1);
+    assert_eq!(evidence_rows(&c, "ws", &project_id).unwrap().len(), 1);
     drop(c);
     std::fs::remove_dir_all(root).unwrap();
 }

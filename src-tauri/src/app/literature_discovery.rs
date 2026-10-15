@@ -14,6 +14,7 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::{path::PathBuf, time::Duration};
 mod persistence;
+pub(crate) mod quality;
 fn validate(s: &Search) -> Result<(), String> {
     if s.query.trim().is_empty()
         || s.query.len() > 1000

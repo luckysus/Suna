@@ -205,6 +205,8 @@ macro_rules! handler {
             crate::app::literature_discovery::archive_reviewed_literature_evidence,
             crate::app::literature_discovery::get_project_literature_evidence,
             crate::app::literature_discovery::create_literature_evidence_dataset,
+            crate::app::literature_discovery::quality::preview_literature_evidence_quality,
+            crate::app::literature_discovery::quality::archive_literature_evidence_quality,
             crate::app::literature_discovery::search_local_literature_evidence,
             crate::app::microstructure_commands::import_microstructure_image,
             crate::app::microstructure_commands::list_microstructure_images,
