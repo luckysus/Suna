@@ -6,7 +6,7 @@ pub struct SelectedPackage {
     pub bytes: usize,
     pub package: ValidatedPackage,
 }
-pub fn read(path: &Path) -> Result<SelectedPackage, String> {
+pub(crate) fn read_bytes(path: &Path, max_total: usize) -> Result<Vec<u8>, String> {
     if path
         .extension()
         .and_then(|s| s.to_str())
@@ -24,24 +24,28 @@ pub fn read(path: &Path) -> Result<SelectedPackage, String> {
     let before = file
         .metadata()
         .map_err(|_| "package_selected_file_unavailable")?;
-    if before.len() > MAX_TOTAL as u64 {
+    if before.len() > max_total as u64 {
         return Err("package_size_budget".into());
     }
     let mut bytes = Vec::new();
     file.by_ref()
-        .take(MAX_TOTAL as u64 + 1)
+        .take(max_total as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| "package_selected_file_read_failed")?;
     let after = file
         .metadata()
         .map_err(|_| "package_selected_file_unavailable")?;
     if bytes.len() != before.len() as usize
-        || bytes.len() > MAX_TOTAL
+        || bytes.len() > max_total
         || after.len() != before.len()
         || after.modified().ok() != before.modified().ok()
     {
         return Err("package_selected_file_changed".into());
     }
+    Ok(bytes)
+}
+pub fn read(path: &Path) -> Result<SelectedPackage, String> {
+    let bytes = read_bytes(path, MAX_TOTAL)?;
     Ok(SelectedPackage {
         bytes_sha256: digest(&bytes),
         bytes: bytes.len(),

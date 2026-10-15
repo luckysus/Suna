@@ -1,3 +1,4 @@
+import type {ManagedInventory,ManagedSelection,ManagedPreview,ManagedSaved,ManagedSummary,ManagedIsolation} from "./managedPackageTypes";
 import type {PackagePreview, PackageSaved, PackageInspection} from "./researchPackageTypes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -1698,6 +1699,11 @@ export const desktop = {
   reviewMicrostructureAnalysis:(id:string,state:'accepted'|'rejected',note:string)=>call<void>('review_microstructure_analysis',{id,state,note}),
   getMicrostructureTaskResult:(id:string)=>call<{images:{imageId:string;result?:MicrostructureStatistics;error?:string}[]}|null>('get_microstructure_task_result',{id}),
 
+  listResearchManagedAssets:(projectId:string)=>call<ManagedInventory>('list_research_managed_assets',{projectId}),
+  previewResearchManagedPackage:(request:ManagedSelection)=>call<ManagedPreview>('preview_research_managed_package',{request}),
+  exportResearchManagedPackage:(request:ManagedSelection,expectedSha256:string)=>call<ManagedSaved|null>('export_research_managed_package',{request,expectedSha256}),
+  inspectResearchManagedPackageFile:()=>call<ManagedSummary|null>('inspect_research_managed_package_file',{}),
+  importResearchManagedPackageIsolated:(expectedSha256:string,confirmed:true)=>call<ManagedIsolation|null>('import_research_managed_package_isolated',{expectedSha256,confirmed}),
   previewResearchPackage:(projectId:string)=>call<PackagePreview>('preview_research_package',{projectId}),
   exportResearchPackage:(projectId:string,expectedSha256:string)=>call<PackageSaved|null>('export_research_package',{projectId,expectedSha256}),
   inspectResearchPackageFile:()=>call<PackageInspection|null>('inspect_research_package_file',{}),

@@ -1,6 +1,7 @@
 //! Metadata package v1. No file extraction, live database writes or asset restoration.
 pub mod archive;
 pub mod delivery;
+pub mod managed;
 pub mod projection;
 pub mod selected_file;
 pub mod strict_json;

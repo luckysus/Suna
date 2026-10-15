@@ -2,6 +2,7 @@
 pub(crate) mod artifacts;
 pub(crate) mod delivery;
 pub(crate) mod feedback;
+pub(crate) mod managed_package;
 pub(crate) mod materials;
 pub(crate) mod measurements;
 pub(crate) mod objects;

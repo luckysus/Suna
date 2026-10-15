@@ -21,8 +21,8 @@ pub fn entry_name(name: &str) -> bool {
                     .is_ok_and(|index| index < MAX_ENTRIES - 1)
         })
 }
-fn classic_envelope(bytes: &[u8]) -> Result<(), String> {
-    if bytes.len() < 22 || bytes.len() > MAX_TOTAL {
+fn classic_envelope(bytes: &[u8], max_total: usize) -> Result<(), String> {
+    if bytes.len() < 22 || bytes.len() > max_total {
         return Err("package_size_budget".into());
     }
     let lower = bytes.len().saturating_sub(65557);
@@ -54,8 +54,14 @@ fn classic_envelope(bytes: &[u8]) -> Result<(), String> {
     }
     Ok(())
 }
-pub fn inspect(bytes: &[u8]) -> Result<ValidatedPackage, String> {
-    classic_envelope(bytes)?;
+/// Shared bounded ZIP envelope/entry reader; callers supply a closed name grammar.
+pub(crate) fn read_entries(
+    bytes: &[u8],
+    max_total: usize,
+    max_file: usize,
+    allowed_name: fn(&str) -> bool,
+) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    classic_envelope(bytes, max_total)?;
     let mut zip = ZipArchive::new(Cursor::new(bytes)).map_err(|_| "package_zip_invalid")?;
     if zip.len() > MAX_ENTRIES {
         return Err("package_size_budget".into());
@@ -65,7 +71,7 @@ pub fn inspect(bytes: &[u8]) -> Result<ValidatedPackage, String> {
     for i in 0..zip.len() {
         let mut file = zip.by_index(i).map_err(|_| "package_zip_invalid")?;
         let name = file.name().to_string();
-        if !entry_name(&name)
+        if !allowed_name(&name)
             || file.is_dir()
             || file.encrypted()
             || !matches!(
@@ -82,23 +88,27 @@ pub fn inspect(bytes: &[u8]) -> Result<ValidatedPackage, String> {
         let size = usize::try_from(file.size()).map_err(|_| "package_size_budget")?;
         total = total
             .checked_add(size)
-            .filter(|n| *n <= MAX_TOTAL)
+            .filter(|n| *n <= max_total)
             .ok_or("package_size_budget")?;
-        if size > MAX_FILE || file.size() > file.compressed_size().max(1).saturating_mul(128) {
+        if size > max_file || file.size() > file.compressed_size().max(1).saturating_mul(128) {
             return Err("package_expansion_budget".into());
         }
         let mut data = Vec::new();
         file.by_ref()
-            .take(MAX_FILE as u64 + 1)
+            .take(max_file as u64 + 1)
             .read_to_end(&mut data)
             .map_err(|_| "package_zip_read_failed")?;
-        if data.len() != size || data.len() > MAX_FILE {
+        if data.len() != size || data.len() > max_file {
             return Err("package_expansion_budget".into());
         }
         if contents.insert(name, data).is_some() {
             return Err("duplicate_package_entry".into());
         }
     }
+    Ok(contents)
+}
+pub fn inspect(bytes: &[u8]) -> Result<ValidatedPackage, String> {
+    let contents = read_entries(bytes, MAX_TOTAL, MAX_FILE, entry_name)?;
     let raw = contents
         .get("manifest.json")
         .ok_or("package_manifest_missing")?;
