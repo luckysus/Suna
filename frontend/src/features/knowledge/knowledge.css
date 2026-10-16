@@ -4,9 +4,9 @@
    ========================================================================== */
 
 .suna-knowledge-center {
-  max-width: 1440px;
+  max-width: var(--suna-content-workspace-max, 1280px);
   margin: 0 auto;
-  padding: 24px 28px 48px;
+  padding: 20px 24px 40px;
   color: var(--suna-text);
 }
 
@@ -21,8 +21,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 6px;
-  font-size: calc(26px * var(--suna-ui-font-scale));
+  margin-top: 4px;
+  font-size: var(--suna-font-h1, calc(24px * var(--suna-ui-font-scale)));
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--suna-text);
@@ -33,9 +33,9 @@
 }
 
 .suna-knowledge-center-header p {
-  margin-top: 6px;
-  color: var(--suna-text-soft);
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: var(--suna-font-sub, calc(13px * var(--suna-ui-font-scale)));
 }
 
 .suna-knowledge-actions {
@@ -82,8 +82,8 @@
 /* Library tabs */
 .suna-knowledge-library-tabs {
   display: flex;
-  gap: 36px;
-  height: 56px;
+  gap: 24px;
+  height: 42px;
   border-bottom: 1px solid var(--suna-line);
 }
 
@@ -93,7 +93,8 @@
   background: transparent;
   color: var(--suna-text-muted);
   font: inherit;
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-sub, calc(13px * var(--suna-ui-font-scale)));
+  font-weight: 500;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -121,32 +122,34 @@
 .suna-knowledge-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 0 0;
+  gap: 6px;
+  padding: 10px 0 0;
   flex-wrap: wrap;
 }
 
 .suna-knowledge-tools .suna-ghost-button {
-  height: 32px;
-  padding: 0 11px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--suna-font-caption, 12px);
 }
 
 /* Search and filters toolbar */
 .suna-knowledge-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 0 18px;
+  gap: 8px;
+  padding: 10px 0 12px;
+  flex-wrap: wrap;
 }
 
 .suna-knowledge-search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  flex: 1;
-  height: 42px;
-  padding: 0 14px;
+  flex: 1 1 240px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--suna-line);
   border-radius: 6px;
   background: var(--suna-bg-raised);
@@ -166,7 +169,7 @@
   background: transparent;
   color: var(--suna-text);
   font: inherit;
-  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-sub, calc(13px * var(--suna-ui-font-scale)));
 }
 
 .suna-knowledge-search input::placeholder {
@@ -176,16 +179,16 @@
 .suna-knowledge-filter {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 42px;
-  min-width: 140px;
-  padding: 0 12px;
+  gap: 6px;
+  height: 36px;
+  min-width: 120px;
+  padding: 0 10px;
   border: 1px solid var(--suna-line);
   border-radius: 6px;
   background: var(--suna-bg-raised);
   color: var(--suna-text-soft);
   font: inherit;
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-caption, calc(12px * var(--suna-ui-font-scale)));
 }
 
 .suna-knowledge-filter select {
@@ -200,7 +203,7 @@
 }
 
 .suna-knowledge-toolbar > .suna-primary-button {
-  height: 42px;
+  height: 36px;
   white-space: nowrap;
 }
 
@@ -208,14 +211,14 @@
 .suna-knowledge-dropzone {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 0 0 18px;
-  padding: 16px 20px;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 16px;
   border: 1.5px dashed var(--suna-line-strong);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-caption, calc(12px * var(--suna-ui-font-scale)));
   transition: all 160ms ease;
   cursor: pointer;
 }

@@ -162,7 +162,7 @@ function SunaAppShell() {
     go(item.section ?? "chat");
   };
   const content = activeSection === "chat" ? <ChatPage onOpenSection={go} /> : activeSection === "knowledge" ? <KnowledgeCenterPage /> : activeSection === "settings" ? <SettingsPage onOpenDiagnostics={() => go("diagnostics")} /> : activeSection === "diagnostics" ? <DiagnosticsPage /> : <ModuleView section={activeSection} onOpenSettings={() => go("settings")} />;
-  const recent = chat.conversations.filter((conversation) => !conversation.archived).slice(0, 8);
+  const recent = chat.conversations.filter((conversation) => !conversation.archived);
   const matchingSections = navigationSections.filter((item) => !searchQuery.trim() || `${item.label}${item.description}`.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase()));
   // 第 72 章：命令面板分组 = 页面与设置 / 对话 / 知识库 / Agent / Skill / MCP / 模型 / 文献。
   const searchGroups: CommandMenuGroup[] = (() => {
@@ -329,9 +329,9 @@ function SunaAppShell() {
         <header className="suna-new-header">
           <div className="suna-new-breadcrumb">
             <House size={16} />
-            <strong>{activeSection === "chat" ? "新对话" : active.label}</strong>
+            <strong>{activeSection === "chat" ? (chat.selectedConversation?.title?.trim() || "新对话") : active.label}</strong>
             {activeSection === "chat" && (
-              <button className="suna-header-new-button" onClick={() => { void chat.onNewConversation(); }} aria-label="新建对话">
+              <button className="suna-header-new-button" onClick={() => { void chat.onNewConversation(); }} aria-label="新建对话" title="新建对话">
                 <Plus size={18} />
               </button>
             )}

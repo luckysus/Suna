@@ -4,9 +4,9 @@
    ========================================================================== */
 
 .suna-literature-page {
-  max-width: 1440px;
+  max-width: var(--suna-content-workspace-max, 1280px);
   margin: 0 auto;
-  padding: 24px 28px 48px;
+  padding: 20px 24px 40px;
   color: var(--suna-text);
 }
 
@@ -21,8 +21,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 6px;
-  font-size: calc(26px * var(--suna-ui-font-scale));
+  margin-top: 4px;
+  font-size: var(--suna-font-h1, calc(24px * var(--suna-ui-font-scale)));
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--suna-text);
@@ -33,9 +33,9 @@
 }
 
 .suna-literature-header p {
-  margin-top: 6px;
-  color: var(--suna-text-soft);
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: var(--suna-font-sub, calc(13px * var(--suna-ui-font-scale)));
 }
 
 .suna-literature-header-actions {
@@ -46,19 +46,19 @@
 /* Tabs */
 .suna-literature-tabs {
   display: flex;
-  gap: 32px;
-  margin-top: 24px;
+  gap: 24px;
+  margin-top: 14px;
   border-bottom: 1px solid var(--suna-line);
 }
 
 .suna-literature-tabs button {
-  padding: 0 4px 12px;
+  padding: 0 4px 10px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--suna-text-muted);
   font: inherit;
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-body, calc(14px * var(--suna-ui-font-scale)));
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -79,8 +79,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 18px;
-  padding: 8px 12px 8px 16px;
+  margin-top: 12px;
+  padding: 6px 12px 6px 14px;
   border: 1px solid var(--suna-line);
   border-radius: 8px;
   background: var(--suna-bg-raised);

@@ -55,8 +55,11 @@
   --suna-sidebar-collapsed-width: 64px;
   --suna-settings-nav-width: 216px;
   --suna-content-max-width: 1040px;
+  --suna-content-reading-max: 880px;
+  --suna-content-document-max: 1040px;
+  --suna-content-workspace-max: 1280px;
   --suna-control-width: 280px;
-  --suna-topbar-height: 52px;
+  --suna-topbar-height: 48px;
   --suna-chat-session-width: 236px;
   --suna-chat-inspector-width: 300px;
   --suna-chat-session-compact-width: 200px;
