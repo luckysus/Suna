@@ -1,13 +1,15 @@
 /* ==========================================================================
-   Knowledge Graph - Monochrome Black & White
+   Knowledge Graph - UI/UX Pro Max Scientific Spec
    ========================================================================== */
 
 .suna-graph-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--suna-line);
 }
 
 .suna-graph-head h2 {
@@ -16,54 +18,62 @@
   gap: 8px;
   margin: 0;
   color: var(--suna-text);
-  font-size: calc(16px * var(--suna-ui-font-scale));
-  font-weight: 650;
+  font-size: calc(18px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .suna-graph-head span {
   display: block;
   margin-top: 4px;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(12px * var(--suna-ui-font-scale));
 }
 
 .suna-graph-readonly {
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   border: 1px solid var(--suna-line);
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--suna-bg-soft);
   color: var(--suna-text-muted) !important;
   font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
 }
 
 .suna-graph-create {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 14px;
-  padding: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  background: var(--suna-bg-soft);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-sm);
 }
 
 .suna-graph-create select,
 .suna-graph-create input {
-  height: 32px;
+  height: 34px;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
-  background: var(--suna-bg-raised);
+  border-radius: 7px;
+  background: var(--suna-bg-soft);
   color: var(--suna-text);
   font: inherit;
   font-size: calc(12px * var(--suna-ui-font-scale));
   outline: 0;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .suna-graph-create select:focus,
 .suna-graph-create input:focus {
   border-color: var(--suna-primary);
+  box-shadow: 0 0 0 1px var(--suna-primary);
 }
 
 .suna-graph-create select {
@@ -71,24 +81,27 @@
 }
 
 .suna-graph-create input {
-  width: 130px;
+  width: 140px;
 }
 
 .suna-graph-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
 }
 
 .suna-graph-canvas {
   position: relative;
-  min-height: 520px !important;
+  min-height: 560px !important;
   padding: 0 !important;
   overflow: hidden;
   border: 1px solid var(--suna-line) !important;
-  border-radius: 8px;
-  background: var(--suna-bg-sunken) !important;
+  border-radius: 12px;
+  background-color: var(--suna-bg-sunken) !important;
+  background-image: radial-gradient(var(--suna-line) 1px, transparent 1px);
+  background-size: 24px 24px;
   color: var(--suna-text-muted);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 /* Monochrome graph lines */
@@ -102,47 +115,56 @@
 
 .suna-graph-lines line {
   stroke: var(--suna-line-strong);
-  stroke-width: 0.6;
-  opacity: 0.7;
+  stroke-width: 1;
+  opacity: 0.65;
   cursor: pointer;
-  transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
+  transition: stroke 140ms ease, stroke-width 140ms ease, opacity 140ms ease;
 }
 
 .suna-graph-lines line:hover,
 .suna-graph-lines line.is-selected {
   stroke: var(--suna-primary);
-  stroke-width: 1.5;
+  stroke-width: 2;
   opacity: 1;
 }
 
 /* Graph nodes */
 .suna-graph-node {
   position: absolute;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 180px;
+  gap: 8px;
+  max-width: 200px;
   transform: translate(-50%, -50%);
-  padding: 8px 14px;
+  padding: 8px 16px;
   border: 1px solid var(--suna-line);
   border-radius: 999px;
   background: var(--suna-bg-raised);
+  backdrop-filter: blur(8px);
   box-shadow: var(--suna-shadow-sm);
   color: var(--suna-text);
   font: inherit;
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
-.suna-graph-node:hover,
+.suna-graph-node:hover {
+  transform: translate(-50%, -50%) scale(1.04);
+  border-color: var(--suna-line-strong);
+  box-shadow: var(--suna-shadow);
+  color: var(--suna-text);
+}
+
 .suna-graph-node.is-selected {
+  transform: translate(-50%, -50%) scale(1.06);
   border-color: var(--suna-primary);
   background: var(--suna-bg-soft);
   color: var(--suna-primary);
-  font-weight: 600;
-  box-shadow: 0 0 0 2px var(--suna-primary);
+  font-weight: 650;
+  box-shadow: 0 0 0 2px var(--suna-primary), var(--suna-shadow);
 }
 
 .suna-graph-node span {
@@ -158,58 +180,71 @@
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   color: var(--suna-text-muted);
   text-align: center;
+  pointer-events: none;
 }
 
 .suna-graph-empty strong {
   color: var(--suna-text);
-  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 600;
 }
 
 .suna-graph-empty span {
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(12px * var(--suna-ui-font-scale));
 }
 
 /* Graph inspector */
 .suna-graph-inspector {
-  min-height: 260px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  padding: 18px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-sm);
 }
 
 .suna-graph-inspector h3 {
-  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--suna-line);
   color: var(--suna-text);
-  font-size: calc(13px * var(--suna-ui-font-scale));
-  font-weight: 650;
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .suna-graph-inspector dl {
   display: grid;
-  grid-template-columns: 68px 1fr;
-  gap: 10px 8px;
+  grid-template-columns: 72px 1fr;
+  gap: 12px 8px;
   margin: 0;
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
 }
 
 .suna-graph-inspector dt {
   color: var(--suna-text-muted);
+  font-weight: 500;
 }
 
 .suna-graph-inspector dd {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--suna-text);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .suna-graph-inspector .suna-danger-button {
   width: 100%;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 18px;
 }
 
 .suna-graph-inspector-empty {
@@ -217,7 +252,8 @@
   align-items: center;
   gap: 8px;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  line-height: 1.6;
 }
 
 @media (max-width: 860px) {

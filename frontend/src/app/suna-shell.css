@@ -1214,7 +1214,7 @@
   margin-top: 8px;
   padding: 10px 14px;
   border: 1px solid var(--suna-line);
-  border-left: 3px solid #000000;
+  border-left: 3px solid var(--suna-primary);
   border-radius: 8px;
   background: var(--suna-bg-soft);
 }
@@ -1391,12 +1391,18 @@
   gap: 8px;
   padding: 14px;
   margin-bottom: 8px;
-  border: 2px dashed #000000;
-  border-radius: 8px;
+  border: 1.5px dashed var(--suna-line-strong);
+  border-radius: 10px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font-size: 13px;
   font-weight: 500;
+  transition: all 140ms ease;
+}
+
+.suna-chat-dropzone:hover {
+  border-color: var(--suna-primary);
+  background: var(--suna-bg-hover);
 }
 
 .suna-chat-composer-footer {

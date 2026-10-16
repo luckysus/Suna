@@ -1,74 +1,107 @@
 /* ==========================================================================
-   Child Agent Panel Styles (Strict Monochrome Edition)
+   Child Agent Panel Styles (UI/UX Pro Max Scientific Spec)
    ========================================================================== */
 
 .suna-child-refresh {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 4px;
-  border: 0;
-  background: transparent;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
   color: var(--suna-text-muted);
   cursor: pointer;
-  transition: color 150ms ease;
+  transition: all 140ms ease;
 }
 
 .suna-child-refresh:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
   color: var(--suna-text);
+  transform: rotate(30deg);
 }
 
 .suna-child-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .suna-child-select {
-  padding: 9px 11px;
+  position: relative;
+  padding: 10px 12px 10px 14px;
   border: 1px solid var(--suna-line);
   border-radius: 8px;
   background: var(--suna-bg-raised);
   color: var(--suna-text-soft);
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: all 140ms ease;
 }
 
 .suna-child-select:hover {
   background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
   color: var(--suna-text);
+  transform: translateY(-1px);
+  box-shadow: var(--suna-shadow-sm);
 }
 
 .suna-child-select.is-active {
-  border-color: var(--suna-text);
+  border-color: var(--suna-primary);
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font-weight: 600;
+  box-shadow: 0 0 0 1px var(--suna-primary);
+}
+
+.suna-child-select.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--suna-primary);
+  border-radius: 0 2px 2px 0;
 }
 
 .suna-child-select > span {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
 }
 
 .suna-child-select code {
   margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--suna-bg-sunken);
   color: var(--suna-text-muted);
   font-size: 10px;
   font-family: var(--suna-mono);
+  letter-spacing: 0.02em;
 }
 
 .suna-child-select small {
   display: block;
   margin-top: 4px;
   color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  line-height: 1.4;
 }
 
 .suna-child-detail {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
 }
 
 .suna-child-detail-header {
@@ -76,13 +109,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 11px;
-  color: var(--suna-text-soft);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .suna-child-detail-header button {
-  padding: 4px 8px;
-  font-size: 10px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  height: 24px;
 }
 
 .suna-child-tools {
@@ -94,8 +131,11 @@
 .suna-child-tools > div {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   color: var(--suna-text);
 }
 
@@ -103,31 +143,35 @@
   display: block;
   margin-top: 2px;
   color: var(--suna-text-muted);
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
 }
 
 .suna-child-permissions > div {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   margin: 8px 0;
-  padding: 10px 12px;
+  padding: 12px;
   border: 1px solid var(--suna-line-strong);
+  border-left: 3px solid var(--suna-primary);
   border-radius: 8px;
   background: var(--suna-bg-soft);
-  font-size: 11px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   color: var(--suna-text);
 }
 
 .suna-child-permissions button {
-  padding: 4px 8px;
-  font-size: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
   margin-right: 6px;
 }
 
 .suna-child-detail summary {
   cursor: pointer;
   color: var(--suna-text-muted);
-  font-size: 11px;
-  transition: color 150ms ease;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  transition: color 140ms ease;
+  user-select: none;
 }
 
 .suna-child-detail summary:hover {
@@ -140,23 +184,27 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin-top: 8px;
-  padding: 10px 12px;
-  background: var(--suna-bg-soft);
+  padding: 12px 14px;
+  background: var(--suna-bg-sunken);
   border: 1px solid var(--suna-line);
   border-radius: 8px;
   color: var(--suna-text);
   font-family: var(--suna-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
   line-height: 1.6;
 }
 
 .suna-child-error {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   margin: 8px 0;
-  color: var(--suna-text) !important;
-  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444 !important;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -174,7 +222,7 @@
 }
 
 .suna-child-task {
-  font-size: 11px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
