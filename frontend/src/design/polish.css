@@ -2910,12 +2910,13 @@ body {
 }
 
 .suna-chat-user-bubble {
-  background: var(--suna-steel);
-  border-radius: 18px 5px 18px 18px;
-  color: #fff;
-  font-size:calc(15px * var(--suna-ui-font-scale));
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  border-radius: 16px 4px 16px 16px;
+  color: var(--suna-text);
+  font-size: calc(14.5px * var(--suna-ui-font-scale));
   line-height: 1.65;
-  padding: 11px 15px;
+  padding: 11px 16px;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -3351,15 +3352,15 @@ body {
 }
 
 [data-theme="dark"] .suna-chat-user-bubble {
-  background: #161616;
-  border: 1px solid #2a2a2a;
-  color: #ffffff;
+  background: var(--suna-bg-hover);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text);
 }
 
 [data-theme="dark"] .suna-chat-composer {
-  background: #0a0a0a;
-  border-color: #262626;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  background: var(--suna-bg-raised);
+  border-color: var(--suna-line);
+  box-shadow: var(--suna-shadow);
 }
 
 /* ========================= Full Web conversation replica ========================= */
