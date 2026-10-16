@@ -79,13 +79,8 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
   const [notice, setNotice] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("Suna");
   const [shortcutSend, setShortcutSend] = useState("Ctrl+Enter");
-  const [query, setQuery] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
   const [settingsSnapshot, setSettingsSnapshot] = useState<Record<string, string | null>>({});
-  const visibleTabs = settingsTabs.filter((tab) => {
-    if (!query.trim()) return true;
-    return t(tab.labelKey).toLowerCase().includes(query.trim().toLowerCase());
-  });
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -506,9 +501,9 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
   };
   return (
     <section className="suna-settings-page suna-page-surface" aria-labelledby="settings-heading">
-      <SettingsPageChrome t={t} loading={loading} error={error} notice={notice} query={query} setQuery={setQuery} load={() => void load()} exportSettings={exportSettings} importSettings={(file) => void importSettings(file)} fileInputKey={fileInputKey} resetPreferences={() => void resetPreferences()} onOpenDiagnostics={onOpenDiagnostics} showUtilities={activeTab !== "appearance"} />
+      <SettingsPageChrome t={t} loading={loading} error={error} notice={notice} load={() => void load()} exportSettings={exportSettings} importSettings={(file) => void importSettings(file)} fileInputKey={fileInputKey} resetPreferences={() => void resetPreferences()} onOpenDiagnostics={onOpenDiagnostics} showUtilities={activeTab !== "appearance"} />
       <div className={`suna-settings-layout ${activeTab === "appearance" ? "is-appearance" : ""}`}>
-         <SettingsTabList tabs={visibleTabs} activeTab={activeTab} onSelect={selectTab} />
+         <SettingsTabList tabs={settingsTabs} activeTab={activeTab} onSelect={selectTab} />
         <div role="tabpanel" id={`settings-panel-${activeTab}`} aria-labelledby={`settings-tab-${activeTab}`}>
           <SettingsPagePanel activeTab={activeTab} accountName={accountName} setAccountName={setAccountName} saveAccount={() => void saveAccount()} shortcutSend={shortcutSend} saveShortcut={(value) => void saveShortcut(value)} plan={plan} loading={loading} editors={editors} busySlot={busySlot} testingSlot={testingSlot} updateEditor={updateEditor} saveEditor={saveEditor} testEditor={(editor) => void testEditor(editor)} deleteEditor={(editor) => void deleteEditor(editor)} changePlan={(nextPlan) => void changePlan(nextPlan)} permissionRules={permissionRules} permissionBusyId={permissionBusyId} revokePermission={(rule) => void revokePermission(rule)} t={t} onOpenDiagnostics={onOpenDiagnostics} />
         </div>

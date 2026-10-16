@@ -53,33 +53,6 @@
   flex-wrap: wrap;
 }
 
-/* Toolbar & search */
-.suna-settings-page .suna-settings-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--suna-line);
-}
-.suna-settings-page .suna-settings-toolbar > input {
-  flex: 1;
-  max-width: 360px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--suna-line);
-  border-radius: 7px;
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-  font: inherit;
-  font-size: calc(12px * var(--suna-ui-font-scale));
-  outline: 0;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.suna-settings-page .suna-settings-toolbar > input:focus {
-  border-color: var(--suna-primary);
-  box-shadow: 0 0 0 1px var(--suna-primary);
-}
-
 /* More menu dropdown */
 .suna-settings-more {
   position: relative;
