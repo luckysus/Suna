@@ -19,6 +19,8 @@ vi.mock("../../bridge/desktop", () => ({
     updateConversationTitle: vi.fn(),
     updateConversationPinned: vi.fn(),
     archiveConversation: vi.fn(),
+    restoreConversation: vi.fn(),
+    listArchivedConversations: vi.fn().mockResolvedValue([]),
     deleteConversationLocal: vi.fn(),
     listMessages: vi.fn(),
     getConversationDraft: vi.fn(),

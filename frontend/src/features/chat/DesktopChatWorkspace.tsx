@@ -48,6 +48,7 @@ import { useAppearanceSettings } from "../../settings/appearance";
 import { desktop } from "../../bridge/desktop";
 import SunaLogo from "../../components/SunaLogo";
 import { Button } from "../../components/ui/button";
+import ArchivedConversationsDialog from "./ArchivedConversationsDialog";
 
 function isAssistant(message: Message) {
   return message.role === "agent" || message.role === "assistant";
@@ -312,6 +313,7 @@ export default function DesktopChatWorkspace({
   const [paramsOpen, setParamsOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [sendShortcut, setSendShortcut] = useState("Ctrl+Enter");
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -466,7 +468,20 @@ export default function DesktopChatWorkspace({
           />
           {search && <button type="button" aria-label="清除搜索" title="清除搜索" onClick={() => setSearch("")}><X size={14} /></button>}
         </label>
-        <p className="suna-chat-recent-heading">{t("chatRecent")}</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 4 }}>
+          <p className="suna-chat-recent-heading">{t("chatRecent")}</p>
+          <button
+            type="button"
+            className="suna-chat-archived-toggle"
+            title="查看已归档对话"
+            aria-label="查看已归档对话"
+            onClick={() => setArchivedOpen(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--suna-text-muted)", background: "transparent", border: 0, cursor: "pointer", padding: "2px 4px", borderRadius: 4 }}
+          >
+            <Archive size={12} />
+            <span>已归档</span>
+          </button>
+        </div>
         <div className="suna-chat-session-list">
           {controller.loading ? (
             <div className="suna-chat-list-state"><LoaderCircle size={16} className="suna-spin" />{t("loading")}</div>
@@ -493,6 +508,7 @@ export default function DesktopChatWorkspace({
                   className={`suna-chat-session ${conversation.id === controller.selectedId ? "is-active" : ""}`}
                   onClick={() => controller.onSelectConversation(conversation.id)}
                 >
+                  {conversation.pinned && <Pin size={11} className="suna-chat-pin-icon" style={{ marginRight: 5, flexShrink: 0, color: "var(--suna-primary)" }} />}
                   <span>{conversationTitle(conversation)}</span>
                 </button>
               )}
@@ -810,6 +826,12 @@ export default function DesktopChatWorkspace({
           onRetry={controller.onRetry}
           onResume={controller.onResume}
         />}
+
+      <ArchivedConversationsDialog
+        open={archivedOpen}
+        onOpenChange={setArchivedOpen}
+        onSelectConversation={controller.onSelectConversation}
+      />
     </section>
   );
 }

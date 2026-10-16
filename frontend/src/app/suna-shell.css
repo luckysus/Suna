@@ -242,7 +242,43 @@
   opacity: 0.85;
 }
 
-/* Recent Conversations */
+/* Recent Conversations Header & Archived Toggle */
+.suna-new-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 8px;
+  margin-top: 14px;
+  margin-bottom: 2px;
+}
+
+.suna-new-history-header .suna-new-nav-label {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.suna-new-history-archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--suna-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.suna-new-history-archived-toggle:hover {
+  color: var(--suna-text);
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line);
+}
+
+/* Recent Conversations List & Items */
 .suna-new-history-list {
   margin: 2px 2px 12px;
   display: flex;
@@ -250,13 +286,22 @@
   gap: 2px;
 }
 
+.suna-new-history-item-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: 6px;
+}
+
 .suna-new-history-item {
   width: 100%;
   min-height: 30px;
   padding: 4px 10px;
+  padding-right: 32px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -267,12 +312,11 @@
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   transition: all 120ms ease;
   position: relative;
 }
 
-.suna-new-history-item:hover {
+.suna-new-history-item-wrap:hover .suna-new-history-item {
   background: var(--suna-bg-hover);
   color: var(--suna-text);
 }
@@ -294,12 +338,71 @@
   background: var(--suna-primary);
 }
 
-.suna-new-history-item > span:first-child:not(:empty) {
-  display: inline-block;
-  color: var(--suna-green);
-  font-size: 13px;
-  line-height: 1;
+.suna-new-history-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-new-history-pin-icon {
   flex-shrink: 0;
+  color: var(--suna-primary);
+}
+
+/* Hover Action Bar */
+.suna-new-history-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  padding: 2px 3px;
+  border-radius: 4px;
+  background: var(--suna-bg-card, #ffffff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--suna-line);
+}
+
+.suna-new-history-item-wrap:hover .suna-new-history-actions,
+.suna-new-history-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.suna-new-history-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+
+.suna-new-history-action:hover {
+  background: var(--suna-bg-hover);
+  color: var(--suna-text);
+}
+
+.suna-new-history-action.is-pinned {
+  color: var(--suna-primary);
+}
+
+.suna-new-history-action.is-danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--suna-danger, #ef4444);
 }
 
 .suna-new-history-empty {
@@ -1891,6 +1994,18 @@
 
 [data-theme="dark"] .suna-new-history-item.is-active {
   background: var(--suna-bg-soft);
+  color: var(--suna-text);
+}
+
+[data-theme="dark"] .suna-new-history-actions {
+  background: #181f30;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .suna-new-history-archived-toggle:hover {
+  background: var(--suna-bg-hover);
+  border-color: rgba(255, 255, 255, 0.1);
   color: var(--suna-text);
 }
 

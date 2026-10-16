@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, House, LayoutGrid, MessageSquareText, Moon, Plus, Search, Settings2, Sun } from "lucide-react";
+import { Archive, ChevronRight, House, LayoutGrid, MessageSquareText, Moon, Pencil, Pin, PinOff, Plus, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { desktop, isDesktopRuntime } from "../bridge/desktop";
 import ChatPage from "../features/chat/ChatPage";
@@ -16,6 +16,7 @@ import { LocaleProvider } from "../i18n/locale";
 import { ThemeProvider, useTheme } from "../theme/theme";
 import { AppearanceProvider, useAppearanceSettings } from "../settings/appearance";
 import SunaLogo from "../components/SunaLogo";
+import ArchivedConversationsDialog from "../features/chat/ArchivedConversationsDialog";
 import {deferredPage} from "./deferredPage";
 import "./suna-shell.css";
 
@@ -54,6 +55,7 @@ function SunaAppShell() {
   const [accountName, setAccountName] = useState("Suna");
   const [shortcuts, setShortcuts] = useState<ShortcutSettings>(defaultShortcuts);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
   useEffect(() => {
     if (!appearanceLoaded || startupApplied.current) return;
     startupApplied.current = true;
@@ -198,5 +200,160 @@ function SunaAppShell() {
     }
     return groups;
   })();
-  return <div className={`suna-new-app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}><aside className="suna-new-sidebar"><div className="suna-new-brand"><SunaMark /><div><strong>Suna</strong><span>Steel Research Agent</span></div></div><button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }}><Plus size={17} />新对话 <kbd>{shortcuts.newConversation.replace("+", " + ")}</kbd></button><div className="suna-new-nav-scroll"><p className="suna-new-nav-label">研究工作区</p>{primaryNavigationSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}<p className="suna-new-nav-label suna-new-nav-label-more">更多</p>{sidebarManageSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}<p className="suna-new-nav-label suna-new-nav-label-more">最近对话</p><div className="suna-new-history-list">{chat.loading ? <span className="suna-new-history-empty">正在加载...</span> : recent.length === 0 ? <span className="suna-new-history-empty">还没有对话</span> : recent.map((conversation) => <button key={conversation.id} className={`suna-new-history-item ${conversation.id === chat.selectedId ? "is-active" : ""}`} onClick={() => openConversation(conversation.id)} title={conversation.title}><span>{conversation.pinned ? "•" : ""}</span>{conversation.title.trim() || "新建对话"}</button>)}</div></div><div className="suna-new-sidebar-bottom"><button className="suna-new-bottom-link" onClick={() => setSearchOpen(true)}><Search size={16} />全局搜索 <kbd>{shortcuts.openCommand.replace("+", " + ")}</kbd></button><button className="suna-new-bottom-link" onClick={() => go("settings")}><Settings2 size={16} />设置中心</button><button className="suna-new-user" onClick={() => go("settings")}><Avatar className="h-7 w-7 text-xs"><AvatarFallback>{accountName.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar><div><strong>{accountName}</strong><small>个人账户</small></div><ChevronRight size={15} /></button></div></aside><main className="suna-new-main"><header className="suna-new-header"><div className="suna-new-breadcrumb"><House size={16} /><strong>{activeSection === "chat" ? "新对话" : active.label}</strong>{activeSection === "chat" && <button className="suna-header-new-button" onClick={() => { void chat.onNewConversation(); }} aria-label="新建对话"><Plus size={18} /></button>}</div></header><ResearchProjectContext /><div className="suna-new-content">{content}</div></main><CommandMenu open={searchOpen} onClose={() => setSearchOpen(false)} query={searchQuery} onQueryChange={setSearchQuery} inputRef={searchRef} groups={searchGroups} onSelect={handleSearchSelect} /></div>;
+  return (
+    <div className={`suna-new-app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
+      <aside className="suna-new-sidebar">
+        <div className="suna-new-brand">
+          <SunaMark />
+          <div>
+            <strong>Suna</strong>
+            <span>Steel Research Agent</span>
+          </div>
+        </div>
+        <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }}>
+          <Plus size={17} />新对话 <kbd>{shortcuts.newConversation.replace("+", " + ")}</kbd>
+        </button>
+        <div className="suna-new-nav-scroll">
+          <p className="suna-new-nav-label">研究工作区</p>
+          {primaryNavigationSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}
+          <p className="suna-new-nav-label suna-new-nav-label-more">更多</p>
+          {sidebarManageSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}
+          <div className="suna-new-history-header">
+            <p className="suna-new-nav-label suna-new-nav-label-more">最近对话</p>
+            <button
+              type="button"
+              className="suna-new-history-archived-toggle"
+              title="查看已归档对话"
+              aria-label="查看已归档对话"
+              onClick={() => setArchivedOpen(true)}
+            >
+              <Archive size={12} />
+              <span>已归档</span>
+            </button>
+          </div>
+          <div className="suna-new-history-list">
+            {chat.loading ? (
+              <span className="suna-new-history-empty">正在加载...</span>
+            ) : recent.length === 0 ? (
+              <span className="suna-new-history-empty">还没有对话</span>
+            ) : (
+              recent.map((conversation) => (
+                <div className="suna-new-history-item-wrap" key={conversation.id}>
+                  <button
+                    type="button"
+                    className={`suna-new-history-item ${conversation.id === chat.selectedId ? "is-active" : ""}`}
+                    onClick={() => openConversation(conversation.id)}
+                    title={conversation.title}
+                  >
+                    {conversation.pinned && <Pin size={11} className="suna-new-history-pin-icon" />}
+                    <span className="suna-new-history-title">{conversation.title.trim() || "新建对话"}</span>
+                  </button>
+                  <div className="suna-new-history-actions">
+                    <button
+                      type="button"
+                      className={`suna-new-history-action ${conversation.pinned ? "is-pinned" : ""}`}
+                      title={conversation.pinned ? "取消置顶" : "置顶对话"}
+                      aria-label={conversation.pinned ? "取消置顶" : "置顶对话"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void chat.onToggleConversationPinned(conversation);
+                      }}
+                    >
+                      {conversation.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="suna-new-history-action"
+                      title="重命名"
+                      aria-label="重命名"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextTitle = window.prompt("输入新的对话标题：", conversation.title);
+                        if (nextTitle && nextTitle.trim()) {
+                          void chat.onRenameConversation(conversation.id, nextTitle.trim());
+                        }
+                      }}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="suna-new-history-action"
+                      title="归档对话"
+                      aria-label="归档对话"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void chat.onArchiveConversation(conversation.id);
+                      }}
+                    >
+                      <Archive size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="suna-new-history-action is-danger"
+                      title="删除对话"
+                      aria-label="删除对话"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void chat.onDeleteConversation(conversation.id);
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="suna-new-sidebar-bottom">
+          <button className="suna-new-bottom-link" onClick={() => setSearchOpen(true)}>
+            <Search size={16} />全局搜索 <kbd>{shortcuts.openCommand.replace("+", " + ")}</kbd>
+          </button>
+          <button className="suna-new-bottom-link" onClick={() => go("settings")}>
+            <Settings2 size={16} />设置中心
+          </button>
+          <button className="suna-new-user" onClick={() => go("settings")}>
+            <Avatar className="h-7 w-7 text-xs">
+              <AvatarFallback>{accountName.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div>
+              <strong>{accountName}</strong>
+              <small>个人账户</small>
+            </div>
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </aside>
+      <main className="suna-new-main">
+        <header className="suna-new-header">
+          <div className="suna-new-breadcrumb">
+            <House size={16} />
+            <strong>{activeSection === "chat" ? "新对话" : active.label}</strong>
+            {activeSection === "chat" && (
+              <button className="suna-header-new-button" onClick={() => { void chat.onNewConversation(); }} aria-label="新建对话">
+                <Plus size={18} />
+              </button>
+            )}
+          </div>
+        </header>
+        <ResearchProjectContext />
+        <div className="suna-new-content">{content}</div>
+      </main>
+      <CommandMenu
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        inputRef={searchRef}
+        groups={searchGroups}
+        onSelect={handleSearchSelect}
+      />
+      <ArchivedConversationsDialog
+        open={archivedOpen}
+        onOpenChange={setArchivedOpen}
+        onSelectConversation={openConversation}
+      />
+    </div>
+  );
 }

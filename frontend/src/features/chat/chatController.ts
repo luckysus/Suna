@@ -140,6 +140,7 @@ export interface ChatControllerProps {
   onRenameConversation: (conversationId: string, title: string) => void;
   onToggleConversationPinned: (conversation: Conversation) => void;
   onArchiveConversation: (conversationId: string) => void;
+  onRestoreConversation: (conversationId: string) => void;
   onDeleteConversation: (conversationId: string) => void;
   onSearchHistory: (query: string) => Promise<HistoryHit[]>;
   onSelectChatProfile: (profileId: string) => void;
@@ -626,6 +627,18 @@ export function useChatController(): ChatControllerProps {
     await reloadAfter(() => desktop.archiveConversation(conversationId));
   };
 
+  const restoreConversation = async (conversationId: string) => {
+    await reloadAfter(() => desktop.restoreConversation(conversationId));
+  };
+
+  useEffect(() => {
+    const handleRestored = () => {
+      void loadConversations();
+    };
+    window.addEventListener("suna:conversation-restored", handleRestored);
+    return () => window.removeEventListener("suna:conversation-restored", handleRestored);
+  }, []);
+
   const deleteConversation = async (conversationId: string) => {
     if (window.confirm("确定删除这个本地对话吗？")) {
       await reloadAfter(() => desktop.deleteConversationLocal(conversationId));
@@ -702,6 +715,7 @@ export function useChatController(): ChatControllerProps {
     onRenameConversation: (conversationId, title) => void renameConversation(conversationId, title),
     onToggleConversationPinned: (conversation) => void toggleConversationPinned(conversation),
     onArchiveConversation: (conversationId) => void archiveConversation(conversationId),
+    onRestoreConversation: (conversationId) => void restoreConversation(conversationId),
     onDeleteConversation: (conversationId) => void deleteConversation(conversationId),
     onSearchHistory: searchHistory,
     onSelectChatProfile: (profileId) => void selectChatProfile(profileId),

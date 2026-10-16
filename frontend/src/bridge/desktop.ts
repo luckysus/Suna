@@ -1796,6 +1796,10 @@ export const desktop = {
     call<void>("update_conversation_pinned", { conversationId, pinned }),
   archiveConversation: (conversationId: string) =>
     call<void>("archive_conversation", { conversationId }),
+  restoreConversation: (conversationId: string) =>
+    call<void>("restore_conversation", { conversationId }),
+  listArchivedConversations: () =>
+    call<Conversation[]>("list_archived_conversations"),
   deleteConversationLocal: (conversationId: string) =>
     call<void>("delete_conversation_local", { conversationId }),
   listMessages: (conversationId: string) =>
