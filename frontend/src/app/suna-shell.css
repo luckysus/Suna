@@ -216,30 +216,9 @@
   position: relative;
 }
 
-.suna-new-nav-item.is-active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--suna-primary);
-}
-
 .suna-new-nav-item.is-active svg,
 .suna-new-nav-item.is-active span {
   color: var(--suna-text) !important;
-}
-
-.suna-new-nav-indicator {
-  display: block;
-  margin-left: auto;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--suna-primary);
-  opacity: 0.85;
 }
 
 /* Recent Conversations Header & Archived Toggle */
@@ -325,17 +304,6 @@
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font-weight: 600;
-}
-
-.suna-new-history-item.is-active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 2.5px;
-  border-radius: 0 2px 2px 0;
-  background: var(--suna-primary);
 }
 
 .suna-new-history-title {
@@ -851,7 +819,7 @@
 .suna-chat-session-wrap.is-active .suna-chat-session {
   background: var(--suna-bg-raised);
   border: 1px solid var(--suna-line);
-  border-left: 3px solid var(--suna-primary);
+  border-left: 1px solid var(--suna-line);
   color: var(--suna-text);
   font-weight: 600;
 }

@@ -179,7 +179,7 @@
   background: var(--suna-bg-hover);
   color: var(--suna-text) !important;
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--suna-primary);
+  box-shadow: none;
 }
 .suna-settings-page .suna-settings-tab.is-active svg {
   color: var(--suna-text) !important;
