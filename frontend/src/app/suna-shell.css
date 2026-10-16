@@ -209,10 +209,22 @@
 }
 
 .suna-new-nav-item.is-active {
-  background: var(--suna-bg-hover) !important;
+  background: var(--suna-bg-soft) !important;
   color: var(--suna-text) !important;
   font-weight: 600;
   box-shadow: none !important;
+  position: relative;
+}
+
+.suna-new-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--suna-primary);
 }
 
 .suna-new-nav-item.is-active svg,
@@ -221,7 +233,13 @@
 }
 
 .suna-new-nav-indicator {
-  display: none;
+  display: block;
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--suna-primary);
+  opacity: 0.85;
 }
 
 /* Recent Conversations */
@@ -229,18 +247,18 @@
   margin: 2px 2px 12px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .suna-new-history-item {
   width: 100%;
   min-height: 30px;
-  padding: 0 8px;
+  padding: 4px 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--suna-text-muted);
   font-size: calc(12.5px * var(--suna-ui-font-scale));
@@ -251,6 +269,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 120ms ease;
+  position: relative;
 }
 
 .suna-new-history-item:hover {
@@ -262,6 +281,25 @@
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font-weight: 600;
+}
+
+.suna-new-history-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 2.5px;
+  border-radius: 0 2px 2px 0;
+  background: var(--suna-primary);
+}
+
+.suna-new-history-item > span:first-child:not(:empty) {
+  display: inline-block;
+  color: var(--suna-green);
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .suna-new-history-empty {
@@ -457,14 +495,14 @@
   align-items: center;
   gap: 8px;
   min-height: 32px;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 1px solid var(--suna-line);
-  border-radius: var(--suna-radius-small);
-  background: var(--suna-bg);
-  color: var(--suna-text-soft);
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
   font-family: inherit;
-  font-size: calc(13px * var(--suna-ui-font-scale));
-  font-weight: 500;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  font-weight: 550;
   cursor: pointer;
   transition: all 140ms ease;
 }
@@ -485,29 +523,31 @@
 
 .suna-header-model-menu {
   position: absolute;
-  top: calc(100% + 5px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 50;
-  min-width: 190px;
-  padding: 4px;
-  border: 1px solid var(--suna-line);
-  border-radius: var(--suna-radius-small);
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 12px;
   background: var(--suna-bg-raised);
-  box-shadow: var(--suna-shadow);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .suna-header-model-menu button {
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--suna-text-soft);
   font-family: inherit;
-  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
   text-align: left;
   cursor: pointer;
   transition: all 120ms ease;
@@ -519,7 +559,7 @@
 }
 
 .suna-header-model-menu button.is-active {
-  background: var(--suna-text);
+  background: var(--suna-primary-fill);
   color: var(--suna-bg);
   font-weight: 600;
 }
@@ -531,7 +571,7 @@
   width: 32px;
   height: 32px;
   border: 1px solid transparent;
-  border-radius: var(--suna-radius-small);
+  border-radius: 8px;
   background: transparent;
   color: var(--suna-text-soft);
   cursor: pointer;

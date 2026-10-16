@@ -1,5 +1,188 @@
-/* 第 63/72 章：命令面板的分组标题 */
+/* 第 63/72 章：全局命令面板（Command Menu / Spotlight Search）UI/UX Pro Max 样式规范 */
 
-.suna-search-group{display:flex;flex-direction:column;gap:2px}
-.suna-search-group + .suna-search-group{margin-top:8px;padding-top:8px;border-top:1px solid var(--suna-line)}
-.suna-search-group-label{margin:0 0 2px;padding:0 10px;color:var(--suna-text-muted);font-size:calc(10.5px * var(--suna-ui-font-scale));font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.suna-new-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: min(14vh, 110px);
+  background: rgba(10, 15, 26, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: suna-fade-in 0.15s ease-out;
+}
+
+.suna-new-search {
+  width: min(600px, calc(100vw - 32px));
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 14px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28), 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: suna-spotlight-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suna-new-search > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--suna-line);
+  background: var(--suna-bg);
+  color: var(--suna-text-muted);
+}
+
+.suna-new-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--suna-text) !important;
+  font-size: calc(14.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  padding: 0 !important;
+}
+
+.suna-new-search input::placeholder {
+  color: var(--suna-text-muted);
+  opacity: 0.8;
+}
+
+.suna-new-search kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  font-family: var(--suna-mono);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-search-results {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--suna-scrollbar) transparent;
+}
+
+.suna-search-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suna-search-group + .suna-search-group {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-search-group-label {
+  margin: 0 0 4px;
+  padding: 2px 10px;
+  color: var(--suna-text-muted);
+  font-family: var(--suna-mono);
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.suna-search-group button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--suna-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.suna-search-group button:hover,
+.suna-search-group button:focus-visible {
+  background: var(--suna-bg-hover);
+  outline: none;
+}
+
+.suna-search-group button svg {
+  color: var(--suna-text-muted);
+  flex-shrink: 0;
+  transition: color 120ms ease;
+}
+
+.suna-search-group button:hover svg {
+  color: var(--suna-text);
+}
+
+.suna-search-group button span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.suna-search-group button strong {
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  color: var(--suna-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-search-group button small {
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-search-no-results,
+.suna-new-search > p {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+@keyframes suna-spotlight-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes suna-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
