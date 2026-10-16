@@ -203,16 +203,20 @@
   color: var(--suna-text);
 }
 .suna-settings-page .suna-settings-tab.is-active {
-  background: var(--suna-primary);
-  color: var(--suna-primary-contrast);
+  background: var(--suna-bg-hover);
+  color: var(--suna-text) !important;
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--suna-primary);
 }
 .suna-settings-page .suna-settings-tab.is-active svg {
-  color: var(--suna-primary-contrast);
+  color: var(--suna-text) !important;
+}
+.suna-settings-page .suna-settings-tab.is-active span {
+  color: var(--suna-text) !important;
+  font-weight: 600;
 }
 .suna-settings-page .suna-settings-tab.is-active small {
-  color: var(--suna-primary-contrast);
-  opacity: 0.85;
+  color: var(--suna-text-muted) !important;
 }
 
 /* Tab panel content */
@@ -637,7 +641,10 @@
   height: 24px;
   border-radius: 50%;
   background: var(--suna-primary);
-  color: var(--suna-primary-contrast);
+  color: var(--suna-primary-contrast) !important;
+}
+.suna-theme-check svg {
+  color: var(--suna-primary-contrast) !important;
 }
 .suna-theme-preview-icon {
   position: absolute;
@@ -719,10 +726,15 @@
   color: var(--suna-text);
 }
 .suna-settings-segmented button.is-selected {
-  background: var(--suna-primary);
-  color: var(--suna-primary-contrast);
+  background: var(--suna-bg-raised);
+  color: var(--suna-text) !important;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] .suna-settings-segmented button.is-selected {
+  background: var(--suna-bg-hover);
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .suna-appearance-controls .suna-settings-language-row {
@@ -1107,9 +1119,16 @@
 .suna-account-avatar-large {
   width: 48px !important;
   height: 48px !important;
+  flex: 0 0 48px !important;
   font-size: calc(16px * var(--suna-ui-font-scale)) !important;
-  border-radius: 50%;
-  border: 1px solid var(--suna-line);
+  border-radius: 50% !important;
+  border: 1px solid var(--suna-line-strong) !important;
+  background: var(--suna-bg-raised) !important;
+  color: var(--suna-text) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
 }
 
 .suna-settings-info-grid {
@@ -1170,9 +1189,12 @@
   height: 48px;
   border-radius: 12px;
   background: var(--suna-primary);
-  color: var(--suna-primary-contrast);
+  color: var(--suna-primary-contrast) !important;
   font-size: calc(26px * var(--suna-ui-font-scale));
   font-weight: 800;
+}
+.suna-about-mark svg {
+  color: var(--suna-primary-contrast) !important;
 }
 .suna-about-brand > div {
   display: flex;

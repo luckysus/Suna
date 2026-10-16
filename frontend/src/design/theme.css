@@ -351,12 +351,14 @@
 
 .suna-account-avatar {
   align-items: center;
-  background: var(--suna-amber);
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line-strong);
   border-radius: 50%;
-  color: #fffaf5;
+  color: var(--suna-text);
   display: inline-flex;
   flex: 0 0 30px;
-  font-size:calc(13px * var(--suna-ui-font-scale));
+  flex-shrink: 0;
+  font-size: calc(13px * var(--suna-ui-font-scale));
   font-weight: 700;
   height: 30px;
   justify-content: center;
@@ -476,15 +478,19 @@
 }
 
 .suna-action-primary {
-  background: var(--suna-amber);
-  border: 1px solid var(--suna-amber);
-  color: #1c1a15;
+  background: var(--suna-primary);
+  border: 1px solid var(--suna-primary);
+  color: var(--suna-primary-contrast) !important;
   font-weight: 700;
+}
+.suna-action-primary svg {
+  color: var(--suna-primary-contrast) !important;
 }
 
 .suna-action-primary:hover {
-  background: var(--suna-steel);
-  border-color: var(--suna-steel);
+  background: var(--suna-primary-fill-hover);
+  border-color: var(--suna-primary-fill-hover);
+  color: var(--suna-primary-contrast) !important;
 }
 
 .suna-action-secondary {
@@ -1030,15 +1036,16 @@
 }
 
 .suna-setup-primary {
-  background: var(--suna-amber);
-  border: 1px solid var(--suna-amber);
-  color: #1c1a15;
+  background: var(--suna-primary);
+  border: 1px solid var(--suna-primary);
+  color: var(--suna-primary-contrast) !important;
   font-weight: 700;
 }
 
 .suna-setup-primary:hover {
-  background: var(--suna-steel);
-  border-color: var(--suna-steel);
+  background: var(--suna-primary-fill-hover);
+  border-color: var(--suna-primary-fill-hover);
+  color: var(--suna-primary-contrast) !important;
 }
 
 .suna-setup-primary:disabled,
@@ -3837,10 +3844,10 @@ button.suna-knowledge-document.is-active {
 
 .suna-analysis-submit {
   align-items: center;
-  background: var(--suna-amber);
-  border: 1px solid var(--suna-amber);
+  background: var(--suna-primary);
+  border: 1px solid var(--suna-primary);
   border-radius: 4px;
-  color: #1c1a15;
+  color: var(--suna-primary-contrast) !important;
   cursor: pointer;
   display: inline-flex;
   font-weight: 700;

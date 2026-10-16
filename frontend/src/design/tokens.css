@@ -18,6 +18,8 @@
   --suna-bg-rgb: 255, 255, 255;
   --suna-steel: #000000;
   --suna-primary: #000000;
+  --suna-primary-contrast: #ffffff;
+  --suna-primary-contrast-muted: rgba(255, 255, 255, 0.75);
   --suna-primary-fill: #000000;
   --suna-primary-fill-hover: #262626;
   --suna-amber: #000000;
@@ -84,6 +86,8 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
   --suna-bg-rgb: 0, 0, 0;
   --suna-steel: #ffffff;
   --suna-primary: #ffffff;
+  --suna-primary-contrast: #000000;
+  --suna-primary-contrast-muted: rgba(0, 0, 0, 0.65);
   --suna-primary-fill: #ffffff;
   --suna-primary-fill-hover: #e5e5e5;
   --suna-amber: #ffffff;
