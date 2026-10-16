@@ -548,13 +548,48 @@ export default function DesktopChatWorkspace({
             <div className="suna-chat-empty"><LoaderCircle size={20} className="suna-spin" /><span>{t("loading")}</span></div>
           ) : controller.messages.length === 0 && controller.pendingQuestion === null ? (
             <div className="suna-chat-empty suna-chat-empty-large suna-new-welcome">
-              <div className="suna-welcome-brand"><span className="suna-welcome-mark"><SunaLogo size={58} title="Suna" /></span><div><strong>Suna</strong><small>钢铁材料研发智能助手</small></div></div>
+              <div className="suna-welcome-brand">
+                <span className="suna-welcome-mark"><SunaLogo size={52} title="Suna" /></span>
+                <div><strong>Suna</strong><small>钢铁材料研发智能助手</small></div>
+              </div>
               <h1>你好，我是 <em>Suna</em></h1>
-              <span className="suna-welcome-compat-copy">从一个具体问题开始</span>
-              <span className="suna-welcome-compat-copy">例如：比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。</span>
               <p>我可以帮助你进行钢铁材料的专业分析与问答，覆盖材料、工艺、性能、文献和数据等多个领域。</p>
+              <div
+                className="suna-welcome-suggestion-box"
+                role="button"
+                tabIndex={0}
+                onClick={() => controller.onDraftChange("比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    controller.onDraftChange("比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。");
+                  }
+                }}
+              >
+                <span className="suna-welcome-compat-copy">从一个具体问题开始</span>
+                <span className="suna-welcome-compat-copy">例如：比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。</span>
+                <b>→</b>
+              </div>
               <div className="suna-welcome-cards">
-                {[{ icon: "◈", title: "材料分析", text: "成分、组织与性能关联分析" }, { icon: "▤", title: "文献研究", text: "文献检索、总结、对比" }, { icon: "▥", title: "数据分析", text: "数据处理、分析、可视化" }, { icon: "△", title: "性能预测", text: "多模型预测材料性能" }, { icon: "✥", title: "工艺优化", text: "多目标优化算法" }, { icon: "♜", title: "实验设计", text: "智能设计实验方案" }].map((item) => <button type="button" className="suna-welcome-card" key={item.title} onClick={() => controller.onDraftChange(`${item.title}：`)}><span>{item.icon}</span><strong>{item.title}</strong><small>{item.text}</small><b>→</b></button>)}
+                {[
+                  { icon: "◈", title: "材料分析", text: "成分、组织与性能关联分析" },
+                  { icon: "▤", title: "文献研究", text: "文献检索、总结、对比" },
+                  { icon: "▥", title: "数据分析", text: "数据处理、分析、可视化" },
+                  { icon: "△", title: "性能预测", text: "多模型预测材料性能" },
+                  { icon: "✥", title: "工艺优化", text: "多目标优化算法" },
+                  { icon: "♜", title: "实验设计", text: "智能设计实验方案" },
+                ].map((item) => (
+                  <button
+                    type="button"
+                    className="suna-welcome-card"
+                    key={item.title}
+                    onClick={() => controller.onDraftChange(`${item.title}：`)}
+                  >
+                    <span>{item.icon}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.text}</small>
+                    <b>→</b>
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
