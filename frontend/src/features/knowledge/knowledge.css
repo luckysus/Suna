@@ -208,30 +208,42 @@
 .suna-knowledge-dropzone {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 16px;
-  padding: 14px 18px;
-  border: 1px dashed var(--suna-line-strong);
-  border-radius: 8px;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  border: 1.5px dashed var(--suna-line-strong);
+  border-radius: 10px;
   background: var(--suna-bg-soft);
-  color: var(--suna-text-soft);
-  font-size: calc(12px * var(--suna-ui-font-scale));
-  transition: border-color 0.15s ease;
+  color: var(--suna-text);
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  transition: all 160ms ease;
+  cursor: pointer;
 }
 
 .suna-knowledge-dropzone:hover {
   border-color: var(--suna-primary);
+  background: var(--suna-bg-hover);
+  box-shadow: var(--suna-shadow-soft);
 }
 
 .suna-knowledge-dropzone svg {
-  color: var(--suna-text);
+  color: var(--suna-primary);
   flex-shrink: 0;
+  transition: transform 140ms ease;
+}
+
+.suna-knowledge-dropzone:hover svg {
+  transform: translateY(-2px);
 }
 
 .suna-knowledge-dropzone small {
   margin-left: auto;
   color: var(--suna-text-muted);
   font-size: calc(11px * var(--suna-ui-font-scale));
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
 }
 
 .suna-knowledge-dropzone.is-disabled {
@@ -317,47 +329,56 @@
 /* Library Card Grid */
 .suna-knowledge-library-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .suna-knowledge-library-card {
   position: relative;
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) 20px;
-  grid-template-rows: auto 24px;
+  grid-template-columns: 52px minmax(0, 1fr) 20px;
+  grid-template-rows: auto auto;
   gap: 12px;
-  min-height: 170px;
-  padding: 18px;
+  min-height: 160px;
+  padding: 18px 20px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--suna-bg-raised);
   color: var(--suna-text);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--suna-shadow-soft);
 }
 
 .suna-knowledge-library-card:hover {
   background: var(--suna-bg-soft);
   border-color: var(--suna-line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--suna-shadow);
 }
 
 .suna-knowledge-library-card.is-active {
   border-color: var(--suna-primary);
   background: var(--suna-bg-soft);
-  box-shadow: 0 0 0 1px var(--suna-primary);
+  box-shadow: 0 0 0 1px var(--suna-primary), var(--suna-shadow);
 }
 
 .suna-knowledge-library-icon {
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
   border: 1px solid var(--suna-line);
   background: var(--suna-bg-soft);
   color: var(--suna-primary);
+  transition: transform 140ms ease;
+}
+
+.suna-knowledge-library-card:hover .suna-knowledge-library-icon {
+  transform: scale(1.05);
 }
 
 .suna-knowledge-library-copy {
@@ -380,22 +401,28 @@
 }
 
 .suna-knowledge-library-arrow {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--suna-text-muted);
+  transition: transform 140ms ease, color 140ms ease;
 }
 
 .suna-knowledge-library-card:hover .suna-knowledge-library-arrow,
 .suna-knowledge-library-card.is-active .suna-knowledge-library-arrow {
   color: var(--suna-primary);
+  transform: translateX(3px);
 }
 
 .suna-knowledge-library-meta {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--suna-line);
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
   flex-wrap: wrap;
 }
 
@@ -415,7 +442,13 @@
 }
 
 .suna-knowledge-embedding-dot.is-ready {
-  background: var(--suna-primary);
+  background: var(--suna-green);
+  box-shadow: 0 0 4px var(--suna-green);
+}
+
+.suna-knowledge-embedding-dot.is-pending {
+  background: var(--suna-warning);
+  box-shadow: 0 0 4px var(--suna-warning);
 }
 
 .suna-knowledge-embedding-dot.is-pending {

@@ -188,20 +188,28 @@
 .suna-prediction-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .suna-prediction-metrics > div {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  background: var(--suna-bg-soft);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-soft);
+  transition: all 140ms ease;
+}
+
+.suna-prediction-metrics > div:hover {
+  transform: translateY(-1px);
+  border-color: var(--suna-line-strong);
+  box-shadow: var(--suna-shadow);
 }
 
 .suna-prediction-metrics span {
   display: block;
   color: var(--suna-text-muted);
-  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -209,9 +217,10 @@
 
 .suna-prediction-metrics strong {
   display: block;
-  margin-top: 5px;
+  margin-top: 6px;
   color: var(--suna-text);
-  font-size: calc(18px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
+  font-size: calc(20px * var(--suna-ui-font-scale));
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }

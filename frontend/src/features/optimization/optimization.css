@@ -237,11 +237,12 @@
 }
 
 .suna-optimization-chart {
-  padding: 14px;
+  padding: 18px;
   border: 1px solid var(--suna-line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--suna-bg-raised);
-  margin-bottom: 14px;
+  box-shadow: var(--suna-shadow-soft);
+  margin-bottom: 16px;
 }
 
 .suna-optimization-values {
@@ -249,6 +250,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--suna-mono);
   font-size: calc(11px * var(--suna-ui-font-scale));
   color: var(--suna-text-muted);
 }
@@ -260,17 +262,25 @@
 
 .suna-plan-list {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .suna-plan-card {
   display: grid;
-  gap: 8px;
-  padding: 14px;
+  gap: 10px;
+  padding: 16px 18px;
   border: 1px solid var(--suna-line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-soft);
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suna-plan-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--suna-line-strong);
+  box-shadow: var(--suna-shadow);
 }
 
 .suna-plan-card-head {
