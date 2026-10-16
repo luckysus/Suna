@@ -35,13 +35,32 @@
   --suna-warning-text: #92400e;
   --suna-warning-soft: #fffbeb;
   --suna-accent: #18181b;
-  --suna-sidebar-width: 258px;
-  --suna-sidebar-collapsed-width: 72px;
-  --suna-topbar-height: 56px;
-  --suna-chat-session-width: 220px;
-  --suna-chat-inspector-width: 286px;
-  --suna-chat-session-compact-width: 204px;
-  --suna-chat-inspector-compact-width: 252px;
+  /* 7-Tier Typographic Scale (UI/UX Pro Max) */
+  --suna-font-h1: calc(24px * var(--suna-ui-font-scale));
+  --suna-font-h2: calc(18px * var(--suna-ui-font-scale));
+  --suna-font-h3: calc(15px * var(--suna-ui-font-scale));
+  --suna-font-h4: calc(14px * var(--suna-ui-font-scale));
+  --suna-font-body: calc(14px * var(--suna-ui-font-scale));
+  --suna-font-sub: calc(13px * var(--suna-ui-font-scale));
+  --suna-font-caption: calc(12px * var(--suna-ui-font-scale));
+  --suna-font-kicker: calc(11px * var(--suna-ui-font-scale));
+
+  --suna-leading-tight: 1.25;
+  --suna-leading-snug: 1.35;
+  --suna-leading-normal: 1.5;
+  --suna-leading-loose: 1.6;
+
+  /* Layout hierarchy tokens */
+  --suna-sidebar-width: 236px;
+  --suna-sidebar-collapsed-width: 64px;
+  --suna-settings-nav-width: 216px;
+  --suna-content-max-width: 1040px;
+  --suna-control-width: 280px;
+  --suna-topbar-height: 52px;
+  --suna-chat-session-width: 236px;
+  --suna-chat-inspector-width: 300px;
+  --suna-chat-session-compact-width: 200px;
+  --suna-chat-inspector-compact-width: 260px;
   --suna-radius: 8px;
   --suna-radius-small: 6px;
   --suna-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
@@ -54,6 +73,9 @@
   --suna-ui-font-scale: 1;
   --suna-ui-space-scale: 1;
 }
+
+html[data-sidebar-width="narrow"] { --suna-sidebar-width: 216px; }
+html[data-sidebar-width="wide"] { --suna-sidebar-width: 256px; }
 
 html[data-font-size="small"] { --suna-ui-font-scale: .92; }
 html[data-font-size="large"] { --suna-ui-font-scale: 1.08; }

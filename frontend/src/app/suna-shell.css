@@ -19,8 +19,8 @@
    ========================================================================== */
 
 .suna-new-sidebar {
-  width: 258px;
-  flex: 0 0 258px;
+  width: var(--suna-sidebar-width, 236px);
+  flex: 0 0 var(--suna-sidebar-width, 236px);
   height: 100vh;
   min-height: 0;
   display: flex;
@@ -32,13 +32,13 @@
 }
 
 [data-sidebar-width="narrow"] .suna-new-sidebar {
-  width: 240px;
-  flex-basis: 240px;
+  width: 216px;
+  flex-basis: 216px;
 }
 
 [data-sidebar-width="wide"] .suna-new-sidebar {
-  width: 280px;
-  flex-basis: 280px;
+  width: 256px;
+  flex-basis: 256px;
 }
 
 /* Brand / Logo lockup */
@@ -670,7 +670,7 @@
 
 .suna-new-content > .suna-chat {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 340px;
+  grid-template-columns: var(--suna-chat-session-width, 236px) minmax(0, 1fr) var(--suna-chat-inspector-width, 300px);
   height: 100%;
   min-height: calc(100vh - 52px);
   background: var(--suna-bg);
@@ -680,7 +680,7 @@
 }
 
 .suna-new-content > .suna-chat.has-agent-panel-hidden {
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: var(--suna-chat-session-width, 236px) minmax(0, 1fr);
 }
 
 /* --------------------------------------------------------------------------
@@ -921,13 +921,13 @@
 }
 
 .suna-chat-header h2 {
-  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-h3, calc(15px * var(--suna-ui-font-scale)));
   font-weight: 650;
   color: var(--suna-text);
 }
 
 .suna-chat-header .suna-eyebrow {
-  font-size: calc(10.5px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-kicker, calc(11px * var(--suna-ui-font-scale)));
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1322,7 +1322,7 @@
 }
 
 .suna-chat-citation-detail-heading span {
-  font-size: 10px;
+  font-size: var(--suna-font-kicker, 11px);
   color: var(--suna-text-muted);
 }
 

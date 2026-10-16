@@ -36,7 +36,8 @@ html {
 
 body {
   font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-size: var(--suna-font-body, calc(14px * var(--suna-ui-font-scale)));
+  line-height: var(--suna-leading-loose, 1.6);
   background: var(--suna-bg);
   color: var(--suna-text);
   overflow-x: hidden;
