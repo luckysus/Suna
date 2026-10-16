@@ -1,0 +1,355 @@
+/* ==========================================================================
+   Suna System Diagnostics - UI/UX Pro Max Scientific Spec
+   ========================================================================== */
+
+.suna-diagnostics {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 24px 32px 56px;
+  color: var(--suna-text);
+}
+
+.suna-diagnostics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--suna-line);
+  margin-bottom: 22px;
+}
+
+.suna-diagnostics-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--suna-text);
+  font-size: calc(24px * var(--suna-ui-font-scale));
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  margin: 6px 0 0;
+}
+
+.suna-diagnostics-header p {
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  line-height: 1.5;
+}
+
+.suna-diagnostics-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suna-diagnostics-alert,
+.suna-diagnostics-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-diagnostics-alert {
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-left: 3px solid #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--suna-text);
+}
+
+.suna-diagnostics-notice {
+  border: 1px solid var(--suna-line);
+  border-left: 3px solid var(--suna-primary);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+}
+
+.suna-diagnostics-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.suna-diagnostics-card,
+.suna-diagnostics-tasks,
+.suna-diagnostics-worker-card {
+  position: relative;
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
+  border-radius: 12px;
+  min-width: 0;
+  padding: 20px 22px;
+  box-shadow: var(--suna-shadow-sm);
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suna-diagnostics-card:hover,
+.suna-diagnostics-tasks:hover,
+.suna-diagnostics-worker-card:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--suna-shadow);
+}
+
+.suna-diagnostics-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-diagnostics-card-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.suna-diagnostics-card-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-primary);
+  flex-shrink: 0;
+}
+
+.suna-diagnostics-card h2,
+.suna-diagnostics-section-heading h2,
+.suna-diagnostics-worker-card h2 {
+  color: var(--suna-text);
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  margin: 0;
+}
+
+.suna-diagnostics-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.suna-diagnostics-status.is-healthy {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.suna-diagnostics-status.is-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.suna-diagnostics-details {
+  display: grid;
+  gap: 0;
+  margin: 14px 0 0;
+}
+
+.suna-diagnostics-details > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 36px;
+  padding: 4px 0;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-diagnostics-details > div:first-child {
+  border-top: 0;
+}
+
+.suna-diagnostics-details dt {
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 500;
+}
+
+.suna-diagnostics-details dd {
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  margin: 0;
+}
+
+/* Tasks & error monitors */
+.suna-diagnostics-tasks {
+  margin-top: 18px;
+}
+
+.suna-diagnostics-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--suna-line);
+  padding-bottom: 14px;
+}
+
+.suna-diagnostics-section-heading svg {
+  color: var(--suna-text-muted);
+}
+
+.suna-diagnostics-empty,
+.suna-diagnostics-loading {
+  color: var(--suna-text-muted);
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+}
+
+.suna-diagnostics-empty {
+  padding: 24px 4px 8px;
+}
+
+.suna-diagnostics-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 240px;
+}
+
+.suna-diagnostics-task-list {
+  display: grid;
+  margin-top: 8px;
+}
+
+.suna-diagnostics-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-diagnostics-task:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.suna-diagnostics-task > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.suna-diagnostics-task strong {
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-diagnostics-task span {
+  color: var(--suna-text-muted);
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
+}
+
+.suna-diagnostics-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+/* Offline Compute Worker diagnostics card */
+.suna-diagnostics-worker-card {
+  margin-top: 18px;
+}
+
+.suna-diagnostics-worker-card p {
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.6;
+  margin: 8px 0 14px;
+}
+
+.suna-diagnostics-worker-card table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-diagnostics-worker-card th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-diagnostics-worker-card td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--suna-line);
+  color: var(--suna-text);
+  font-family: var(--suna-mono);
+}
+
+.suna-diagnostics-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-primary);
+}
+
+.suna-diagnostics-privacy > div {
+  display: grid;
+  gap: 4px;
+}
+
+.suna-diagnostics-privacy strong {
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-diagnostics-privacy span {
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .suna-diagnostics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .suna-diagnostics {
+    padding: 22px 18px 42px;
+  }
+  .suna-diagnostics-header {
+    display: block;
+  }
+  .suna-diagnostics-actions {
+    margin-top: 14px;
+  }
+  .suna-diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+}

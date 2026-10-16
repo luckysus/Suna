@@ -1,12 +1,11 @@
 /* ==========================================================================
-   Suna MCP Management - Pure Monochrome Stylesheet
-   遵循 ui-ux-pro-max 纯黑/纯白设计智能标准
+   Suna MCP Management - UI/UX Pro Max Scientific Spec
    ========================================================================== */
 
 .suna-mcp-page {
-  max-width: 1280px;
+  max-width: 1380px;
   margin: 0 auto;
-  padding: 28px 32px 52px;
+  padding: 24px 32px 56px;
   color: var(--suna-text);
 }
 
@@ -22,12 +21,12 @@
 .suna-mcp-header h1 {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 0;
+  gap: 10px;
+  margin: 6px 0 0;
   color: var(--suna-text);
   font-size: calc(24px * var(--suna-ui-font-scale));
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 
 .suna-mcp-header h1 svg {
@@ -38,22 +37,25 @@
   margin-top: 6px;
   color: var(--suna-text-muted);
   font-size: calc(13px * var(--suna-ui-font-scale));
+  line-height: 1.5;
 }
 
 .suna-mcp-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 
 .suna-mcp-alert {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 15px;
+  margin-top: 16px;
   padding: 10px 14px;
-  border: 1px solid var(--suna-line-strong);
-  border-radius: 7px;
-  background: var(--suna-bg-sunken);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-left: 3px solid #ef4444;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
   color: var(--suna-text);
   font-size: calc(12px * var(--suna-ui-font-scale));
 }
@@ -64,23 +66,36 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+  padding: 4px;
 }
 
 .suna-mcp-editor,
 .suna-mcp-card {
-  margin-top: 16px;
-  padding: 20px 22px;
+  margin-top: 18px;
+  padding: 22px 24px;
   border: 1px solid var(--suna-line);
-  border-radius: 9px;
+  border-radius: 12px;
   background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-sm);
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suna-mcp-card:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--suna-shadow);
 }
 
 .suna-mcp-editor-head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   color: var(--suna-text);
-  font-size: calc(14px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--suna-line);
 }
 
 .suna-mcp-editor-head button {
@@ -88,13 +103,14 @@
   background: transparent;
   color: var(--suna-text-muted);
   cursor: pointer;
+  padding: 4px;
 }
 
 .suna-mcp-editor-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 18px;
 }
 
 .suna-mcp-editor-grid label {
@@ -102,19 +118,21 @@
   flex-direction: column;
   gap: 6px;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
 }
 
 .suna-mcp-editor-grid input,
 .suna-mcp-editor-grid select {
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font: inherit;
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
   outline: 0;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .suna-mcp-editor-grid input:focus,
@@ -126,103 +144,128 @@
 .suna-mcp-editor-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--suna-line);
 }
 
 .suna-mcp-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .suna-mcp-card-main {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
 .suna-mcp-card-title {
   display: flex;
-  gap: 9px;
+  gap: 10px;
   align-items: flex-start;
 }
 
 .suna-mcp-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   margin-top: 6px;
   border-radius: 50%;
   background: var(--suna-line-strong);
+  flex-shrink: 0;
 }
 
 .suna-mcp-dot.is-enabled {
-  background: var(--suna-primary);
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 .suna-mcp-card h2 {
   color: var(--suna-text);
-  font-size: calc(14px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  margin: 0;
 }
 
 .suna-mcp-card p {
   margin-top: 4px;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.5;
 }
 
 .suna-mcp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--suna-text-muted);
-  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 500;
 }
 
 .suna-mcp-status.is-good {
-  color: var(--suna-text);
+  color: #10b981;
   font-weight: 600;
 }
 
 .suna-mcp-card-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 14px;
   color: var(--suna-text-muted);
-  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
 }
 
 .suna-mcp-error {
-  color: var(--suna-text) !important;
+  color: #ef4444 !important;
   font-weight: 600;
 }
 
 .suna-mcp-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 14px;
 }
 
 .suna-mcp-tools span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
-  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
   border: 1px solid var(--suna-line);
 }
 
 .suna-mcp-card-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 15px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--suna-line);
 }
 
 .suna-mcp-card-actions .suna-ghost-button {
-  font-size: calc(11px * var(--suna-ui-font-scale));
-  padding: 6px 8px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  padding: 5px 10px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  border-radius: 6px;
+}
+
+.suna-mcp-card-actions .suna-ghost-button:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
 }
 
 .suna-mcp-empty {
@@ -231,20 +274,25 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
-  gap: 9px;
+  min-height: 320px;
+  gap: 12px;
   color: var(--suna-text-muted);
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  text-align: center;
+  background: var(--suna-bg-raised);
+  border: 1px dashed var(--suna-line);
+  border-radius: 12px;
 }
 
 .suna-mcp-empty svg {
   color: var(--suna-text-muted);
+  opacity: 0.7;
 }
 
 .suna-mcp-empty strong {
   color: var(--suna-text);
-  font-size: calc(14px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
 }
 
 .suna-spin {
@@ -265,17 +313,18 @@
   gap: 8px;
   min-height: 180px;
   color: var(--suna-text-muted);
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
 }
 
 .suna-mcp-notice {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 15px;
+  margin-top: 16px;
   padding: 10px 14px;
   border: 1px solid var(--suna-line);
-  border-radius: 7px;
+  border-left: 3px solid var(--suna-primary);
+  border-radius: 8px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
   font-size: calc(12px * var(--suna-ui-font-scale));
@@ -287,7 +336,7 @@
   gap: 14px;
   margin-top: 14px;
   color: var(--suna-text);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
 }
 
 .suna-mcp-credential-actions label {
@@ -305,45 +354,45 @@
 .suna-mcp-diagnostic {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 10px;
-  padding: 9px 12px;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px 14px;
   border-left: 3px solid var(--suna-line-strong);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
-  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-size: calc(11px * var(--suna-ui-font-scale));
 }
 
 .suna-mcp-diagnostic span {
   color: var(--suna-text-muted);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 /* Resources / Prompts 列表与日志分区 */
 .suna-mcp-listing {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   border-top: 1px solid var(--suna-line);
-  padding-top: 8px;
-  margin-top: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 .suna-mcp-listing strong {
   color: var(--suna-text);
-  font-size: calc(11px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
 }
 
 .suna-mcp-listing span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
   background: var(--suna-bg-soft);
   color: var(--suna-text);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   flex-wrap: wrap;
   border: 1px solid var(--suna-line);
 }
@@ -356,22 +405,23 @@
 
 .suna-mcp-logs {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   border-top: 1px solid var(--suna-line);
-  padding-top: 8px;
-  margin-top: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 .suna-mcp-logs strong {
   color: var(--suna-text);
-  font-size: calc(11px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
 }
 
 .suna-mcp-logs p {
   margin: 0;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
   overflow-wrap: anywhere;
 }
 

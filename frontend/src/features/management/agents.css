@@ -1,6 +1,5 @@
 /* ==========================================================================
-   Suna Agent Management - Pure Monochrome Stylesheet
-   遵循 ui-ux-pro-max 纯黑/纯白设计智能标准
+   Suna Agent Management - UI/UX Pro Max Scientific Spec
    ========================================================================== */
 
 .suna-management-header {
@@ -18,20 +17,21 @@
   gap: 8px;
   margin-top: 24px;
   color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
 }
 
 .suna-agents-layout {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .suna-agent-main {
   min-width: 0;
   display: grid;
-  gap: 20px;
+  gap: 24px;
 }
 
 .suna-agent-select strong {
@@ -40,49 +40,61 @@
 
 .suna-agents-sidebar {
   display: grid;
-  gap: 9px;
+  gap: 10px;
 }
 
 .suna-agents-create {
   display: grid;
-  gap: 9px;
-  padding: 14px;
+  gap: 10px;
+  padding: 16px;
   background: var(--suna-bg-raised);
   border: 1px solid var(--suna-line);
-  border-radius: 9px;
+  border-radius: 10px;
+  box-shadow: var(--suna-shadow-sm);
 }
 
 .suna-agents-create label {
   display: grid;
-  gap: 5px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
   color: var(--suna-text-muted);
+  font-weight: 500;
 }
 
 .suna-agents-create select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--suna-bg-soft);
   color: inherit;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
   outline: 0;
+  transition: border-color 140ms ease;
+}
+
+.suna-agents-create select:focus {
+  border-color: var(--suna-primary);
 }
 
 .suna-agent-select {
+  position: relative;
   text-align: left;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  padding: 13px;
+  border-radius: 10px;
+  padding: 14px 16px;
   background: var(--suna-bg-raised);
   color: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: var(--suna-shadow-sm);
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .suna-agent-select:hover {
   background: var(--suna-bg-hover);
   border-color: var(--suna-line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--suna-shadow);
 }
 
 .suna-agent-select.is-active {
@@ -91,26 +103,39 @@
   box-shadow: 0 0 0 1px var(--suna-primary);
 }
 
+.suna-agent-select.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--suna-primary);
+  border-radius: 0 2px 2px 0;
+}
+
 .suna-agent-select > span:first-child {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
 }
 
 .suna-agent-select > small {
   display: block;
   margin-top: 6px;
   color: var(--suna-text-muted);
-  font-size: 11px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  line-height: 1.5;
 }
 
 .suna-agent-editor {
-  padding: 24px;
+  padding: 26px 28px;
   background: var(--suna-bg-raised);
   border: 1px solid var(--suna-line);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: var(--suna-shadow-sm);
   min-width: 0;
 }
 
@@ -118,15 +143,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 22px;
-  padding-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--suna-line);
 }
 
 .suna-agent-editor h2 {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: calc(20px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -134,14 +160,20 @@
   display: block;
   margin-top: 5px;
   color: var(--suna-text-muted);
-  font-size: 11px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
 }
 
 .suna-agent-enable {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .suna-agent-editor fieldset {
@@ -153,19 +185,20 @@
 .suna-agent-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .suna-agent-fields label,
 .suna-agent-field {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
   color: var(--suna-text-muted);
+  font-weight: 500;
 }
 
 .suna-agent-field {
-  margin-top: 15px;
+  margin-top: 18px;
 }
 
 .suna-agent-editor input:not([type="checkbox"]),
@@ -174,13 +207,15 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 9px 10px;
+  padding: 9px 12px;
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--suna-bg-soft);
   color: inherit;
   font: inherit;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
   outline: 0;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .suna-agent-editor input:not([type="checkbox"]):focus,
@@ -202,29 +237,29 @@
 
 .suna-agent-editor small {
   color: var(--suna-text-muted);
-  font-size: 11px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   line-height: 1.5;
 }
 
 .suna-agent-section {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 26px;
+  padding-top: 22px;
   border-top: 1px solid var(--suna-line);
 }
 
 .suna-agent-section h3 {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 600;
+  gap: 8px;
+  font-size: calc(14.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
   margin: 0;
 }
 
 .suna-agent-section > p {
-  margin: 7px 0 12px;
+  margin: 6px 0 14px;
   color: var(--suna-text-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
   line-height: 1.6;
 }
 
@@ -233,27 +268,33 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .suna-agent-tools {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  max-height: 360px;
+  gap: 10px;
+  max-height: 380px;
   overflow: auto;
 }
 
 .suna-agent-tools label {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px;
+  gap: 10px;
+  padding: 12px;
   background: var(--suna-bg-soft);
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 8px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
   min-width: 0;
+  transition: all 140ms ease;
+}
+
+.suna-agent-tools label:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
 }
 
 .suna-agent-tools input {
@@ -266,36 +307,44 @@
 
 .suna-agent-tools strong {
   display: block;
+  font-weight: 600;
+  color: var(--suna-text);
 }
 
 .suna-agent-tools code {
   display: block;
   overflow-wrap: anywhere;
   margin: 4px 0;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--suna-bg-sunken);
   color: var(--suna-text-muted);
-  font-size: 10px;
+  font-size: 10.5px;
+  font-family: var(--suna-mono);
 }
 
 .suna-agent-tools small {
   display: block;
   color: var(--suna-text-muted);
+  line-height: 1.4;
 }
 
 .suna-agent-permissions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  font-size: 12px;
+  gap: 14px;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
 }
 
 .suna-agent-permissions label {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .suna-agent-permissions small {
-  margin-left: 7px;
+  margin-left: 6px;
   color: var(--suna-text-muted);
 }
 
@@ -304,31 +353,30 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 18px;
+  gap: 14px;
+  margin-top: 26px;
+  padding-top: 20px;
   border-top: 1px solid var(--suna-line);
 }
 
 .suna-agent-editor footer > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
+  gap: 10px;
 }
 
 .suna-agent-editor footer > span {
-  font-size: 12px;
+  font-size: calc(12px * var(--suna-ui-font-scale));
   color: var(--suna-text-muted);
 }
 
 .suna-agent-editor button.is-danger {
-  color: var(--suna-text);
-  font-weight: 600;
+  color: #ef4444;
 }
 
 @media (max-width: 1050px) {
   .suna-agents-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
   }
   .suna-agent-tools {
     grid-template-columns: 1fr;
@@ -346,7 +394,7 @@
     grid-column: 1 / -1;
   }
   .suna-agent-editor {
-    padding: 16px;
+    padding: 18px;
   }
   .suna-agent-editor > header {
     align-items: flex-start;
