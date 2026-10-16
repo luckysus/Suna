@@ -526,7 +526,6 @@ export default function DesktopChatWorkspace({
             <h2>{controller.selectedConversation?.title ?? t("chatTitle")}</h2>
           </div>
           <div className="suna-chat-header-actions">
-            <span className="suna-chat-runtime"><span className="suna-state-dot" />{t("localAgent")}</span>
             {controller.selectedConversation && (
               <>
                 <Button size="icon" type="button" aria-label={t("chatExportMarkdown")} title={t("chatExportMarkdown")} onClick={() => controller.onExportConversation("markdown")}><Download size={16} /></Button>

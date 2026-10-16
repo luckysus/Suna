@@ -227,7 +227,7 @@ describe("ChatPage", () => {
     await screen.findByRole("button", { name: "Q355B 标准" });
     expect(screen.getByTestId("desktop-agent-composer")).toBeInTheDocument();
     expect(screen.getByText("STEEL AGENT / LOCAL RUNTIME")).toBeInTheDocument();
-    expect(screen.getByText("本地智能体")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Q355B 标准" })).toBeInTheDocument();
   });
 
   it("adds files dropped onto the composer", async () => {
