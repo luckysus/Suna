@@ -37,7 +37,53 @@ export default function SettingsPagePanel(props: Props) {
   if (activeTab === "databases") return <><StorageDataPanel /><DatabaseConnectionsPanel /></>;
   if (activeTab === "shortcuts") return <SettingsShortcutsPanel />;
   if (activeTab === "about") return <AboutPanel onOpenDiagnostics={props.onOpenDiagnostics} />;
-  return <><div className="suna-settings-section-intro"><span>MODEL ROUTING</span><h2>模型管理</h2><p>为聊天、Embedding、Reranker 和文档解析分别绑定 Provider。API Key 只写入系统凭据管理器。</p></div><div className="suna-model-capability-grid">{props.editors.map((editor) => <div className="suna-model-capability" key={editor.slot}><div><span className="suna-model-capability-icon">{editor.slot === "chat" ? <Bot size={16} /> : editor.slot === "embedding" ? <Sparkles size={16} /> : editor.slot === "reranker" ? <Check size={16} /> : <Database size={16} />}</span><strong>{editor.slot === "chat" ? "对话模型" : editor.slot === "embedding" ? "Embedding" : editor.slot === "reranker" ? "Reranker" : "文档解析"}</strong></div><span className={editor.id && editor.enabled ? "is-ready" : "is-missing"}>{editor.id && editor.enabled ? "已配置" : "待配置"}</span><small>{editor.modelId || editor.displayName || t("settingsSecretMissing")}</small></div>)}</div><ModelRuntimeSettings /><SettingsProvidersPanel {...providerProps(props)} editors={props.editors} /></>;
+  return (
+    <>
+      <div className="suna-settings-section-intro suna-model-mgmt-hero">
+        <div className="suna-model-mgmt-hero-left">
+          <span>MODEL ROUTING</span>
+          <h2>模型管理</h2>
+          <p>为聊天、Embedding、Reranker 和文档解析分别绑定 Provider。API Key 只写入系统凭据管理器。</p>
+        </div>
+        <div className="suna-model-mgmt-hero-stat">
+          <span className="suna-model-stat-pill">
+            <span className="suna-model-pulse-dot" />
+            {props.editors.filter((e) => e.id && e.enabled).length} / {props.editors.length} 项能力已配置
+          </span>
+        </div>
+      </div>
+      <div className="suna-model-capability-grid">
+        {props.editors.map((editor) => {
+          const isReady = Boolean(editor.id && editor.enabled);
+          return (
+            <div
+              className={`suna-model-capability ${isReady ? "is-ready" : "is-missing"}`}
+              key={editor.slot}
+              onClick={() => {
+                document.getElementById(`settings-${editor.slot}-card`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}
+              title="点击直达配置卡片"
+            >
+              <div className="suna-model-cap-top">
+                <span className={`suna-model-capability-icon slot-${editor.slot}`}>
+                  {editor.slot === "chat" ? <Bot size={16} /> : editor.slot === "embedding" ? <Sparkles size={16} /> : editor.slot === "reranker" ? <Check size={16} /> : <Database size={16} />}
+                </span>
+                <div className="suna-model-cap-meta">
+                  <strong>{editor.slot === "chat" ? "对话模型" : editor.slot === "embedding" ? "Embedding" : editor.slot === "reranker" ? "Reranker" : "文档解析"}</strong>
+                  <span className={isReady ? "is-ready" : "is-missing"}>
+                    {isReady ? "已配置" : "待配置"}
+                  </span>
+                </div>
+              </div>
+              <small>{editor.modelId || editor.displayName || t("settingsSecretMissing")}</small>
+            </div>
+          );
+        })}
+      </div>
+      <ModelRuntimeSettings />
+      <SettingsProvidersPanel {...providerProps(props)} editors={props.editors} />
+    </>
+  );
 }
 
 function AboutPanel({ onOpenDiagnostics }: { onOpenDiagnostics?: () => void }) {

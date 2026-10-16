@@ -56,10 +56,73 @@ export default function ModelRuntimeSettings() {
         {state === "error" && <span className="suna-settings-inline-error" role="alert">{error ?? "保存失败"}</span>}
       </div>
       <div className="suna-settings-runtime-grid">
-        <label className="suna-settings-field"><span>Temperature</span><Input disabled={loading} type="number" min="0" max="2" step="0.1" value={value.temperature} onChange={(event) => void update({ temperature: Number(event.target.value) })} /></label>
-        <label className="suna-settings-field"><span>Max Tokens</span><Input disabled={loading} type="number" min="256" max="262144" step="256" value={value.maxTokens} onChange={(event) => void update({ maxTokens: Number(event.target.value) })} /></label>
-        <label className="suna-settings-field"><span>Context Length</span><Input disabled={loading} type="number" min="1024" max="1048576" step="1024" value={value.contextLength} onChange={(event) => void update({ contextLength: Number(event.target.value) })} /></label>
-        <label className="suna-settings-field"><span>单次模型请求超时（秒）</span><Input disabled={loading} type="number" min="5" max="1800" step="5" value={value.timeoutSeconds} onChange={(event) => void update({ timeoutSeconds: Number(event.target.value) })} /></label>
+        <div className="suna-settings-runtime-card">
+          <label className="suna-settings-field">
+            <div className="suna-settings-field-header">
+              <span>Temperature</span>
+              <span className="suna-settings-val-chip">{value.temperature.toFixed(1)}</span>
+            </div>
+            <Input disabled={loading} type="number" min="0" max="2" step="0.1" value={value.temperature} onChange={(event) => void update({ temperature: Number(event.target.value) })} />
+          </label>
+          <div className="suna-settings-preset-row">
+            <button type="button" className={`suna-settings-preset-btn ${value.temperature === 0.1 ? "is-active" : ""}`} onClick={() => void update({ temperature: 0.1 })}>严谨 0.1</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.temperature === 0.2 ? "is-active" : ""}`} onClick={() => void update({ temperature: 0.2 })}>默认 0.2</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.temperature === 0.5 ? "is-active" : ""}`} onClick={() => void update({ temperature: 0.5 })}>平衡 0.5</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.temperature === 0.8 ? "is-active" : ""}`} onClick={() => void update({ temperature: 0.8 })}>发散 0.8</button>
+          </div>
+          <span className="suna-settings-field-hint">控制模型推理随机性，科研数值计算推荐 0.1~0.2</span>
+        </div>
+
+        <div className="suna-settings-runtime-card">
+          <label className="suna-settings-field">
+            <div className="suna-settings-field-header">
+              <span>Max Tokens</span>
+              <span className="suna-settings-val-chip">{value.maxTokens}</span>
+            </div>
+            <Input disabled={loading} type="number" min="256" max="262144" step="256" value={value.maxTokens} onChange={(event) => void update({ maxTokens: Number(event.target.value) })} />
+          </label>
+          <div className="suna-settings-preset-row">
+            <button type="button" className={`suna-settings-preset-btn ${value.maxTokens === 2048 ? "is-active" : ""}`} onClick={() => void update({ maxTokens: 2048 })}>2048</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.maxTokens === 4096 ? "is-active" : ""}`} onClick={() => void update({ maxTokens: 4096 })}>4096</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.maxTokens === 8192 ? "is-active" : ""}`} onClick={() => void update({ maxTokens: 8192 })}>8192</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.maxTokens === 16384 ? "is-active" : ""}`} onClick={() => void update({ maxTokens: 16384 })}>16K</button>
+          </div>
+          <span className="suna-settings-field-hint">单次响应最大 Token 生成上限</span>
+        </div>
+
+        <div className="suna-settings-runtime-card">
+          <label className="suna-settings-field">
+            <div className="suna-settings-field-header">
+              <span>Context Length</span>
+              <span className="suna-settings-val-chip">{value.contextLength >= 1024 ? `${Math.round(value.contextLength / 1024)}K` : value.contextLength}</span>
+            </div>
+            <Input disabled={loading} type="number" min="1024" max="1048576" step="1024" value={value.contextLength} onChange={(event) => void update({ contextLength: Number(event.target.value) })} />
+          </label>
+          <div className="suna-settings-preset-row">
+            <button type="button" className={`suna-settings-preset-btn ${value.contextLength === 16384 ? "is-active" : ""}`} onClick={() => void update({ contextLength: 16384 })}>16K</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.contextLength === 32768 ? "is-active" : ""}`} onClick={() => void update({ contextLength: 32768 })}>32K</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.contextLength === 65536 ? "is-active" : ""}`} onClick={() => void update({ contextLength: 65536 })}>64K</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.contextLength === 131072 ? "is-active" : ""}`} onClick={() => void update({ contextLength: 131072 })}>128K</button>
+          </div>
+          <span className="suna-settings-field-hint">Agent 跨轮次上下文记忆保留容量</span>
+        </div>
+
+        <div className="suna-settings-runtime-card">
+          <label className="suna-settings-field">
+            <div className="suna-settings-field-header">
+              <span>单次模型请求超时（秒）</span>
+              <span className="suna-settings-val-chip">{value.timeoutSeconds}s</span>
+            </div>
+            <Input disabled={loading} type="number" min="5" max="1800" step="5" value={value.timeoutSeconds} onChange={(event) => void update({ timeoutSeconds: Number(event.target.value) })} />
+          </label>
+          <div className="suna-settings-preset-row">
+            <button type="button" className={`suna-settings-preset-btn ${value.timeoutSeconds === 60 ? "is-active" : ""}`} onClick={() => void update({ timeoutSeconds: 60 })}>60s</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.timeoutSeconds === 120 ? "is-active" : ""}`} onClick={() => void update({ timeoutSeconds: 120 })}>120s</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.timeoutSeconds === 180 ? "is-active" : ""}`} onClick={() => void update({ timeoutSeconds: 180 })}>180s</button>
+            <button type="button" className={`suna-settings-preset-btn ${value.timeoutSeconds === 300 ? "is-active" : ""}`} onClick={() => void update({ timeoutSeconds: 300 })}>300s</button>
+          </div>
+          <span className="suna-settings-field-hint">大模型接口单次 HTTP 等待最长时限</span>
+        </div>
       </div>
       <footer className="suna-settings-form-actions"><Button variant="secondary" type="button" onClick={reset} disabled={loading || state === "saving"}><RotateCcw size={15} />恢复运行参数默认值</Button></footer>
     </section>
