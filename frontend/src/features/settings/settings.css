@@ -552,46 +552,46 @@
 
 /* Dark theme preview artwork */
 .suna-theme-preview.dark {
-  border-color: #3f3f46;
-  background: #000000;
+  border-color: #36363f;
+  background: #0e0e10;
 }
 .suna-theme-preview.dark .suna-theme-preview-sidebar {
-  border-color: #27272a;
+  border-color: #26262c;
   background: #09090b;
 }
 .suna-theme-preview.dark .suna-theme-preview-sidebar > i {
-  background: #27272a;
+  background: #24242a;
 }
 .suna-theme-preview.dark .suna-theme-preview-sidebar > i.is-brand {
-  background: #ffffff;
+  background: #f4f4f5;
 }
 .suna-theme-preview.dark .suna-theme-preview-sidebar > i.is-nav.is-active {
   background: #f4f4f5;
 }
 .suna-theme-preview.dark .suna-theme-preview-main {
-  background: #000000;
+  background: #0e0e10;
 }
 .suna-theme-preview.dark .suna-theme-preview-main > i {
-  background: #27272a;
+  background: #24242a;
 }
 .suna-theme-preview.dark .suna-theme-preview-main > i.is-toolbar {
   background: #71717a;
 }
 .suna-theme-preview.dark .suna-theme-preview-main > i.is-title {
-  background: #ffffff;
+  background: #f4f4f5;
 }
 .suna-theme-preview.dark .suna-theme-preview-main > .is-cards > i {
-  background: #18181b;
-  border-color: #27272a;
+  background: #151518;
+  border-color: #26262c;
 }
 .suna-theme-preview.dark .suna-theme-preview-main > i.is-copy {
   background: #3f3f46;
 }
 
-/* System theme preview artwork: pure black & pure white vertical split */
+/* System theme preview artwork: modern light & dark vertical split */
 .suna-theme-preview.system {
   border-color: var(--suna-line);
-  background: linear-gradient(90deg, #ffffff 0 50%, #000000 50% 100%);
+  background: linear-gradient(90deg, #ffffff 0 50%, #0e0e10 50% 100%);
 }
 .suna-theme-preview.system .suna-theme-preview-sidebar,
 .suna-theme-preview.system .suna-theme-preview-main {
@@ -603,13 +603,13 @@
 .suna-theme-preview.system .suna-theme-preview-sidebar > i,
 .suna-theme-preview.system .suna-theme-preview-main > i,
 .suna-theme-preview.system .suna-theme-preview-main > .is-cards > i {
-  background: linear-gradient(90deg, #d4d4d8 0 50%, #27272a 50.5% 100%);
+  background: linear-gradient(90deg, #d4d4d8 0 50%, #24242a 50.5% 100%);
 }
 .suna-theme-preview.system .suna-theme-preview-sidebar > i.is-brand {
-  background: linear-gradient(90deg, #09090b 0 50%, #ffffff 50.5% 100%);
+  background: linear-gradient(90deg, #18181b 0 50%, #f4f4f5 50.5% 100%);
 }
 .suna-theme-preview.system .suna-theme-preview-sidebar > i.is-nav.is-active {
-  background: linear-gradient(90deg, #18181b 0 50%, #f4f4f5 50.5% 100%);
+  background: linear-gradient(90deg, #27272a 0 50%, #f4f4f5 50.5% 100%);
 }
 
 .suna-theme-preview-copy {
