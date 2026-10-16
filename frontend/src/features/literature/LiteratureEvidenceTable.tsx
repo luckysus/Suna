@@ -34,8 +34,8 @@ export default function LiteratureEvidenceTable({ records, onChange, onExtract, 
     } catch (e) { onError(e instanceof Error ? e.message : String(e)); }
   };
   if (!records.length) return null;
-  return <section><h2>文献证据表（AI 结论需原文审核）</h2><Button onClick={() => void onExtract()}>提取成分 / 工艺 / 性能字段</Button><Button onClick={() => void exportRecords()}>导出已审核证据</Button><Button onClick={() => void exportRecords(true)}>加入数据实验室</Button>
-    <div style={{overflowX:"auto"}}><table><thead><tr>{["编号","DOI / 原文","页码 / 章节","原文证据","提取字段","值","单位","AI 结论","审核"].map((s) => <th key={s}>{s}</th>)}</tr></thead><tbody>{records.map((r,i) => {
+  return <section className="suna-literature-evidence-section"><h2>文献证据表（AI 结论需原文审核）</h2><div className="flex flex-wrap gap-2 my-3"><Button onClick={() => void onExtract()}>提取成分 / 工艺 / 性能字段</Button><Button onClick={() => void exportRecords()}>导出已审核证据</Button><Button onClick={() => void exportRecords(true)}>加入数据实验室</Button></div>
+    <div style={{overflowX:"auto"}}><table className="suna-literature-evidence-table"><thead><tr>{["编号","DOI / 原文","页码 / 章节","原文证据","提取字段","值","单位","AI 结论","审核"].map((s) => <th key={s}>{s}</th>)}</tr></thead><tbody>{records.map((r,i) => {
       const update = (patch: Partial<LiteratureEvidenceRecord>) => onChange(records.map((row,j) => j === i ? {...row,...patch,reviewed:false} : row));
       return <tr key={r.id}><td>{r.id}</td><td>{r.doi ?? "DOI 未记录"}<br/>{r.source}<br/>{r.versionId ?? "版本未记录"}<Button onClick={() => void open(r)}>核对原文</Button></td><td>{r.location ? JSON.stringify(r.location) : "位置未记录"}</td><td>{r.quote}</td><td><Input aria-label={`${r.id} 字段`} value={r.field} onChange={(e) => update({field:e.target.value})} /></td><td><Input aria-label={`${r.id} 值`} value={r.value} onChange={(e) => update({value:e.target.value})} /></td><td><Input aria-label={`${r.id} 单位`} value={r.unit} onChange={(e) => update({unit:e.target.value})} /></td><td>{r.conclusion || "没有关联证据的结论"}</td><td>{r.reviewed ? "已人工审核" : "待审核"}</td></tr>;
     })}</tbody></table></div>

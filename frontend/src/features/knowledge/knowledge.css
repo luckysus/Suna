@@ -1,0 +1,1209 @@
+/* ==========================================================================
+   SUNA RESEARCH PLATFORM - Knowledge Center CSS
+   Monochrome / Pure Black & Pure White OLED Industrial Theme
+   ========================================================================== */
+
+.suna-knowledge-center {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+  color: var(--suna-text);
+}
+
+.suna-knowledge-center-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.suna-knowledge-center-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 6px;
+  font-size: calc(26px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--suna-text);
+}
+
+.suna-knowledge-center-header h1 svg {
+  color: var(--suna-primary);
+}
+
+.suna-knowledge-center-header p {
+  margin-top: 6px;
+  color: var(--suna-text-soft);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Alert */
+.suna-knowledge-center-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-center-alert.is-error {
+  border-color: var(--suna-primary);
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-center-alert button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Workspace main shell */
+.suna-knowledge-main {
+  margin-top: 18px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-sm);
+  padding: 0 24px 24px;
+}
+
+/* Library tabs */
+.suna-knowledge-library-tabs {
+  display: flex;
+  gap: 36px;
+  height: 56px;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-knowledge-library-tabs button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  font: inherit;
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.suna-knowledge-library-tabs button:hover {
+  color: var(--suna-text);
+}
+
+.suna-knowledge-library-tabs button.is-active {
+  color: var(--suna-primary);
+  font-weight: 650;
+}
+
+.suna-knowledge-library-tabs button.is-active:after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--suna-primary);
+  content: "";
+}
+
+/* Action tools bar */
+.suna-knowledge-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 0;
+  flex-wrap: wrap;
+}
+
+.suna-knowledge-tools .suna-ghost-button {
+  height: 32px;
+  padding: 0 11px;
+}
+
+/* Search and filters toolbar */
+.suna-knowledge-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 18px;
+}
+
+.suna-knowledge-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text-soft);
+  transition: border-color 0.15s ease;
+}
+
+.suna-knowledge-search:focus-within {
+  border-color: var(--suna-primary);
+}
+
+.suna-knowledge-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-search input::placeholder {
+  color: var(--suna-text-muted);
+}
+
+.suna-knowledge-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  min-width: 140px;
+  padding: 0 12px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text-soft);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-filter select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  appearance: none;
+}
+
+.suna-knowledge-toolbar > .suna-primary-button {
+  height: 42px;
+  white-space: nowrap;
+}
+
+/* Dropzone */
+.suna-knowledge-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 14px 18px;
+  border: 1px dashed var(--suna-line-strong);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-soft);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  transition: border-color 0.15s ease;
+}
+
+.suna-knowledge-dropzone:hover {
+  border-color: var(--suna-primary);
+}
+
+.suna-knowledge-dropzone svg {
+  color: var(--suna-text);
+  flex-shrink: 0;
+}
+
+.suna-knowledge-dropzone small {
+  margin-left: auto;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-dropzone.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Import Queue */
+.suna-knowledge-import-queue {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-import-queue header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.suna-knowledge-import-queue header div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.suna-knowledge-import-queue strong {
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-import-queue header span {
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-import-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.suna-knowledge-import-list > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-soft);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-import-list > div > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-knowledge-import-list small {
+  color: var(--suna-text-muted);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-import-list small.is-submitted {
+  color: var(--suna-text);
+  font-weight: 600;
+}
+
+.suna-knowledge-import-list small.is-failed {
+  color: var(--suna-text);
+  text-decoration: underline;
+}
+
+.suna-knowledge-import-list small.is-submitting {
+  color: var(--suna-primary);
+}
+
+/* Library Card Grid */
+.suna-knowledge-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.suna-knowledge-library-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 20px;
+  grid-template-rows: auto 24px;
+  gap: 12px;
+  min-height: 170px;
+  padding: 18px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.suna-knowledge-library-card:hover {
+  background: var(--suna-bg-soft);
+  border-color: var(--suna-line-strong);
+}
+
+.suna-knowledge-library-card.is-active {
+  border-color: var(--suna-primary);
+  background: var(--suna-bg-soft);
+  box-shadow: 0 0 0 1px var(--suna-primary);
+}
+
+.suna-knowledge-library-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-primary);
+}
+
+.suna-knowledge-library-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.suna-knowledge-library-copy strong {
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  color: var(--suna-text);
+}
+
+.suna-knowledge-library-copy small {
+  color: var(--suna-text-soft);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.5;
+}
+
+.suna-knowledge-library-arrow {
+  margin-top: 8px;
+  color: var(--suna-text-muted);
+}
+
+.suna-knowledge-library-card:hover .suna-knowledge-library-arrow,
+.suna-knowledge-library-card.is-active .suna-knowledge-library-arrow {
+  color: var(--suna-primary);
+}
+
+.suna-knowledge-library-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  flex-wrap: wrap;
+}
+
+.suna-knowledge-library-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Embedding status indicator dot */
+.suna-knowledge-embedding-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--suna-line-strong);
+}
+
+.suna-knowledge-embedding-dot.is-ready {
+  background: var(--suna-primary);
+}
+
+.suna-knowledge-embedding-dot.is-pending {
+  background: transparent;
+  border: 2px solid var(--suna-primary);
+}
+
+.suna-knowledge-embedding-dot.is-idle {
+  background: var(--suna-line);
+}
+
+/* Recent documents section */
+.suna-knowledge-recent {
+  margin-top: 22px;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.suna-knowledge-recent-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--suna-text);
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-knowledge-recent-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--suna-primary);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  cursor: pointer;
+}
+
+/* File type badge */
+.suna-file-type {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  margin-right: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(9px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.suna-file-type-pdf,
+.suna-file-type-docx,
+.suna-file-type-xlsx {
+  background: var(--suna-bg-soft);
+  border-color: var(--suna-line-strong);
+  color: var(--suna-text);
+}
+
+.suna-doc-state {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-weight: 500;
+}
+
+.suna-doc-state.is-ready {
+  border-color: var(--suna-primary);
+  color: var(--suna-primary);
+  background: var(--suna-bg-raised);
+  font-weight: 600;
+}
+
+/* Jobs queue */
+.suna-knowledge-jobs {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-jobs-list {
+  display: grid;
+  gap: 8px;
+}
+
+.suna-knowledge-job {
+  padding: 12px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-knowledge-job > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suna-knowledge-job small,
+.suna-knowledge-job p {
+  display: block;
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-job-state {
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-soft);
+}
+
+.suna-job-state.is-failed,
+.suna-job-state.is-quarantined {
+  color: var(--suna-text);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.suna-job-state.is-completed {
+  color: var(--suna-text);
+  font-weight: 600;
+}
+
+.suna-knowledge-jobs-empty {
+  padding: 12px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-job-progress {
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--suna-line);
+}
+
+.suna-knowledge-job-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--suna-primary);
+  transition: width 0.25s ease;
+}
+
+/* Knowledge Chunks */
+.suna-knowledge-chunks {
+  padding: 20px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-chunk-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.suna-knowledge-chunk-list article {
+  padding: 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-knowledge-chunk-list header,
+.suna-knowledge-chunk-list footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-chunk-list small,
+.suna-knowledge-chunk-list footer {
+  display: block;
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-chunk-list p {
+  margin-top: 8px;
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+/* Knowledge Search */
+.suna-knowledge-search-panel {
+  padding: 20px 0;
+}
+
+.suna-knowledge-search-row {
+  display: flex;
+  gap: 10px;
+}
+
+.suna-knowledge-search-row .suna-knowledge-search {
+  height: 44px;
+}
+
+.suna-knowledge-search-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.suna-knowledge-search-filters input,
+.suna-knowledge-search-filters select {
+  height: 32px;
+  min-width: 90px;
+  padding: 0 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  outline: 0;
+}
+
+.suna-knowledge-search-filters input:focus,
+.suna-knowledge-search-filters select:focus {
+  border-color: var(--suna-primary);
+}
+
+.suna-knowledge-search-filters input[aria-label="标签筛选"] {
+  min-width: 110px;
+}
+
+.suna-knowledge-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.suna-knowledge-result {
+  padding: 16px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-result > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suna-knowledge-result strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-knowledge-result span,
+.suna-knowledge-result small {
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-result p {
+  margin-top: 10px;
+  color: var(--suna-text-soft);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.7;
+}
+
+.suna-knowledge-result footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.suna-knowledge-result footer .suna-ghost-button {
+  height: 30px;
+  padding: 0 10px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-search-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 60px 20px;
+  color: var(--suna-text-muted);
+}
+
+.suna-knowledge-search-empty strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-search-empty span {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-search-degraded {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+/* Wiki panel */
+.suna-wiki-editor-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.suna-wiki-editor-meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--suna-text-soft);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-wiki-editor-meta select,
+.suna-wiki-tag-editor input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  outline: 0;
+}
+
+.suna-wiki-tag-editor {
+  display: flex;
+  gap: 6px;
+}
+
+.suna-wiki-tag-editor input {
+  min-width: 0;
+  flex: 1;
+}
+
+.suna-wiki-tag-editor .suna-ghost-button {
+  height: 32px;
+  padding: 0 10px;
+}
+
+.suna-wiki-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.suna-wiki-tags button {
+  padding: 3px 8px;
+  border: 1px solid var(--suna-line);
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-soft);
+  font: inherit;
+  font-size: calc(10px * var(--suna-ui-font-scale));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.suna-wiki-tags button:hover {
+  border-color: var(--suna-primary);
+  color: var(--suna-primary);
+}
+
+/* Settings and management */
+.suna-knowledge-settings,
+.suna-knowledge-management {
+  padding: 20px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.suna-knowledge-settings-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--suna-text-soft);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-settings-grid input,
+.suna-knowledge-settings-grid textarea,
+.suna-knowledge-settings-grid select {
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  outline: 0;
+  color: var(--suna-text);
+  font: inherit;
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-management-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.suna-knowledge-management-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-knowledge-management-list article div {
+  display: grid;
+  gap: 4px;
+}
+
+.suna-knowledge-management-list small {
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-danger-button {
+  padding: 6px 12px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  transition: all 0.15s ease;
+}
+
+.suna-danger-button:hover {
+  background: var(--suna-primary);
+  color: var(--suna-bg);
+  border-color: var(--suna-primary);
+}
+
+/* Modals */
+.suna-knowledge-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.suna-knowledge-modal {
+  width: min(500px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-lg);
+}
+
+.suna-knowledge-modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.suna-knowledge-modal header strong {
+  display: block;
+  color: var(--suna-text);
+  font-size: calc(16px * var(--suna-ui-font-scale));
+  font-weight: 650;
+}
+
+.suna-knowledge-modal header span {
+  display: block;
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-modal header button {
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+}
+
+.suna-knowledge-modal header button:hover {
+  color: var(--suna-text);
+}
+
+.suna-knowledge-modal > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 18px;
+  color: var(--suna-text-soft);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-modal input,
+.suna-knowledge-modal textarea,
+.suna-knowledge-modal select {
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  outline: 0;
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  background: var(--suna-bg-raised);
+}
+
+.suna-knowledge-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.suna-knowledge-modal-grid label {
+  margin-top: 0;
+}
+
+.suna-knowledge-modal-grid select {
+  width: 100%;
+}
+
+.suna-knowledge-modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+/* Loading dots */
+.suna-knowledge-loading {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 60px;
+}
+
+.suna-knowledge-loading span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--suna-primary);
+  animation: suna-knowledge-pulse 1s infinite alternate;
+}
+
+.suna-knowledge-loading span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.suna-knowledge-loading span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes suna-knowledge-pulse {
+  to {
+    opacity: 0.2;
+    transform: translateY(-4px);
+  }
+}
+
+/* Document drawer preview */
+.suna-document-preview-sheets section > small {
+  display: block;
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+}
+
+.suna-document-metadata {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-document-metadata textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.suna-document-pages {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-document-pages article {
+  padding: 10px 12px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-document-pages h4 {
+  margin: 0 0 6px;
+}
+
+.suna-document-pages p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.suna-document-preview-sheets > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--suna-text-soft);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-document-preview-sheets select {
+  min-width: 180px;
+}
+
+.suna-document-structured {
+  display: grid;
+  gap: 10px;
+  margin-top: 13px;
+  color: var(--suna-text-soft);
+}
+
+.suna-document-structured article {
+  min-width: 0;
+}
+
+.suna-document-structured h3 {
+  margin: 12px 0 5px;
+  color: var(--suna-text);
+}
+
+.suna-document-structured p {
+  margin: 6px 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.suna-document-structured li {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+.suna-document-structured pre {
+  overflow: auto;
+  padding: 10px;
+  background: var(--suna-bg-soft);
+  border-radius: 5px;
+}
+
+.suna-document-structured-table {
+  overflow: auto;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+}
+
+.suna-document-structured-table table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-document-structured-table th,
+.suna-document-structured-table td {
+  padding: 7px 9px;
+  border: 1px solid var(--suna-line);
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.suna-document-structured-table th {
+  background: var(--suna-bg-soft);
+}
+
+.suna-document-version-list {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--suna-line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suna-document-version-list strong {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  color: var(--suna-text);
+}
+
+.suna-document-version-list span {
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .suna-knowledge-toolbar {
+    flex-wrap: wrap;
+  }
+  .suna-knowledge-toolbar > .suna-knowledge-search {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 1050px) {
+  .suna-knowledge-library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .suna-knowledge-center {
+    padding: 18px 14px;
+  }
+  .suna-knowledge-center-header {
+    display: block;
+  }
+  .suna-knowledge-actions {
+    margin-top: 12px;
+  }
+  .suna-knowledge-main {
+    padding: 0 14px 14px;
+  }
+  .suna-knowledge-toolbar {
+    flex-wrap: wrap;
+  }
+  .suna-knowledge-search {
+    flex-basis: 100%;
+  }
+  .suna-knowledge-filter {
+    flex: 1;
+    min-width: 0;
+  }
+  .suna-knowledge-toolbar > .suna-primary-button {
+    flex: 1;
+  }
+  .suna-knowledge-library-grid {
+    grid-template-columns: 1fr;
+  }
+  .suna-knowledge-library-card {
+    min-height: 155px;
+  }
+}

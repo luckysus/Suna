@@ -1,1 +1,28 @@
-.suna-knowledge-health-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:9px 20px;border-bottom:1px solid var(--suna-line);background:var(--suna-bg-soft);color:var(--suna-text-muted);font-size:calc(10px * var(--suna-ui-font-scale))}.suna-knowledge-health-strip span{display:inline-flex;align-items:baseline;gap:5px}.suna-knowledge-health-strip strong{color:var(--suna-text);font-size:calc(14px * var(--suna-ui-font-scale));font-weight:650}
+/* ==========================================================================
+   Knowledge Metrics & Health Strip - Pure Monochrome
+   ========================================================================== */
+
+.suna-knowledge-health-strip {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-knowledge-health-strip span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.suna-knowledge-health-strip strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

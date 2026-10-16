@@ -1,16 +1,283 @@
-.suna-experiment-page{max-width:1280px;margin:0 auto;padding:28px 32px 52px;color:var(--suna-text)}.suna-experiment-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.suna-experiment-header h1{display:flex;align-items:center;gap:9px;margin-top:8px;color:var(--suna-text);font-size:calc(24px * var(--suna-ui-font-scale))}.suna-experiment-header h1 svg{color:var(--suna-primary)}.suna-experiment-header p{margin-top:6px;color:var(--suna-text-soft);font-size:calc(13px * var(--suna-ui-font-scale))}.suna-experiment-notice{display:flex;align-items:center;gap:7px;margin-top:15px;padding:10px 12px;border:1px solid var(--suna-red-soft);border-radius:7px;background:var(--suna-red-soft);color:var(--suna-error-text);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-experiment-layout{display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px;margin-top:18px}.suna-experiment-config,.suna-experiment-result{padding:20px;border:1px solid var(--suna-line);border-radius:9px;background:var(--suna-bg-raised)}.suna-experiment-title{display:flex;gap:9px;align-items:flex-start;margin-bottom:18px}.suna-experiment-title>svg{color:var(--suna-primary);margin-top:2px}.suna-experiment-title h2{color:var(--suna-text);font-size:calc(16px * var(--suna-ui-font-scale))}.suna-experiment-title span{display:block;margin-top:4px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-experiment-config label{display:flex;flex-direction:column;gap:6px;margin-top:13px;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-experiment-config textarea,.suna-experiment-config select,.suna-experiment-variable input{padding:8px 9px;border:1px solid var(--suna-line);border-radius:6px;background:var(--suna-bg-raised);color:var(--suna-text-soft);font:inherit;font-size:calc(12px * var(--suna-ui-font-scale));resize:vertical}.suna-experiment-variable-head{display:flex;justify-content:space-between;align-items:center;margin-top:18px;color:var(--suna-text-soft);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-experiment-variable{display:grid;grid-template-columns:minmax(0,1fr) 75px 75px 30px;gap:6px;margin-top:8px}.suna-experiment-variable .suna-icon-button{width:30px}.suna-experiment-result{min-height:440px}.suna-experiment-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:350px;gap:9px;color:var(--suna-text-muted);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-experiment-empty svg{color:var(--suna-text-muted)}.suna-experiment-empty strong{color:var(--suna-text-soft);font-size:calc(14px * var(--suna-ui-font-scale))}.suna-experiment-answer{white-space:pre-wrap;color:var(--suna-text-soft);font-size:calc(13px * var(--suna-ui-font-scale));line-height:1.85}.suna-spin{animation:suna-spin 1s linear infinite}@keyframes suna-spin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.suna-experiment-page{padding:22px 18px 42px}.suna-experiment-header{display:block}.suna-experiment-header button{margin-top:14px}.suna-experiment-layout{grid-template-columns:1fr}}
+/* ==========================================================================
+   Suna Experiment Page - Pure Monochrome Stylesheet
+   遵循 ui-ux-pro-max 纯黑/纯白设计智能标准
+   ========================================================================== */
 
-/* 第 43 章：实验计划面板 */
-.suna-plan-badge{padding:2px 8px;border-radius:6px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-plan-badge:not(.is-muted){background:var(--suna-primary-soft,#EFF6FF);color:var(--suna-primary,#2563EB)}
+.suna-experiment-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 32px 52px;
+  color: var(--suna-text);
+}
 
-/* 第 44–46 章：实验设计工作台 */
-.suna-design-panel{display:grid;gap:12px;padding:16px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
-.suna-design-form{display:grid;gap:10px;max-width:620px}
-.suna-design-form label{display:grid;gap:6px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-design-form fieldset{border:1px solid var(--suna-line);border-radius:8px;padding:10px;display:grid;gap:6px}
-.suna-design-form legend{color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale));padding:0 4px}
-.suna-design-variable-head{display:flex;align-items:center;justify-content:space-between;color:var(--suna-text);font-size:calc(12px * var(--suna-ui-font-scale))}
-.suna-design-result{display:grid;gap:10px;border-top:1px solid var(--suna-line);padding-top:12px}
-.suna-design-notes{margin:0;padding-left:18px;color:var(--suna-text-muted);font-size:calc(12px * var(--suna-ui-font-scale));display:grid;gap:4px}
+.suna-experiment-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-experiment-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--suna-text);
+  font-size: calc(24px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.suna-experiment-header h1 svg {
+  color: var(--suna-primary);
+}
+
+.suna-experiment-header p {
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-experiment-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 7px;
+  background: var(--suna-bg-sunken);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-experiment-layout {
+  display: grid;
+  grid-template-columns: 420px minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 22px;
+}
+
+.suna-experiment-config,
+.suna-experiment-result {
+  padding: 22px 24px;
+  border: 1px solid var(--suna-line);
+  border-radius: 9px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-experiment-title {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.suna-experiment-title > svg {
+  color: var(--suna-primary);
+  margin-top: 2px;
+}
+
+.suna-experiment-title h2 {
+  color: var(--suna-text);
+  font-size: calc(16px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  margin: 0;
+}
+
+.suna-experiment-title span {
+  display: block;
+  margin-top: 4px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-experiment-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-experiment-config textarea,
+.suna-experiment-config select,
+.suna-experiment-variable input {
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  resize: vertical;
+  outline: 0;
+}
+
+.suna-experiment-config textarea:focus,
+.suna-experiment-config select:focus,
+.suna-experiment-variable input:focus {
+  border-color: var(--suna-primary);
+  box-shadow: 0 0 0 1px var(--suna-primary);
+}
+
+.suna-experiment-variable-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-experiment-variable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 75px 75px 30px;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.suna-experiment-variable .suna-icon-button {
+  width: 30px;
+}
+
+.suna-experiment-result {
+  min-height: 440px;
+}
+
+.suna-experiment-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 350px;
+  gap: 10px;
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-experiment-empty svg {
+  color: var(--suna-text-muted);
+}
+
+.suna-experiment-empty strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-experiment-answer {
+  white-space: pre-wrap;
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  line-height: 1.85;
+}
+
+.suna-spin {
+  animation: suna-spin 1s linear infinite;
+}
+
+@keyframes suna-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 实验计划面板 */
+.suna-plan-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  border: 1px solid var(--suna-line);
+}
+
+.suna-plan-badge:not(.is-muted) {
+  background: var(--suna-primary);
+  color: var(--suna-primary-contrast);
+  font-weight: 600;
+  border-color: var(--suna-primary);
+}
+
+/* 实验设计工作台 */
+.suna-design-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-design-form {
+  display: grid;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.suna-design-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-design-form fieldset {
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.suna-design-form legend {
+  color: var(--suna-text);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.suna-design-variable-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-design-result {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--suna-line);
+  padding-top: 14px;
+}
+
+.suna-design-notes {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .suna-experiment-page {
+    padding: 22px 18px 42px;
+  }
+  .suna-experiment-header {
+    display: block;
+  }
+  .suna-experiment-header button {
+    margin-top: 14px;
+  }
+  .suna-experiment-layout {
+    grid-template-columns: 1fr;
+  }
+}

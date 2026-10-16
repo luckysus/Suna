@@ -1,1 +1,51 @@
-.suna-graph-edge-labels{position:absolute;right:12px;bottom:12px;left:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}.suna-graph-edge-labels button{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:6px 9px;border:1px solid var(--suna-line);border-radius:5px;background:rgba(255,255,255,.94);color:var(--suna-text-soft);font:inherit;font-size:calc(10px * var(--suna-ui-font-scale));cursor:pointer;box-shadow:0 2px 8px rgba(54,95,145,.08)}.suna-graph-edge-labels button:hover,.suna-graph-edge-labels button.is-selected{border-color:var(--suna-primary);background:var(--suna-bg-soft);color:var(--suna-primary)}.suna-graph-edge-labels button span{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.suna-graph-edge-labels button b{color:var(--suna-primary);font-size:calc(10px * var(--suna-ui-font-scale))}
+/* ==========================================================================
+   Knowledge Graph Overrides - Pure Monochrome
+   ========================================================================== */
+
+.suna-graph-edge-labels {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.suna-graph-edge-labels button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text-soft);
+  font: inherit;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  cursor: pointer;
+  box-shadow: var(--suna-shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.suna-graph-edge-labels button:hover,
+.suna-graph-edge-labels button.is-selected {
+  border-color: var(--suna-primary);
+  background: var(--suna-bg-soft);
+  color: var(--suna-primary);
+}
+
+.suna-graph-edge-labels button span {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-graph-edge-labels button b {
+  color: var(--suna-primary);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+  font-weight: 700;
+}

@@ -1,26 +1,301 @@
-.suna-reports-page{max-width:1280px;margin:0 auto;padding:28px 32px 52px;color:var(--suna-text)}.suna-reports-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.suna-reports-header h1{display:flex;align-items:center;gap:9px;margin-top:8px;color:var(--suna-text);font-size:calc(24px * var(--suna-ui-font-scale))}.suna-reports-header h1 svg{color:var(--suna-primary)}.suna-reports-header p{margin-top:6px;color:var(--suna-text-soft);font-size:calc(13px * var(--suna-ui-font-scale))}.suna-reports-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;margin-top:18px}.suna-reports-config,.suna-reports-preview{padding:20px;border:1px solid var(--suna-line);border-radius:9px;background:var(--suna-bg-raised)}.suna-reports-config label{display:flex;flex-direction:column;gap:6px;margin-top:13px;color:var(--suna-text-soft);font-size:calc(11px * var(--suna-ui-font-scale))}.suna-reports-config select,.suna-reports-config textarea{padding:8px 9px;border:1px solid var(--suna-line);border-radius:6px;background:var(--suna-bg-raised);color:var(--suna-text-soft);font:inherit;font-size:calc(12px * var(--suna-ui-font-scale));resize:vertical}.suna-reports-config p{margin-top:18px;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale));line-height:1.7}.suna-reports-preview{min-height:500px}.suna-reports-preview-head{display:flex;justify-content:space-between;align-items:center;color:var(--suna-text);font-size:calc(15px * var(--suna-ui-font-scale))}.suna-reports-preview article{margin-top:18px;padding-top:17px;border-top:1px solid var(--suna-line);white-space:pre-wrap;color:var(--suna-text-soft);font-size:calc(13px * var(--suna-ui-font-scale));line-height:1.85}.suna-reports-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;gap:9px;color:var(--suna-text-muted);font-size:calc(12px * var(--suna-ui-font-scale))}.suna-reports-empty svg{color:var(--suna-text-muted)}.suna-reports-empty strong{color:var(--suna-text-soft);font-size:calc(14px * var(--suna-ui-font-scale))}.suna-spin{animation:suna-spin 1s linear infinite}@keyframes suna-spin{to{transform:rotate(360deg)}}
-@media(max-width:900px){.suna-reports-page{padding:22px 18px 42px}.suna-reports-header{display:block}.suna-reports-header button{margin-top:14px}.suna-reports-layout{grid-template-columns:1fr}}
+/* ==========================================================================
+   Suna Scientific Reports Page - Pure Monochrome Stylesheet
+   遵循 ui-ux-pro-max 纯黑/纯白设计智能标准
+   ========================================================================== */
 
-/* 第 56 章：报告导出 */
-.suna-reports-export-actions{display:flex;gap:8px;flex-wrap:wrap}
-.suna-reports-export-actions .suna-ghost-button{padding:5px 10px;font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-reports-alert{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--suna-red-line,#f0caca);border-radius:8px;background:var(--suna-red-soft,#fff7f7);color:var(--suna-red,#b44747);font-size:calc(12px * var(--suna-ui-font-scale))}
-.suna-reports-notice{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--suna-line);border-radius:8px;background:var(--suna-bg-soft);color:var(--suna-text-soft);font-size:calc(12px * var(--suna-ui-font-scale))}
+.suna-reports-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 32px 52px;
+  color: var(--suna-text);
+}
 
-/* 第 56 章：报告图表区（数据 → 分析 → 图表） */
-.suna-reports-charts{margin:0 0 16px;padding:14px;border:1px solid var(--suna-line);border-radius:10px;background:var(--suna-bg-raised)}
-.suna-reports-charts h3{display:flex;align-items:center;gap:7px;margin:0 0 10px;color:var(--suna-text);font-size:calc(13px * var(--suna-ui-font-scale))}
-.suna-reports-charts figure{margin:0 0 12px;overflow:auto;border:1px solid var(--suna-line);border-radius:8px;background:#fff}
-.suna-reports-charts figure:last-child{margin-bottom:0}
-.suna-reports-charts svg{display:block;width:100%;height:auto}
+.suna-reports-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--suna-line);
+}
 
-/* 第 80 章：已保存报告列表（落库在 reports 表） */
-.suna-reports-saved{margin-top:14px;padding-top:12px;border-top:1px solid var(--suna-line)}
-.suna-reports-saved h3{margin:0 0 8px;color:var(--suna-text);font-size:calc(12px * var(--suna-ui-font-scale))}
-.suna-reports-saved-empty{margin:0;color:var(--suna-text-muted);font-size:calc(11px * var(--suna-ui-font-scale))}
-.suna-reports-saved-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;max-height:260px;overflow:auto}
-.suna-reports-saved-list li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--suna-line);border-radius:7px;background:var(--suna-bg-raised)}
-.suna-reports-saved-list li>span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
-.suna-reports-saved-list strong{color:var(--suna-text);font-size:calc(11.5px * var(--suna-ui-font-scale));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.suna-reports-saved-list small{color:var(--suna-text-muted);font-size:calc(10px * var(--suna-ui-font-scale))}
-.suna-reports-saved-list .suna-ghost-button{padding:3px 8px;font-size:calc(10.5px * var(--suna-ui-font-scale))}
+.suna-reports-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--suna-text);
+  font-size: calc(24px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.suna-reports-header h1 svg {
+  color: var(--suna-primary);
+}
+
+.suna-reports-header p {
+  margin-top: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 22px;
+}
+
+.suna-reports-config,
+.suna-reports-preview {
+  padding: 22px 24px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-reports-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-config select,
+.suna-reports-config textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font: inherit;
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  resize: vertical;
+  outline: 0;
+}
+
+.suna-reports-config select:focus,
+.suna-reports-config textarea:focus {
+  border-color: var(--suna-primary);
+  box-shadow: 0 0 0 1px var(--suna-primary);
+}
+
+.suna-reports-config p {
+  margin-top: 18px;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  line-height: 1.7;
+}
+
+.suna-reports-preview {
+  min-height: 500px;
+}
+
+.suna-reports-preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--suna-text);
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-reports-preview article {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--suna-line);
+  white-space: pre-wrap;
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  line-height: 1.85;
+}
+
+.suna-reports-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 10px;
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-empty svg {
+  color: var(--suna-text-muted);
+}
+
+.suna-reports-empty strong {
+  color: var(--suna-text);
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-spin {
+  animation: suna-spin 1s linear infinite;
+}
+
+@keyframes suna-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 报告导出操作栏 */
+.suna-reports-export-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.suna-reports-export-actions .suna-ghost-button {
+  padding: 5px 10px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line-strong);
+  border-radius: 8px;
+  background: var(--suna-bg-sunken);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+}
+
+/* 报告图表区 */
+.suna-reports-charts {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-raised);
+}
+
+.suna-reports-charts h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-reports-charts figure {
+  margin: 0 0 12px;
+  overflow: auto;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-reports-charts figure:last-child {
+  margin-bottom: 0;
+}
+
+.suna-reports-charts svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 已保存报告列表 */
+.suna-reports-saved {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-reports-saved h3 {
+  margin: 0 0 8px;
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-reports-saved-empty {
+  margin: 0;
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.suna-reports-saved-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 7px;
+  background: var(--suna-bg-soft);
+}
+
+.suna-reports-saved-list li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.suna-reports-saved-list strong {
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-reports-saved-list small {
+  color: var(--suna-text-muted);
+  font-size: calc(10px * var(--suna-ui-font-scale));
+}
+
+.suna-reports-saved-list .suna-ghost-button {
+  padding: 3px 8px;
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
+}
+
+@media (max-width: 900px) {
+  .suna-reports-page {
+    padding: 22px 18px 42px;
+  }
+  .suna-reports-header {
+    display: block;
+  }
+  .suna-reports-header button {
+    margin-top: 14px;
+  }
+  .suna-reports-layout {
+    grid-template-columns: 1fr;
+  }
+}

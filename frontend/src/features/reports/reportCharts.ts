@@ -22,13 +22,13 @@ const CHART_WIDTH = 720;
 const CHART_HEIGHT = 320;
 
 const COLORS = {
-  axis: "#9CA3AF",
-  grid: "#E5E7EB",
-  bar: "#2563EB",
-  barSoft: "#93B4F5",
-  text: "#111827",
-  muted: "#6B7280",
-  empty: "#F1F5F9",
+  axis: "#71717A",
+  grid: "#E4E4E7",
+  bar: "#18181B",
+  barSoft: "#71717A",
+  text: "#09090B",
+  muted: "#71717A",
+  empty: "#F4F4F5",
 };
 
 function escapeXml(value: string): string {
@@ -99,7 +99,7 @@ function correlationColor(value: number | null): { fill: string; text: string } 
   if (value == null || !Number.isFinite(value)) return { fill: COLORS.empty, text: COLORS.muted };
   const clamped = Math.max(-1, Math.min(1, value));
   const magnitude = Math.abs(clamped);
-  const base = clamped >= 0 ? [239, 68, 68] : [37, 99, 235];
+  const base = clamped >= 0 ? [24, 24, 27] : [113, 113, 122];
   const strength = 0.12 + 0.78 * magnitude;
   const mix = (channel: number) => Math.round(255 - (255 - channel) * strength);
   return {

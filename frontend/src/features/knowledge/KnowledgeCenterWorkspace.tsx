@@ -506,7 +506,11 @@ export default function KnowledgeCenterWorkspace() {
       render: (item) => <><Button variant="none" onClick={(event) => { event.stopPropagation(); void renameDocument(item); }} aria-label="重命名"><Pencil size={14} /></Button><Button variant="none" onClick={(event) => { event.stopPropagation(); deleteDocument(item); }} aria-label="删除">×</Button></>,
     },
   ];
-  const cardStyles = [["#e6f1ff", "#146bff"], ["#e4faf7", "#08a69d"], ["#f1eaff", "#7237dd"], ["#fff0df", "#f07814"], ["#e1faef", "#0ba66f"], ["#e6f1ff", "#146bff"]] as const;
+  const cardStyles = [
+    ["var(--suna-bg-soft)", "var(--suna-primary)"],
+    ["var(--suna-bg-soft)", "var(--suna-text)"],
+    ["var(--suna-bg-soft)", "var(--suna-primary)"],
+  ] as const;
   const displayBases = bases
     .filter((base) => !debouncedQuery || [base.name, base.description || "", ...(base.tags || [])].some((value) => value.toLocaleLowerCase().includes(debouncedQuery)))
     .map((base, index) => ({ base, title: base.name, description: base.description || "暂无知识库描述", tint: cardStyles[index % cardStyles.length][0], accent: cardStyles[index % cardStyles.length][1] }));
