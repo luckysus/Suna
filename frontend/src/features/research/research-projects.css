@@ -1,138 +1,885 @@
 /* ==========================================================================
-   Suna Research Projects Page - Pure Monochrome Stylesheet
-   遵循 ui-ux-pro-max 纯黑/纯白设计智能标准
+   Suna Research Projects Page - UI/UX Pro Max Stylesheet
+   遵循 UI/UX Pro Max 桌面排版、层次秩序与高对比度规范
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   1. Top Active Project Context Bar (.suna-project-context)
+   -------------------------------------------------------------------------- */
+.suna-project-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--suna-line);
+  background: var(--suna-bg-raised);
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  user-select: none;
+}
+
+.suna-project-context-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suna-project-context-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--suna-text-muted);
+  transition: all 160ms ease;
+}
+
+.suna-project-context-indicator.is-active {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.suna-project-context label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--suna-text-soft);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.suna-project-context label svg {
+  color: var(--suna-text-muted);
+}
+
+.suna-project-context select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
+  background: var(--suna-bg);
+  color: var(--suna-text);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all 140ms ease;
+}
+
+.suna-project-context select:hover {
+  border-color: var(--suna-line-strong);
+  background: var(--suna-bg-hover);
+}
+
+.suna-project-context select:focus {
+  border-color: var(--suna-primary);
+  box-shadow: 0 0 0 2px rgba(52, 104, 190, 0.15);
+}
+
+.suna-project-context-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-project-context-error {
+  color: #ef4444;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+}
+
+/* --------------------------------------------------------------------------
+   2. Main Projects Page Layout
+   -------------------------------------------------------------------------- */
 .suna-projects-page {
-  max-width: 1380px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 28px 32px 56px;
   color: var(--suna-text);
 }
 
-.suna-projects-page header {
+.suna-projects-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding-bottom: 20px;
+  gap: 20px;
+  padding-bottom: 22px;
   border-bottom: 1px solid var(--suna-line);
 }
 
-.suna-projects-page header h1 {
-  margin: 0;
-  font-size: calc(24px * var(--suna-ui-font-scale));
+.suna-projects-kicker {
+  display: block;
+  font-size: calc(11px * var(--suna-ui-font-scale));
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--suna-text-muted);
+  margin-bottom: 6px;
 }
 
-.suna-projects-page p {
+.suna-projects-header h1 {
+  margin: 0;
+  font-size: calc(22px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--suna-text);
+}
+
+.suna-projects-header p {
+  margin-top: 6px;
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  line-height: 1.5;
+}
+
+.suna-new-project-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--suna-primary-fill) !important;
+  color: var(--suna-primary-contrast) !important;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  cursor: pointer;
+  border: 0;
+  box-shadow: var(--suna-shadow-soft);
+  transition: all 140ms ease;
+  flex-shrink: 0;
+}
+
+.suna-new-project-btn:hover {
+  background: var(--suna-primary-fill-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--suna-shadow);
+}
+
+.suna-projects-alert {
+  margin: 14px 0 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-projects-loading {
+  margin: 14px 0 0;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+/* --------------------------------------------------------------------------
+   3. Workflow Roadmap / Pipeline Guide (.suna-research-guide)
+   -------------------------------------------------------------------------- */
+.suna-research-guide {
+  margin: 20px 0;
+  border: 1px solid var(--suna-line);
+  border-radius: 12px;
+  background: var(--suna-bg-soft);
+  overflow: hidden;
+  transition: border-color 140ms ease;
+}
+
+.suna-research-guide[open] {
+  border-color: var(--suna-line-strong);
+}
+
+.suna-research-guide-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--suna-bg-raised);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: background 140ms ease;
+}
+
+.suna-research-guide[open] .suna-research-guide-summary {
+  border-bottom-color: var(--suna-line);
+}
+
+.suna-research-guide-summary:hover {
+  background: var(--suna-bg-hover);
+}
+
+.suna-research-guide-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suna-guide-icon {
+  color: var(--suna-primary);
+}
+
+.suna-guide-title {
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  color: var(--suna-text);
+}
+
+.suna-guide-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-research-guide-body {
+  padding: 18px 20px 20px;
+}
+
+.suna-research-guide-lead {
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  color: var(--suna-text-soft);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.suna-research-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suna-guide-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-raised);
+  min-height: 96px;
+  transition: all 140ms ease;
+}
+
+.suna-guide-step-card:hover {
+  border-color: var(--suna-line-strong);
+  background: var(--suna-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--suna-shadow-soft);
+}
+
+.suna-step-badge {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-primary);
+  font-family: var(--suna-mono);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.suna-step-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.suna-step-detail a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--suna-text);
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 140ms ease;
+}
+
+.suna-step-detail a:hover {
+  color: var(--suna-primary);
+}
+
+.suna-step-detail span {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  line-height: 1.5;
+}
+
+.suna-count-tag {
+  font-style: normal;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text);
+  font-weight: 600;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  margin-right: 4px;
+}
+
+.suna-guide-status-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #d97706;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+}
+
+.suna-guide-ext-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--suna-line);
+  font-size: calc(12px * var(--suna-ui-font-scale));
   color: var(--suna-text-muted);
   line-height: 1.6;
 }
 
+.suna-guide-ext-footer a {
+  color: var(--suna-text);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--suna-text-muted);
+}
+
+.suna-guide-ext-footer a:hover {
+  color: var(--suna-primary);
+  border-bottom-color: var(--suna-primary);
+}
+
+/* --------------------------------------------------------------------------
+   4. Search & Filter Bar (.suna-projects-filters)
+   -------------------------------------------------------------------------- */
 .suna-projects-filters {
   display: flex;
   gap: 12px;
+  align-items: center;
   margin: 18px 0;
 }
 
-.suna-projects-layout {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 20px;
-  margin-top: 18px;
+.suna-projects-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
-.suna-projects-layout aside > button {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-  padding: 14px;
+.suna-projects-search-wrap .suna-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--suna-text-muted);
+  pointer-events: none;
+}
+
+.suna-projects-search-wrap input {
   width: 100%;
-  margin: 6px 0;
+  height: 38px;
+  padding: 0 14px 0 36px;
   border: 1px solid var(--suna-line);
   border-radius: 8px;
   background: var(--suna-bg-raised);
   color: var(--suna-text);
-  cursor: pointer;
-  transition: all 0.15s ease;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  outline: none;
+  transition: all 140ms ease;
 }
 
-.suna-projects-layout aside > button:hover {
-  background: var(--suna-bg-hover);
+.suna-projects-search-wrap input:focus {
+  border-color: var(--suna-primary);
+  box-shadow: 0 0 0 2px rgba(52, 104, 190, 0.15);
+}
+
+.suna-projects-status-select {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.suna-projects-status-select:hover {
   border-color: var(--suna-line-strong);
 }
 
-.suna-projects-layout aside > button.is-active {
+.suna-projects-status-select:focus {
   border-color: var(--suna-primary);
-  background: var(--suna-bg-soft);
-  box-shadow: 0 0 0 1px var(--suna-primary);
+  box-shadow: 0 0 0 2px rgba(52, 104, 190, 0.15);
 }
 
-.suna-projects-layout aside strong,
-.suna-projects-layout h2 {
-  overflow-wrap: anywhere;
+/* --------------------------------------------------------------------------
+   5. Two-Column Workspace Layout (.suna-projects-layout)
+   -------------------------------------------------------------------------- */
+.suna-projects-layout {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
 }
 
-.suna-projects-layout article {
-  min-width: 0;
-  padding: 22px 24px;
+/* Left Column: Projects List */
+.suna-projects-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.suna-projects-list-header {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  color: var(--suna-text-muted);
+  letter-spacing: 0.04em;
+  padding: 0 4px;
+}
+
+.suna-projects-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.suna-project-card-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  padding: 13px 14px;
+  width: 100%;
   border: 1px solid var(--suna-line);
   border-radius: 10px;
   background: var(--suna-bg-raised);
-}
-
-.suna-projects-page select,
-.suna-project-context select {
-  max-width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--suna-line);
-  border-radius: 6px;
   color: var(--suna-text);
-  background: var(--suna-bg-soft);
-  font: inherit;
-  outline: 0;
-  transition: border-color 0.15s ease;
+  cursor: pointer;
+  transition: all 140ms ease;
 }
 
-.suna-projects-page select:focus,
-.suna-project-context select:focus {
+.suna-project-card-btn:hover {
+  border-color: var(--suna-line-strong);
+  background: var(--suna-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--suna-shadow-soft);
+}
+
+.suna-project-card-btn.is-active {
   border-color: var(--suna-primary);
-  box-shadow: 0 0 0 1px var(--suna-primary);
+  border-left: 4px solid var(--suna-primary);
+  background: var(--suna-bg-soft);
+  box-shadow: 0 2px 8px rgba(52, 104, 190, 0.1);
 }
 
-.suna-projects-page nav,
-.suna-projects-page fieldset {
+.suna-project-card-top {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
-  margin: 16px 0;
 }
 
-.suna-projects-page li {
+.suna-project-card-top strong {
+  font-size: calc(14px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  color: var(--suna-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-project-status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.suna-project-status-pill.is-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.suna-project-status-pill.is-archived {
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  border: 1px solid var(--suna-line);
+}
+
+.suna-project-card-material {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  color: var(--suna-text-soft);
+}
+
+.suna-project-card-tags small {
+  display: inline-block;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+.suna-projects-empty-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 16px;
+  border: 1px dashed var(--suna-line);
+  border-radius: 10px;
+  color: var(--suna-text-muted);
+}
+
+.suna-projects-empty-left svg {
+  margin-bottom: 10px;
+  opacity: 0.6;
+}
+
+.suna-projects-empty-left p {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  line-height: 1.5;
+}
+
+.suna-projects-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--suna-line);
+}
+
+.suna-projects-page-indicator {
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  font-weight: 500;
+}
+
+/* Right Column: Project Details Workspace */
+.suna-projects-detail-col {
+  min-width: 0;
+  padding: 24px 28px;
+  border: 1px solid var(--suna-line);
+  border-radius: 12px;
+  background: var(--suna-bg-raised);
+  box-shadow: var(--suna-shadow-soft);
+}
+
+.suna-project-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--suna-line);
+}
+
+.suna-project-title-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--suna-line);
-  overflow-wrap: anywhere;
 }
 
-.suna-project-editor {
-  max-width: 620px;
-  width: calc(100vw - 32px);
-  max-height: 85vh;
-  padding: 24px;
-  overflow: auto;
+.suna-project-title-row h2 {
+  margin: 0;
+  font-size: calc(19px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  color: var(--suna-text);
+  letter-spacing: -0.015em;
+}
+
+.suna-project-material-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-soft);
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 600;
+}
+
+.suna-project-desc {
+  margin-top: 8px;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  color: var(--suna-text-soft);
+  line-height: 1.6;
+}
+
+.suna-project-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Detail Navigation Tabs */
+.suna-project-detail-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 18px 0 16px;
+  border-bottom: 1px solid var(--suna-line);
+  overflow-x: auto;
+}
+
+.suna-project-detail-tabs button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 140ms ease;
+}
+
+.suna-project-detail-tabs button:hover {
+  color: var(--suna-text);
+}
+
+.suna-project-detail-tabs button.is-active {
+  border-bottom-color: var(--suna-primary);
+  color: var(--suna-primary) !important;
+  font-weight: 650;
+}
+
+/* Summary Strip */
+.suna-project-summary-strip {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  margin-bottom: 18px;
+}
+
+.suna-project-summary-strip p {
+  margin: 0;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+/* Attach Bar */
+.suna-project-attach-bar {
   border: 1px solid var(--suna-line);
   border-radius: 10px;
+  background: var(--suna-bg-soft);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+.suna-project-attach-bar legend {
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  font-weight: 650;
+  color: var(--suna-text);
+  padding: 0 6px;
+}
+
+.suna-attach-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.suna-attach-controls select,
+.suna-attach-controls input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--suna-line);
+  border-radius: 6px;
   background: var(--suna-bg-raised);
   color: var(--suna-text);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+}
+
+.suna-attach-pagination {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Associated Objects List */
+.suna-project-objects-section {
+  margin-top: 16px;
+}
+
+.suna-project-objects-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suna-project-object-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  transition: all 140ms ease;
+}
+
+.suna-project-object-item:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+}
+
+.suna-object-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.suna-object-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-soft);
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.suna-object-item-main strong {
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  color: var(--suna-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-object-relation {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+.suna-object-relation.is-missing {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.suna-object-detach-btn {
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+}
+
+.suna-project-objects-empty {
+  padding: 32px 16px;
+  text-align: center;
+  border: 1px dashed var(--suna-line);
+  border-radius: 8px;
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-project-objects-pagination {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Empty Workspace State */
+.suna-projects-empty-workspace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  text-align: center;
+}
+
+.suna-empty-workspace-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 380px;
+  margin: auto;
+}
+
+.suna-empty-workspace-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-muted);
+  margin-bottom: 16px;
+}
+
+.suna-empty-workspace-content h2 {
+  font-size: calc(17px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  color: var(--suna-text);
+  margin: 0 0 8px;
+}
+
+.suna-empty-workspace-content p {
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   6. Project Create / Edit Dialog (.suna-project-editor)
+   -------------------------------------------------------------------------- */
+.suna-project-editor {
+  max-width: 580px;
+  width: calc(100vw - 32px);
+  max-height: 85vh;
+  padding: 26px 28px;
+  overflow-y: auto;
+  border: 1px solid var(--suna-line);
+  border-radius: 14px;
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   z-index: 60;
 }
 
@@ -140,107 +887,60 @@
   display: grid;
   gap: 6px;
   margin: 14px 0;
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  color: var(--suna-text);
 }
 
 .suna-project-editor textarea {
-  min-height: 100px;
-  background: var(--suna-bg-soft);
+  min-height: 90px;
+  background: var(--suna-bg);
   color: var(--suna-text);
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
-  outline: 0;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  outline: none;
+  transition: all 140ms ease;
+  resize: vertical;
 }
 
 .suna-project-editor textarea:focus {
   border-color: var(--suna-primary);
-  box-shadow: 0 0 0 1px var(--suna-primary);
+  box-shadow: 0 0 0 2px rgba(52, 104, 190, 0.15);
 }
 
-.suna-project-context {
+.suna-project-editor-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--suna-line);
-  font-size: 12px;
-  flex-wrap: wrap;
-  background: var(--suna-bg-soft);
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--suna-line);
 }
 
-.suna-project-context label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.suna-project-context select {
-  max-width: 260px;
-}
-
-.suna-projects-page pre {
-  max-height: 420px;
-  max-width: 100%;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-family: var(--suna-mono);
-  background: var(--suna-bg-soft);
-  border: 1px solid var(--suna-line);
-  border-radius: 6px;
-  padding: 12px;
-}
-
-.suna-projects-page button:focus-visible,
-.suna-projects-page select:focus-visible {
-  outline: 2px solid var(--suna-primary);
-  outline-offset: 2px;
-}
-
-.suna-research-guide {
-  padding: 14px 18px;
-  border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  margin: 14px 0;
-  overflow-wrap: anywhere;
-  background: var(--suna-bg-soft);
-}
-
-.suna-research-guide summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--suna-text);
-}
-
-.suna-research-guide li {
-  display: list-item;
-  margin: 8px 0;
-  border-bottom: 0;
-  padding: 0;
-}
-
-.suna-research-guide li span {
-  display: block;
-  font-size: 13px;
-  color: var(--suna-text-muted);
-}
-
-.suna-research-guide a {
-  color: var(--suna-text);
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-@media (max-width: 1000px) {
+/* --------------------------------------------------------------------------
+   7. Responsive Adaptations
+   -------------------------------------------------------------------------- */
+@media (max-width: 1050px) {
   .suna-projects-layout {
     grid-template-columns: 1fr;
   }
-  .suna-projects-filters {
-    flex-wrap: wrap;
+  .suna-research-guide-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .suna-projects-page {
-    padding: 20px 16px;
+    padding: 20px 18px 40px;
+  }
+}
+
+@media (max-width: 680px) {
+  .suna-research-guide-steps {
+    grid-template-columns: 1fr;
+  }
+  .suna-project-detail-header {
+    flex-direction: column;
   }
 }

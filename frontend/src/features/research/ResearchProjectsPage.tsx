@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { FolderKanban, Plus, Search, FolderPlus } from "lucide-react";
 import { desktop, type ResearchProject, type ResearchObject, type ResearchObjectKind, type ResearchSummary } from "../../bridge/desktop";
 import { Button } from "../../components/ui/button";
 import { Dialog,DialogContent,DialogTitle,DialogDescription } from "../../components/ui/dialog";
@@ -10,8 +11,10 @@ import ResearchResultsPanel from "./ResearchResultsPanel";
 import ResearchWorkflowGuide from "./ResearchWorkflowGuide";
 import WorkflowPanel from './workflow/WorkflowPanel';
 import {workflowService} from './workflow/desktopService';
+
 const labels: Record<string, string> = { dataset: "数据集", model: "模型", background_task: "后台任务", conversation: "会话", knowledge_base: "知识库", document: "文献", agent_run: "Agent 运行", optimization: "优化结果", experiment: "实验计划", report: "报告", artifact: "成果" };
 const tabs = ["总览", "数据与知识", "模型与优化", "科研工作流", "实验", "成果与报告", "活动与溯源"];
+
 export default function ResearchProjectsPage() {
     const [projects, setProjects] = useState<ResearchProject[]>([]), [selected, setSelected] = useState<ResearchProject | null>(null), [search, setSearch] = useState(""), [status, setStatus] = useState("active"), [offset, setOffset] = useState(0), [loading, setLoading] = useState(false), [error, setError] = useState("");
     const [editing, setEditing] = useState<ResearchProject | "new" | null>(null), [name, setName] = useState(""), [description, setDescription] = useState(""), [material, setMaterial] = useState(""), [tags, setTags] = useState("");
@@ -81,17 +84,308 @@ export default function ResearchProjectsPage() {
         setError(String(e));
     } };
     const visible = objects.filter((o) => tab === "总览" || tab === "活动与溯源" || (tab === "数据与知识" && ["dataset", "document", "knowledge_base"].includes(o.kind)) || (tab === "模型与优化" && ["model", "optimization", "background_task"].includes(o.kind)) || (tab === "实验" && o.kind === "experiment") || (tab === "成果与报告" && ["report", "artifact"].includes(o.kind)));
-    return <section className="suna-projects-page"><header><div><h1>科研项目</h1><p>项目关联已有对象，归档与解绑保留原始数据。</p></div><Button onClick={() => edit("new")}>新建科研项目</Button></header>{error && <p role="alert">{error}</p>}{loading && <p role="status">正在读取科研项目…</p>}
- <ResearchWorkflowGuide project={selected} summary={summary}/>
- <div className="suna-projects-filters"><Input aria-label="搜索科研项目" value={search} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} placeholder="搜索名称、目标或标签"/><select aria-label="项目状态" value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }}><option value="active">活跃</option><option value="archived">已归档</option><option value="">全部</option></select></div>
- <div className="suna-projects-layout"><aside>{projects.map((p) => <button key={p.id} className={selected?.id === p.id ? "is-active" : ""} onClick={() => void open(p.id)}><strong>{p.name}</strong><span>{p.materialSystem || "材料体系未指定"} · {p.status === "archived" ? "已归档" : "活跃"}</span><small>{p.tags.join(" · ")}</small></button>)}{!loading && !projects.length && <p>暂无科研项目，创建项目后关联已有数据和任务。</p>}<Button disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 25))}>上一页</Button><Button disabled={projects.length < 25} onClick={() => setOffset(offset + 25)}>下一页</Button></aside>
- {selected ? <article><header><h2>{selected.name}</h2><div><Button disabled={selected.status === "archived"} onClick={() => edit(selected)}>编辑项目</Button><Button onClick={() => void action(async () => { const p = await desktop.archiveResearchProject(selected.id, selected.status !== "archived"); setSelected(p); window.dispatchEvent(new Event("suna:projects-updated")); })}>{selected.status === "archived" ? "恢复项目" : "归档项目"}</Button><Button disabled={selected.status === "archived"} onClick={() => void action(async () => { await desktop.setCurrentResearchProject(selected.id); setProject(selected); window.dispatchEvent(new Event("suna:projects-updated")); })}>设为当前项目</Button></div></header><p>{selected.description || "未填写科研目标"}</p><nav aria-label="科研项目详情">{tabs.map((t) => <Button key={t} variant={t === tab ? "primary" : "ghost"} onClick={() => setTab(t)}>{t}</Button>)}</nav>
- {summary && <p>{Object.entries(summary.counts).map(([k, n]) => `${labels[k] ?? k} ${n}`).join(" · ") || "尚未关联对象"}{summary.missingSources > 0 ? ` · ${summary.missingSources} 个来源缺失` : ""}</p>}
- <fieldset disabled={selected.status === "archived"}><legend>关联已有对象</legend><select aria-label="关联对象类型" value={kind} onChange={(e) => {setKind(e.target.value as ResearchObjectKind);setAttachOffset(0);}}>{Object.entries(labels).filter(([k]) => k !== "artifact").map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><Input aria-label="搜索可关联对象" placeholder="搜索已有对象" value={attachSearch} onChange={e=>{setAttachSearch(e.target.value);setAttachOffset(0);}}/><Button variant="ghost" disabled={!attachOffset} onClick={()=>setAttachOffset(Math.max(0,attachOffset-25))}>上一页可关联对象</Button><Button variant="ghost" disabled={available.length<25} onClick={()=>setAttachOffset(attachOffset+25)}>下一页可关联对象</Button><select aria-label="关联已有对象" value={target} onChange={(e) => setTarget(e.target.value)}><option value="">选择当前工作区对象</option>{available.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}</select><Button disabled={!target} onClick={() => void action(() => desktop.attachResearchObject({ projectId: selected.id, kind, id: target }))}>关联到项目</Button></fieldset>
- {tab === "实验" && <ResearchMeasurementsPanel projectId={selected.id}/>}
- {tab === "科研工作流" && <WorkflowPanel key={selected.id} projectId={selected.id} archived={selected.status === 'archived'} service={workflowService} onOpenPlan={()=>setTab('实验')}/>}
- {(tab === "活动与溯源" || tab === "成果与报告") && <ResearchResultsPanel projectId={selected.id}/>}
- <ul>{visible.map((o) => <li key={`${o.kind}:${o.id}:${o.relation}`}><strong>{labels[o.kind]} · {o.title}</strong><span>{o.availability === "missing" ? "来源已删除或不可用" : o.relation}</span><Button disabled={selected.status === "archived"} variant="ghost" onClick={() => void action(() => desktop.detachResearchObject({ projectId: selected.id, kind: o.kind, id: o.id, relation: o.relation }))}>解除关联</Button></li>)}</ul>{!visible.length && <p>此视图没有已关联对象。</p>}<Button disabled={!objectOffset} onClick={() => setObjectOffset(Math.max(0, objectOffset - 50))}>前一页对象</Button><Button disabled={objects.length < 50} onClick={() => setObjectOffset(objectOffset + 50)}>更多对象</Button></article> : <article><h2>选择或创建项目</h2><p>从现有数据集、模型和任务开始组织课题。</p></article>}</div>
- <Dialog open={editing!==null} onOpenChange={open=>{if(!open)setEditing(null);}}><DialogContent className="suna-project-editor"><DialogTitle>{editing === "new" ? "新建科研项目" : "编辑科研项目"}</DialogTitle><DialogDescription>填写科研目标，原始数据和模型通过关联添加。</DialogDescription><label>项目名称<Input value={name} onChange={(e) => setName(e.target.value)} maxLength={160}/></label><label>科研目标与备注<textarea value={description} onChange={(e) => setDescription(e.target.value)}/></label><label>材料体系<Input value={material} onChange={(e) => setMaterial(e.target.value)}/></label><label>标签（逗号分隔）<Input value={tags} onChange={(e) => setTags(e.target.value)}/></label><Button disabled={!name.trim()} onClick={() => void save()}>保存项目</Button><Button variant="ghost" onClick={() => setEditing(null)}>取消</Button></DialogContent></Dialog>
- </section>;
+    return (
+      <section className="suna-projects-page">
+        <header className="suna-projects-header">
+          <div>
+            <span className="suna-projects-kicker">RESEARCH WORKSPACE / 课题管理</span>
+            <h1>科研项目</h1>
+            <p>项目关联已有对象，归档与解绑保留原始数据。</p>
+          </div>
+          <Button
+            variant="action"
+            className="suna-new-project-btn"
+            onClick={() => edit("new")}
+          >
+            <Plus size={16} aria-hidden="true" />
+            新建科研项目
+          </Button>
+        </header>
+
+        {error && <p className="suna-projects-alert" role="alert">{error}</p>}
+        {loading && <p className="suna-projects-loading" role="status">正在读取科研项目…</p>}
+
+        <ResearchWorkflowGuide project={selected} summary={summary} />
+
+        <div className="suna-projects-filters">
+          <div className="suna-projects-search-wrap">
+            <Search size={15} className="suna-search-icon" aria-hidden="true" />
+            <Input
+              aria-label="搜索科研项目"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
+              placeholder="搜索名称、目标或标签"
+            />
+          </div>
+          <select
+            aria-label="项目状态"
+            className="suna-projects-status-select"
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setOffset(0); }}
+          >
+            <option value="active">活跃项目</option>
+            <option value="archived">已归档</option>
+            <option value="">全部状态</option>
+          </select>
+        </div>
+
+        <div className="suna-projects-layout">
+          <aside className="suna-projects-list-col">
+            <div className="suna-projects-list-header">
+              <span>课题列表 ({projects.length})</span>
+            </div>
+            <div className="suna-projects-card-list">
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  className={`suna-project-card-btn ${selected?.id === p.id ? "is-active" : ""}`}
+                  onClick={() => void open(p.id)}
+                >
+                  <div className="suna-project-card-top">
+                    <strong>{p.name}</strong>
+                    <span className={`suna-project-status-pill ${p.status === "archived" ? "is-archived" : "is-active"}`}>
+                      {p.status === "archived" ? "已归档" : "活跃"}
+                    </span>
+                  </div>
+                  <span className="suna-project-card-material">
+                    {p.materialSystem || "材料体系未指定"}
+                  </span>
+                  {p.tags.length > 0 && (
+                    <div className="suna-project-card-tags">
+                      <small>{p.tags.join(" · ")}</small>
+                    </div>
+                  )}
+                </button>
+              ))}
+              {!loading && !projects.length && (
+                <div className="suna-projects-empty-left">
+                  <FolderPlus size={32} aria-hidden="true" />
+                  <p>暂无科研项目，创建项目后关联已有数据和任务。</p>
+                </div>
+              )}
+            </div>
+            <div className="suna-projects-pagination">
+              <Button
+                variant="actionSecondary"
+                disabled={!offset}
+                onClick={() => setOffset(Math.max(0, offset - 25))}
+              >
+                上一页
+              </Button>
+              <span className="suna-projects-page-indicator">第 {Math.floor(offset / 25) + 1} 页</span>
+              <Button
+                variant="actionSecondary"
+                disabled={projects.length < 25}
+                onClick={() => setOffset(offset + 25)}
+              >
+                下一页
+              </Button>
+            </div>
+          </aside>
+
+          {selected ? (
+            <article className="suna-projects-detail-col">
+              <header className="suna-project-detail-header">
+                <div>
+                  <div className="suna-project-title-row">
+                    <h2>{selected.name}</h2>
+                    <span className={`suna-project-status-pill ${selected.status === "archived" ? "is-archived" : "is-active"}`}>
+                      {selected.status === "archived" ? "已归档" : "活跃"}
+                    </span>
+                    {selected.materialSystem && (
+                      <span className="suna-project-material-badge">{selected.materialSystem}</span>
+                    )}
+                  </div>
+                  <p className="suna-project-desc">{selected.description || "未填写科研目标与备注"}</p>
+                </div>
+                <div className="suna-project-actions">
+                  <Button
+                    variant="actionSecondary"
+                    disabled={selected.status === "archived"}
+                    onClick={() => edit(selected)}
+                  >
+                    编辑项目
+                  </Button>
+                  <Button
+                    variant="actionSecondary"
+                    onClick={() => void action(async () => {
+                      const p = await desktop.archiveResearchProject(selected.id, selected.status !== "archived");
+                      setSelected(p);
+                      window.dispatchEvent(new Event("suna:projects-updated"));
+                    })}
+                  >
+                    {selected.status === "archived" ? "恢复项目" : "归档项目"}
+                  </Button>
+                  <Button
+                    variant="action"
+                    disabled={selected.status === "archived"}
+                    onClick={() => void action(async () => {
+                      await desktop.setCurrentResearchProject(selected.id);
+                      setProject(selected);
+                      window.dispatchEvent(new Event("suna:projects-updated"));
+                    })}
+                  >
+                    设为当前项目
+                  </Button>
+                </div>
+              </header>
+
+              <nav className="suna-project-detail-tabs" aria-label="科研项目详情">
+                {tabs.map((t) => (
+                  <Button
+                    key={t}
+                    variant={t === tab ? "primary" : "ghost"}
+                    className={t === tab ? "is-active" : ""}
+                    onClick={() => setTab(t)}
+                  >
+                    {t}
+                  </Button>
+                ))}
+              </nav>
+
+              {summary && (
+                <div className="suna-project-summary-strip">
+                  <p>
+                    {Object.entries(summary.counts).map(([k, n]) => `${labels[k] ?? k} ${n}`).join(" · ") || "尚未关联对象"}
+                    {summary.missingSources > 0 ? ` · ${summary.missingSources} 个来源缺失` : ""}
+                  </p>
+                </div>
+              )}
+
+              <fieldset className="suna-project-attach-bar" disabled={selected.status === "archived"}>
+                <legend>关联已有对象</legend>
+                <div className="suna-attach-controls">
+                  <select
+                    aria-label="关联对象类型"
+                    value={kind}
+                    onChange={(e) => { setKind(e.target.value as ResearchObjectKind); setAttachOffset(0); }}
+                  >
+                    {Object.entries(labels).filter(([k]) => k !== "artifact").map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                  <Input
+                    aria-label="搜索可关联对象"
+                    placeholder="搜索已有对象"
+                    value={attachSearch}
+                    onChange={(e) => { setAttachSearch(e.target.value); setAttachOffset(0); }}
+                  />
+                  <select
+                    aria-label="关联已有对象"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                  >
+                    <option value="">选择当前工作区对象</option>
+                    {available.map((o) => (
+                      <option key={o.id} value={o.id}>{o.title}</option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="action"
+                    disabled={!target}
+                    onClick={() => void action(() => desktop.attachResearchObject({ projectId: selected.id, kind, id: target }))}
+                  >
+                    关联到项目
+                  </Button>
+                </div>
+                <div className="suna-attach-pagination">
+                  <Button
+                    variant="ghost"
+                    disabled={!attachOffset}
+                    onClick={() => setAttachOffset(Math.max(0, attachOffset - 25))}
+                  >
+                    上一页可关联对象
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={available.length < 25}
+                    onClick={() => setAttachOffset(attachOffset + 25)}
+                  >
+                    下一页可关联对象
+                  </Button>
+                </div>
+              </fieldset>
+
+              {tab === "实验" && <ResearchMeasurementsPanel projectId={selected.id} />}
+              {tab === "科研工作流" && (
+                <WorkflowPanel
+                  key={selected.id}
+                  projectId={selected.id}
+                  archived={selected.status === "archived"}
+                  service={workflowService}
+                  onOpenPlan={() => setTab("实验")}
+                />
+              )}
+              {(tab === "活动与溯源" || tab === "成果与报告") && <ResearchResultsPanel projectId={selected.id} />}
+
+              <div className="suna-project-objects-section">
+                <ul className="suna-project-objects-list">
+                  {visible.map((o) => (
+                    <li key={`${o.kind}:${o.id}:${o.relation}`} className="suna-project-object-item">
+                      <div className="suna-object-item-main">
+                        <span className="suna-object-kind-badge">{labels[o.kind]}</span>
+                        <strong>{o.title}</strong>
+                        <span className={`suna-object-relation ${o.availability === "missing" ? "is-missing" : ""}`}>
+                          {o.availability === "missing" ? "来源已删除或不可用" : o.relation}
+                        </span>
+                      </div>
+                      <Button
+                        disabled={selected.status === "archived"}
+                        variant="ghost"
+                        className="suna-object-detach-btn"
+                        onClick={() => void action(() => desktop.detachResearchObject({ projectId: selected.id, kind: o.kind, id: o.id, relation: o.relation }))}
+                      >
+                        解除关联
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                {!visible.length && <p className="suna-project-objects-empty">此视图没有已关联对象。</p>}
+                <div className="suna-project-objects-pagination">
+                  <Button
+                    variant="ghost"
+                    disabled={!objectOffset}
+                    onClick={() => setObjectOffset(Math.max(0, objectOffset - 50))}
+                  >
+                    前一页对象
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={objects.length < 50}
+                    onClick={() => setObjectOffset(objectOffset + 50)}
+                  >
+                    更多对象
+                  </Button>
+                </div>
+              </div>
+            </article>
+          ) : (
+            <article className="suna-projects-detail-col suna-projects-empty-workspace">
+              <div className="suna-empty-workspace-content">
+                <div className="suna-empty-workspace-icon">
+                  <FolderKanban size={44} aria-hidden="true" />
+                </div>
+                <h2>选择或创建项目</h2>
+                <p>从现有数据集、模型和任务开始组织课题。</p>
+              </div>
+            </article>
+          )}
+        </div>
+
+        <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+          <DialogContent className="suna-project-editor">
+            <DialogTitle>{editing === "new" ? "新建科研项目" : "编辑科研项目"}</DialogTitle>
+            <DialogDescription>填写科研目标，原始数据和模型通过关联添加。</DialogDescription>
+            <label>项目名称<Input value={name} onChange={(e) => setName(e.target.value)} maxLength={160} /></label>
+            <label>科研目标与备注<textarea value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+            <label>材料体系<Input value={material} onChange={(e) => setMaterial(e.target.value)} /></label>
+            <label>标签（逗号分隔）<Input value={tags} onChange={(e) => setTags(e.target.value)} /></label>
+            <div className="suna-project-editor-actions">
+              <Button variant="action" disabled={!name.trim()} onClick={() => void save()}>保存项目</Button>
+              <Button variant="ghost" onClick={() => setEditing(null)}>取消</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </section>
+    );
 }
