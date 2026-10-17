@@ -5,7 +5,7 @@ use super::logic::{
 };
 use crate::app::task_commands::tasks::BackgroundTaskResponse;
 use crate::db::DbState;
-use crate::storage::repositories::steel_models::SteelModelRecord;
+use crate::storage::repositories::steel_models::{SteelModelListPage, SteelModelRecord};
 use serde_json::Value;
 
 #[tauri::command]
@@ -73,8 +73,12 @@ pub fn list_steel_models(
 }
 
 #[tauri::command]
-pub fn list_all_steel_models(db: tauri::State<DbState>) -> Result<Vec<SteelModelRecord>, String> {
-    logic::list_all_steel_models(db)
+pub fn list_all_steel_models(
+    db: tauri::State<DbState>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<SteelModelListPage, String> {
+    logic::list_all_steel_models(db, limit, offset)
 }
 
 #[tauri::command]

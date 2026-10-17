@@ -3,6 +3,29 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct SteelModelSummary {
+    pub id: String,
+    pub lineage_id: String,
+    pub kind: String,
+    pub version: i64,
+    pub source_task_id: Option<String>,
+    pub model_sha256: String,
+    pub model_type: Option<String>,
+    pub metrics_json: Option<String>,
+    pub has_artifact_json: bool,
+    pub has_model_base64: bool,
+    pub is_active: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct SteelModelListPage {
+    pub items: Vec<SteelModelSummary>,
+    pub total: i64,
+    pub has_more: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct SteelModelRecord {
     pub id: String,
     pub lineage_id: String,
@@ -45,6 +68,23 @@ impl Default for RegistrationPolicy<'_> {
 const SELECT_MODEL: &str = "SELECT id, lineage_id, kind, version, source_task_id,
          model_sha256, manifest_json, artifact_json, model_base64, is_active, created_at
          FROM steel_models WHERE workspace_id = ?1 AND id = ?2";
+
+fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<SteelModelSummary> {
+    Ok(SteelModelSummary {
+        id: row.get(0)?,
+        lineage_id: row.get(1)?,
+        kind: row.get(2)?,
+        version: row.get(3)?,
+        source_task_id: row.get(4)?,
+        model_sha256: row.get(5)?,
+        model_type: row.get(6)?,
+        metrics_json: row.get(7)?,
+        has_artifact_json: row.get::<_, i64>(8)? != 0,
+        has_model_base64: row.get::<_, i64>(9)? != 0,
+        is_active: row.get::<_, i64>(10)? != 0,
+        created_at: row.get(11)?,
+    })
+}
 
 fn row_to_model(row: &rusqlite::Row<'_>) -> rusqlite::Result<SteelModelRecord> {
     Ok(SteelModelRecord {
@@ -274,13 +314,12 @@ pub fn list(
     lineage_id: &str,
 ) -> Result<Vec<SteelModelRecord>, String> {
     let mut statement = connection
-        .prepare(
-            "SELECT id, lineage_id, kind, version, source_task_id,
-                    model_sha256, manifest_json, artifact_json, model_base64, is_active, created_at
+        .prepare(&format!(
+            "{SELECT_MODEL}
              FROM steel_models
              WHERE workspace_id = ?1 AND lineage_id = ?2
-             ORDER BY version DESC",
-        )
+             ORDER BY version DESC"
+        ))
         .map_err(|error| error.to_string())?;
     let rows = statement
         .query_map(params![workspace_id, lineage_id], row_to_model)
@@ -289,18 +328,65 @@ pub fn list(
         .map_err(|error| error.to_string())
 }
 
+const SELECT_MODEL_SUMMARY: &str = "SELECT id, lineage_id, kind, version, source_task_id,
+         model_sha256,
+         json_extract(manifest_json, '$.model_type'),
+         json_extract(manifest_json, '$.metrics'),
+         CASE WHEN artifact_json IS NOT NULL THEN 1 ELSE 0 END,
+         CASE WHEN model_base64 IS NOT NULL THEN 1 ELSE 0 END,
+         is_active, created_at";
+
+pub fn list_all_page(
+    connection: &Connection,
+    workspace_id: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<SteelModelListPage, String> {
+    let limit = limit.clamp(1, 200);
+    let offset = offset.max(0);
+    let total = connection
+        .query_row(
+            "SELECT COUNT(*) FROM steel_models WHERE workspace_id = ?1",
+            params![workspace_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(&format!(
+            "{SELECT_MODEL_SUMMARY}
+             FROM steel_models
+             WHERE workspace_id = ?1
+             ORDER BY lineage_id, version DESC, id DESC
+             LIMIT ?2 OFFSET ?3"
+        ))
+        .map_err(|error| error.to_string())?;
+    let limit_i64 = i64::try_from(limit).unwrap_or(200);
+    let offset_i64 = i64::try_from(offset).unwrap_or(0);
+    let rows = statement
+        .query_map(params![workspace_id, limit_i64, offset_i64], row_to_summary)
+        .map_err(|error| error.to_string())?;
+    let items = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    let item_count = items.len();
+    Ok(SteelModelListPage {
+        items,
+        total,
+        has_more: offset + item_count < total as usize,
+    })
+}
+
 pub fn list_all(
     connection: &Connection,
     workspace_id: &str,
 ) -> Result<Vec<SteelModelRecord>, String> {
     let mut statement = connection
-        .prepare(
-            "SELECT id, lineage_id, kind, version, source_task_id,
-                    model_sha256, manifest_json, artifact_json, model_base64, is_active, created_at
+        .prepare(&format!(
+            "{SELECT_MODEL}
              FROM steel_models
              WHERE workspace_id = ?1
-             ORDER BY lineage_id, version DESC",
-        )
+             ORDER BY lineage_id, version DESC"
+        ))
         .map_err(|error| error.to_string())?;
     let rows = statement
         .query_map(params![workspace_id], row_to_model)

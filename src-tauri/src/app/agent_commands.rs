@@ -1,7 +1,8 @@
 use crate::agent::protocol::PermissionDecision;
-use crate::agent::runtime::{AgentInputKind, AgentRecoveryService, RecoveredRun, RuntimeHost};
-use crate::db::{current_workspace_id, with_conn_mut, DbState};
+use crate::agent::runtime::{AgentInputKind, RecoveredRun, RuntimeHost};
+use crate::db::{current_workspace_id, with_conn, with_conn_mut, DbState};
 use crate::permissions::{ParameterScope, PermissionAction, PermissionRule, RuleEffect};
+use crate::storage::repositories::{events, runs};
 use crate::tools::{ToolId, ToolSource, ToolVersion};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -19,9 +20,25 @@ pub fn replay_agent_run(
     request: ReplayAgentRunRequest,
 ) -> Result<Vec<crate::agent::protocol::AgentEventEnvelope>, String> {
     let run_id = parse_uuid(&request.run_id, "run_id")?;
-    with_conn_mut(&db, |connection| {
-        let service = AgentRecoveryService::new(connection, current_workspace_id())?;
-        service.replay(run_id, request.after_sequence.unwrap_or(0))
+    with_conn(&db, |connection| {
+        events::replay(
+            connection,
+            current_workspace_id(),
+            run_id,
+            request.after_sequence.unwrap_or(0),
+        )
+        .map_err(|error| error.to_string())
+    })
+}
+
+#[tauri::command]
+pub fn get_agent_run(
+    db: tauri::State<DbState>,
+    run_id: String,
+) -> Result<Option<runs::AgentRunRecord>, String> {
+    let run_id = parse_uuid(&run_id, "run_id")?;
+    with_conn(&db, |connection| {
+        runs::get(connection, current_workspace_id(), run_id).map_err(|error| error.to_string())
     })
 }
 

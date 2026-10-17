@@ -1,7 +1,7 @@
 use super::{DatasetTable, MAX_PREVIEW_COLUMNS, MAX_PREVIEW_ROWS};
 use crate::rag::parse::ParseLimits;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Cursor, Read};
 use std::path::Path;
 
 pub(super) fn read_dataset_table(
@@ -9,20 +9,28 @@ pub(super) fn read_dataset_table(
     path: &Path,
     requested_sheet: Option<&str>,
 ) -> Result<DatasetTable, String> {
-    if requested_sheet.is_some_and(|sheet| sheet != "CSV") {
-        return Err("requested dataset sheet was not found".to_string());
-    }
     let max_source_bytes = ParseLimits::default().max_source_bytes;
-    let source_bytes = file
-        .metadata()
-        .map_err(|error| format!("could not inspect dataset source: {error}"))?
-        .len();
-    if source_bytes > max_source_bytes {
+    let mut bytes = Vec::new();
+    file.take(max_source_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("could not read dataset source: {error}"))?;
+    if bytes.len() as u64 > max_source_bytes {
         return Err(format!(
             "parse_source_too_large: parse source exceeds the {max_source_bytes}-byte limit"
         ));
     }
-    let mut rows = CsvRowReader::new(BufReader::new(file));
+    read_dataset_table_from_bytes(&bytes, path, requested_sheet)
+}
+
+pub(super) fn read_dataset_table_from_bytes(
+    bytes: &[u8],
+    path: &Path,
+    requested_sheet: Option<&str>,
+) -> Result<DatasetTable, String> {
+    if requested_sheet.is_some_and(|sheet| sheet != "CSV") {
+        return Err("requested dataset sheet was not found".to_string());
+    }
+    let mut rows = CsvRowReader::new(BufReader::new(Cursor::new(bytes)));
     let Some(header_row) = rows.next_row()? else {
         return Err("dataset does not contain a table".to_string());
     };

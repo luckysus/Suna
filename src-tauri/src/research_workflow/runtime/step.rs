@@ -74,19 +74,23 @@ pub(super) fn run_step(
         if preview["dryRunSha256"] != input["base_dry_run_sha256"] {
             return Err("workflow_preview_changed".into());
         }
+        let index = cp["children"].as_array().unwrap().len();
+        let model = &template.models[index];
+        let request = TrainSteelDatasetRequest {
+            dataset_id: dataset.into(),
+            target_column: model.target_column,
+            feature_columns: model.feature_columns.clone(),
+            split_policy: Some(model.split_policy.clone()),
+            algorithm: Some(model.algorithm.clone()),
+        };
+        let prepared = logic::prepare_steel_training_task(
+            logic::load_train_dataset_snapshot(c, &task.workspace_id, dataset)?,
+            &request,
+        )?;
         artifacts::atomic_mut(c, |c| {
             ensure_active(c, task)?;
-            let index = cp["children"].as_array().unwrap().len();
-            let model = &template.models[index];
-            let request = TrainSteelDatasetRequest {
-                dataset_id: dataset.into(),
-                target_column: model.target_column,
-                feature_columns: model.feature_columns.clone(),
-                split_policy: Some(model.split_policy.clone()),
-                algorithm: Some(model.algorithm.clone()),
-            };
             let node = delivery::scoped(c, Some(project), || {
-                logic::train_steel_dataset_on_connection(c, &task.workspace_id, &request)
+                logic::train_steel_dataset_prepared(c, &task.workspace_id, &prepared)
             })?;
             crate::research_workflow::provenance::bind_node(
                 c,

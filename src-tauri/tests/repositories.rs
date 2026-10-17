@@ -281,3 +281,104 @@ fn settings_round_trip_without_tauri_state() {
         .unwrap()
         .is_none());
 }
+
+#[test]
+fn conversation_messages_page_from_newest() {
+    let mut connection = database();
+    let conversation = conversations::create(&mut connection, WORKSPACE, "paged chat")
+        .expect("create conversation");
+    for index in 0..5 {
+        conversations::append_message(
+            &mut connection,
+            WORKSPACE,
+            &conversation.id,
+            "user",
+            &format!("message-{index}"),
+            None,
+        )
+        .expect("append message");
+    }
+
+    let first =
+        conversations::list_messages_page(&connection, WORKSPACE, &conversation.id, 2, None, None)
+            .expect("first page");
+    assert_eq!(first.messages.len(), 2);
+    assert!(first.has_older);
+    assert_eq!(first.messages[0].content, "message-3");
+    assert_eq!(first.messages[1].content, "message-4");
+
+    let second = conversations::list_messages_page(
+        &connection,
+        WORKSPACE,
+        &conversation.id,
+        2,
+        first.oldest_rowid,
+        first.oldest_created_at.as_deref(),
+    )
+    .expect("second page");
+    assert_eq!(second.messages.len(), 2);
+    assert!(second.has_older);
+    assert_eq!(second.messages[0].content, "message-1");
+}
+
+#[test]
+fn steel_model_list_page_excludes_heavy_payload_columns() {
+    use suna::storage::repositories::steel_models::{self, NewSteelModel};
+    let mut connection = database();
+    let heavy = "A".repeat(2 * 1024 * 1024);
+    let manifest = r#"{"model_type":"linear_regression","metrics":{"validation":{"r2":0.9}}}"#;
+    let heavy_sha = "b".repeat(64);
+    steel_models::create(
+        &mut connection,
+        WORKSPACE,
+        NewSteelModel {
+            lineage_id: "lineage-heavy",
+            kind: "onnx",
+            source_task_id: None,
+            model_sha256: &heavy_sha,
+            manifest_json: r#"{"model_type":"onnx"}"#,
+            artifact_json: None,
+            model_base64: Some(&heavy),
+        },
+    )
+    .expect("create heavy model");
+    let artifact = r#"{"coef":[1.0],"intercept":0.0}"#;
+    for index in 0..3 {
+        let sha = format!("{:064x}", index);
+        steel_models::create(
+            &mut connection,
+            WORKSPACE,
+            NewSteelModel {
+                lineage_id: &format!("lineage-{index}"),
+                kind: "sklearn_artifact",
+                source_task_id: None,
+                model_sha256: &sha,
+                manifest_json: manifest,
+                artifact_json: Some(artifact),
+                model_base64: None,
+            },
+        )
+        .expect("create light model");
+    }
+    let page = steel_models::list_all_page(&connection, WORKSPACE, 50, 0).expect("list page");
+    assert_eq!(page.items.len(), 4);
+    assert!(page.total >= 4);
+    let encoded = serde_json::to_string(&page).expect("encode page");
+    assert!(
+        encoded.len() < 32_768,
+        "summary page should stay small, got {} bytes",
+        encoded.len()
+    );
+    let heavy_summary = page
+        .items
+        .iter()
+        .find(|item| item.lineage_id == "lineage-heavy")
+        .expect("heavy summary");
+    assert!(heavy_summary.has_model_base64);
+    assert!(page
+        .items
+        .iter()
+        .filter(|item| item.lineage_id.starts_with("lineage-"))
+        .all(|item| !item.has_model_base64 || item.lineage_id == "lineage-heavy"));
+    assert!(!encoded.contains(&heavy[..1024]));
+}

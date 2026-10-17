@@ -7,13 +7,24 @@ pub(super) fn read_dataset_table(
     path: &Path,
     sheet: Option<&str>,
 ) -> Result<DatasetTable, String> {
-    if sheet.is_some_and(|s| s != "JSON") {
-        return Err("requested dataset sheet was not found".into());
-    }
     let mut bytes = vec![];
     file.take(64 * 1024 * 1024 + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| e.to_string())?;
+    if bytes.len() > 64 * 1024 * 1024 {
+        return Err("json_dataset_byte_limit".into());
+    }
+    read_dataset_table_from_bytes(&bytes, path, sheet)
+}
+
+pub(super) fn read_dataset_table_from_bytes(
+    bytes: &[u8],
+    path: &Path,
+    sheet: Option<&str>,
+) -> Result<DatasetTable, String> {
+    if sheet.is_some_and(|s| s != "JSON") {
+        return Err("requested dataset sheet was not found".into());
+    }
     if bytes.len() > 64 * 1024 * 1024 {
         return Err("json_dataset_byte_limit".into());
     }

@@ -23,8 +23,8 @@ pub use calculators::{
 };
 pub use cleaning::{clean_dataset, to_csv, DatasetCleaningPlan, DatasetCleaningSummary};
 pub use datasets::{
-    hash_dataset_source, preview_dataset, read_dataset_table, DatasetColumnPreview, DatasetPreview,
-    DatasetPreviewRequest, DatasetTable,
+    hash_and_read_dataset_table, hash_dataset_source, preview_dataset, read_dataset_table,
+    DatasetColumnPreview, DatasetPreview, DatasetPreviewRequest, DatasetTable,
 };
 pub use evaluations::{parse_suite, run_rust_categories, CategoryReport, EvaluationReport};
 pub use explain::{explain_linear, parse_linear_artifact, LinearModel, ShapExplanation, ShapValue};

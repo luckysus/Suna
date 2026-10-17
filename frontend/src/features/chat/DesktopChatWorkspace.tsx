@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import type { Message } from "../../bridge/desktop";
 import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import {
   ArrowUp,
@@ -23,9 +24,12 @@ import {
 } from "lucide-react";
 import { useLocale } from "../../i18n/locale";
 import type { SectionId } from "../../app/navigation";
-import type { Message, PostgresKnowledgeSearchFilters } from "../../bridge/desktop";
+import type { PostgresKnowledgeSearchFilters } from "../../bridge/desktop";
 import type { PermissionDecision } from "../../bridge/generated/protocol";
-import AIAnswerRenderer from "../../components/answer/AnswerRenderer";
+import LazyAIAnswerRenderer from "../../components/answer/LazyAIAnswerRenderer";
+import ChatMessageList from "./ChatMessageList";
+import { useAgentStore } from "../../stores/agentStore";
+import { useChatStore } from "../../stores/chatStore";
 import CitationPanel from "./CitationPanel";
 import ChatModelParameters from "./ChatModelParameters";
 import type { AgentPermissionView, AgentRunView } from "./agentEvents";
@@ -33,45 +37,12 @@ import type { ChatControllerProps } from "./chatController";
 import AgentRunInspector from "./AgentRunInspector";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
-import { parseWebResponse, toWebMessage, type WebPendingConfirmation } from "./web/webTypes";
-import WebConfirmDialog from "./web/WebConfirmDialog";
-import WebFeedback from "./web/WebFeedback";
-import WebRecommendationCard from "./web/WebRecommendationCard";
+import { toWebMessage } from "./web/webTypes";
 import WebTurnNavigator from "./web/WebTurnNavigator";
 import { useAppearanceSettings } from "../../settings/appearance";
 import { desktop } from "../../bridge/desktop";
 import SunaLogo from "../../components/SunaLogo";
 import { Button } from "../../components/ui/button";
-
-function isAssistant(message: Message) {
-  return message.role === "agent" || message.role === "assistant";
-}
-
-function copyText(content: string) {
-  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(content);
-  const textarea = document.createElement("textarea");
-  textarea.value = content;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  textarea.remove();
-  return Promise.resolve();
-}
-
-function responseEvidence(message: Message) {
-  const response = parseWebResponse(message);
-  if (!response || response.evidence.length === 0) return null;
-  try {
-    const record = JSON.parse(message.response_json ?? "") as { evidence_pack_id?: unknown };
-    return typeof record.evidence_pack_id === "string"
-      ? { auditId: record.evidence_pack_id, evidence: response.evidence }
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 function stateTone(state: string) {
   if (state === "completed") return "is-good";
@@ -190,89 +161,9 @@ function NativeRunStatus({
   );
 }
 
-function NativeMessage({
-  message,
-  index,
-  loading,
-  onEdit,
-  onResolvePermission,
-  onFollowUp,
-}: {
-  message: Message;
-  index: number;
-  loading: boolean;
-  onEdit: () => void;
-  onResolvePermission: (permissionId: string, decision: PermissionDecision) => void;
-  onFollowUp: (question: string) => void;
-}) {
-  const response = parseWebResponse(message);
-  const evidence = responseEvidence(message);
-  if (!isAssistant(message)) {
-    return (
-      <div className="suna-chat-user-turn" data-agent-user-turn={index}>
-        <div className="suna-chat-user-bubble">{message.content}</div>
-        <div className="suna-chat-message-actions">
-          <button type="button" aria-label="复制消息" title="复制消息" onClick={() => void copyText(message.content)}>
-            <Copy size={15} aria-hidden="true" />
-          </button>
-          <button type="button" aria-label="编辑消息" title="编辑消息" onClick={onEdit}>
-            <Pencil size={15} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const confirmations = response?.pending_confirmations ?? [];
-  return (
-    <article className="suna-chat-assistant-turn" aria-label="Suna">
-      <div className="suna-chat-answer ai-markdown-body">
-        <AIAnswerRenderer answer={message.content} literatureResults={[]} />
-      </div>
-      {response && (response.context_status.memory_count > 0 || response.context_status.skill_count > 0 || response.context_status.tool_count > 0) && (
-        <div className="suna-chat-inline-status" aria-label={response.context_status ? "本轮上下文" : undefined}>
-          <div className="suna-chat-inline-status-line">
-            {response.context_status.memory_count > 0 && <span>{response.context_status.memory_count} 条记忆</span>}
-            {response.context_status.skill_count > 0 && <span>{response.context_status.skill_count} 个技能</span>}
-            {response.context_status.tool_count > 0 && <span>{response.context_status.tool_count} 个工具</span>}
-          </div>
-        </div>
-      )}
-      {evidence && <CitationPanel auditId={evidence.auditId} evidence={evidence.evidence} />}
-      {response?.follow_up_questions.length ? (
-        <div className="suna-chat-inline-status" aria-label="需要补充的信息">
-          <strong>需要补充的信息</strong>
-          <div className="suna-chat-permission-actions">
-            {response.follow_up_questions.map((question) => (
-              <Button variant="actionSecondary" type="button" key={question} onClick={() => onFollowUp(question)}>{question}</Button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {response?.recommendations.length ? (
-        <div className="suna-chat-inline-status" aria-label="推荐方案">
-          <strong>推荐方案</strong>
-          <div className="grid gap-3 xl:grid-cols-2">
-            {response.recommendations.map((item, index) => <WebRecommendationCard key={`${item.title}-${index}`} item={item} />)}
-          </div>
-        </div>
-      ) : null}
-      {confirmations.length > 0 && (
-        <div className="suna-chat-inline-status">
-          <WebConfirmDialog
-            confirmations={confirmations}
-            onConfirm={(item: WebPendingConfirmation, approved) => onResolvePermission(item.action_id, approved ? "allow_once" : "deny")}
-          />
-        </div>
-      )}
-      {!loading && <WebFeedback messageId={message.id} />}
-      <div className="suna-chat-message-actions">
-        <button type="button" aria-label="复制回答" title="复制回答" onClick={() => void copyText(message.content)}>
-          <Copy size={15} aria-hidden="true" />
-        </button>
-      </div>
-    </article>
-  );
+function ChatTurnNavigator({ scrollContainerRef }: { scrollContainerRef: RefObject<HTMLDivElement | null> }) {
+  const messages = useChatStore((state) => state.messages);
+  return <WebTurnNavigator messages={messages.map(toWebMessage)} scrollContainerRef={scrollContainerRef} />;
 }
 
 /** Provider 显示名（第 19 章：模型选择需展示 Provider）。 */
@@ -285,6 +176,52 @@ const PROVIDER_KIND_LABELS: Record<string, string> = {
   siliconflow: "SiliconFlow",
   mineru: "MinerU",
 };
+
+function ChatStreamingTurn({
+  onResolvePermission,
+  onRetry,
+  onResume,
+}: {
+  onResolvePermission: (permissionId: string, decision: PermissionDecision) => void;
+  onRetry: () => void;
+  onResume: () => void;
+}) {
+  const { t } = useLocale();
+  const pendingQuestion = useChatStore((state) => state.pendingQuestion);
+  const streamingCitations = useChatStore((state) => state.streamingCitations);
+  const agentRun = useAgentStore((state) => state.agentRun);
+  const recovery = useAgentStore((state) => {
+    const run = state.agentRun;
+    if (!run) return null;
+    return state.recoveredRuns.find((candidate) => candidate.run.id === run.runId) ?? null;
+  });
+
+  if (!pendingQuestion) return null;
+
+  return (
+    <>
+      <div className="suna-chat-user-turn" data-agent-user-turn="pending">
+        <div className="suna-chat-user-bubble">{pendingQuestion}</div>
+      </div>
+      <article className="suna-chat-assistant-turn is-streaming" aria-label="Suna">
+        <div className="suna-chat-answer ai-markdown-body">
+          <LazyAIAnswerRenderer answer={agentRun?.assistantText || t("contextPreparing")} literatureResults={[]} />
+          {agentRun?.assistantText && <span className="ai-typing-cursor" aria-hidden="true" />}
+        </div>
+        {agentRun?.evidencePackId && streamingCitations.length > 0 && (
+          <CitationPanel auditId={agentRun.evidencePackId} evidence={streamingCitations} />
+        )}
+      </article>
+      <NativeRunStatus
+        run={agentRun}
+        recovery={recovery}
+        onResolvePermission={onResolvePermission}
+        onRetry={onRetry}
+        onResume={onResume}
+      />
+    </>
+  );
+}
 
 export default function DesktopChatWorkspace({
   onOpenSection: _onOpenSection,
@@ -303,6 +240,21 @@ export default function DesktopChatWorkspace({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
+  const messageCount = useChatStore((state) => state.messages.length);
+  const messageActions = useMemo(
+    () => ({
+      onEditMessage: (message: Message) => {
+        controller.onDraftChange(message.content);
+        inputRef.current?.focus();
+      },
+      onFollowUp: (question: string) => {
+        controller.onDraftChange(question);
+        inputRef.current?.focus();
+      },
+      onResolvePermission: controller.onResolvePermission,
+    }),
+    [controller.onDraftChange, controller.onResolvePermission],
+  );
   const activeProfile = controller.chatProfiles.find((profile) => profile.id === controller.activeChatProfileId);
   const selectedModel = activeProfile?.model_id || activeProfile?.display_name || "本地模型";
   const providerLabel = activeProfile ? PROVIDER_KIND_LABELS[activeProfile.kind] ?? activeProfile.kind : "未配置";
@@ -442,7 +394,7 @@ export default function DesktopChatWorkspace({
         <div ref={messagesRef} className="suna-chat-messages" aria-live="polite">
           {controller.loadingMessages ? (
             <div className="suna-chat-empty"><LoaderCircle size={20} className="suna-spin" /><span>{t("loading")}</span></div>
-          ) : controller.messages.length === 0 && controller.pendingQuestion === null ? (
+          ) : messageCount === 0 && controller.pendingQuestion === null ? (
             <div className="suna-chat-empty suna-chat-empty-large suna-new-welcome">
               <div className="suna-welcome-brand">
                 <span className="suna-welcome-mark"><SunaLogo size={52} title="Suna" /></span>
@@ -490,50 +442,30 @@ export default function DesktopChatWorkspace({
             </div>
           ) : (
             <>
-              {controller.messages.map((message, index) => (
-                <NativeMessage
-                  key={message.id}
-                  message={message}
-                  index={index}
-                  loading={controller.pendingQuestion !== null}
-                  onEdit={() => {
-                    controller.onDraftChange(message.content);
-                    inputRef.current?.focus();
-                  }}
-                  onFollowUp={(question) => {
-                    controller.onDraftChange(question);
-                    inputRef.current?.focus();
-                  }}
+              <ChatMessageList
+                loading={controller.pendingQuestion !== null}
+                messageActions={messageActions}
+                scrollContainerRef={messagesRef}
+                onLoadOlderMessages={controller.onLoadOlderMessages}
+                isOlderMessagesPaginationActive={controller.isOlderMessagesPaginationActive}
+              />
+              <ChatStreamingTurn
+                onResolvePermission={controller.onResolvePermission}
+                onRetry={controller.onRetry}
+                onResume={controller.onResume}
+              />
+              {!controller.pendingQuestion && (
+                <NativeRunStatus
+                  run={controller.agentRun}
+                  recovery={controller.recovery}
                   onResolvePermission={controller.onResolvePermission}
+                  onRetry={controller.onRetry}
+                  onResume={controller.onResume}
                 />
-              ))}
-              {controller.pendingQuestion && (
-                <>
-                  <div className="suna-chat-user-turn" data-agent-user-turn="pending">
-                    <div className="suna-chat-user-bubble">{controller.pendingQuestion}</div>
-                  </div>
-                  <article className="suna-chat-assistant-turn is-streaming" aria-label="Suna">
-                    <div className="suna-chat-answer ai-markdown-body">
-                      <AIAnswerRenderer answer={controller.agentRun?.assistantText || t("contextPreparing")} literatureResults={[]} />
-                      {controller.agentRun?.assistantText && <span className="ai-typing-cursor" aria-hidden="true" />}
-                    </div>
-                    {controller.agentRun?.evidencePackId && controller.streamingCitations.length > 0 && <CitationPanel auditId={controller.agentRun.evidencePackId} evidence={controller.streamingCitations} />}
-                  </article>
-                </>
               )}
-          <NativeRunStatus
-            run={controller.agentRun}
-            recovery={controller.recovery}
-            onResolvePermission={controller.onResolvePermission}
-            onRetry={controller.onRetry}
-            onResume={controller.onResume}
-          />
             </>
           )}
-          <WebTurnNavigator
-            messages={controller.messages.map(toWebMessage)}
-            scrollContainerRef={messagesRef}
-          />
+          <ChatTurnNavigator scrollContainerRef={messagesRef} />
         </div>
 
         <form

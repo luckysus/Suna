@@ -49,19 +49,17 @@ function embeddingState(metric: KnowledgeBaseMetrics | undefined) {
 async function loadBaseMetrics(items: KnowledgeBaseRecord[]) {
   const metrics = await desktop.getKnowledgeBaseMetrics().catch(() => [] as KnowledgeBaseMetrics[]);
   const byId = new Map(metrics.map((metric) => [metric.knowledge_base_id, metric]));
-  const entries = await Promise.all(items.map(async (item) => {
+  const entries = items.map((item) => {
     const metric = byId.get(item.id);
-    if (metric) return [item.id, metric] as const;
-    const documents = await desktop.listKnowledgeDocuments(item.id).catch(() => [] as SourceDocumentRecord[]);
     const fallback: KnowledgeBaseMetrics = {
       knowledge_base_id: item.id,
-      document_count: documents.length,
-      indexed_document_count: documents.filter((document) => document.active_version_id).length,
+      document_count: 0,
+      indexed_document_count: 0,
       chunk_count: 0,
       embedded_chunk_count: 0,
     };
-    return [item.id, fallback] as const;
-  }));
+    return [item.id, metric ?? fallback] as const;
+  });
   return Object.fromEntries(entries) as Record<string, KnowledgeBaseMetrics>;
 }
 
@@ -147,21 +145,123 @@ export default function KnowledgeCenterWorkspace() {
   }, []);
   const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
   const dropRegion = useRef<HTMLDivElement>(null);
+  const kbaseLoadGeneration = useRef(0);
+  const jobsSnapshotRef = useRef<string[]>([]);
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
 
-  const loadBase = async (id: string | null) => {
-    if (!id) return;
-    const results = await Promise.all([
+  const kbaseRefreshInFlight = useRef(false);
+  const completedContentSyncedRef = useRef(new Set<string>());
+  const pendingContentRefreshRef = useRef(new Set<string>());
+  const [contentRefreshDue, setContentRefreshDue] = useState(false);
+
+  const clearContentRefreshOwnership = () => {
+    completedContentSyncedRef.current = new Set();
+    pendingContentRefreshRef.current = new Set();
+    jobsSnapshotRef.current = [];
+    setContentRefreshDue(false);
+  };
+
+  const selectKnowledgeBase = (id: string | null) => {
+    if (id === selectedIdRef.current) return;
+    kbaseLoadGeneration.current += 1;
+    clearContentRefreshOwnership();
+    setSelectedId(id);
+  };
+
+  const loadBaseCore = async (id: string) => {
+    const [documents, jobs] = await Promise.all([
       desktop.listKnowledgeDocuments(id),
       desktop.listPostgresIngestionJobs(id),
-      desktop.listPostgresWikiPages(id),
-      desktop.listPostgresKnowledgeEdges(id),
-      desktop.listPostgresKnowledgeChunks(id),
     ]);
-    setDocuments(results[0]);
-    setJobs(results[1]);
-    setPages(results[2]);
-    setEdges(results[3]);
-    setChunks(results[4]);
+    return { documents, jobs };
+  };
+
+  const loadBaseTabData = async (id: string, activeTab: Tab) => {
+    if (activeTab === "chunks") {
+      return { chunks: await desktop.listPostgresKnowledgeChunks(id) } as const;
+    }
+    if (activeTab === "wiki") {
+      return { pages: await desktop.listPostgresWikiPages(id) } as const;
+    }
+    if (activeTab === "graph") {
+      const [pages, edges] = await Promise.all([
+        desktop.listPostgresWikiPages(id),
+        desktop.listPostgresKnowledgeEdges(id),
+      ]);
+      return { pages, edges } as const;
+    }
+    return null;
+  };
+
+  const loadBase = async (id: string | null, activeTab: Tab = tab) => {
+    if (!id) return;
+    const generation = ++kbaseLoadGeneration.current;
+    const core = await loadBaseCore(id);
+    if (generation !== kbaseLoadGeneration.current || id !== selectedIdRef.current) return;
+    setDocuments(core.documents);
+    setJobs(core.jobs);
+    jobsSnapshotRef.current = core.jobs.map((job) => `${job.id}:${job.state}`);
+    const tabData = await loadBaseTabData(id, activeTab);
+    if (generation !== kbaseLoadGeneration.current || id !== selectedIdRef.current || !tabData) return;
+    if ("chunks" in tabData && tabData.chunks) setChunks(tabData.chunks);
+    if ("pages" in tabData && tabData.pages) setPages(tabData.pages);
+    if ("edges" in tabData && tabData.edges) setEdges(tabData.edges);
+  };
+
+  const refreshIngestionJobs = async (id: string) => {
+    if (kbaseRefreshInFlight.current) return;
+    kbaseRefreshInFlight.current = true;
+    const generation = kbaseLoadGeneration.current;
+    try {
+      const [jobs, metrics] = await Promise.all([
+        desktop.listPostgresIngestionJobs(id),
+        desktop.getKnowledgeBaseMetrics().catch(() => [] as KnowledgeBaseMetrics[]),
+      ]);
+      if (generation !== kbaseLoadGeneration.current || id !== selectedIdRef.current) return;
+      const previousStates = jobsSnapshotRef.current;
+      const completedNow = jobs.filter(
+        (job) => job.state === "completed" && !previousStates.includes(`${job.id}:completed`),
+      );
+      jobsSnapshotRef.current = jobs.map((job) => `${job.id}:${job.state}`);
+      setJobs(jobs);
+      if (metrics.length > 0) {
+        setBaseMetrics((current) => ({
+          ...current,
+          ...Object.fromEntries(metrics.map((metric) => [metric.knowledge_base_id, metric])),
+        }));
+      }
+      for (const job of completedNow) {
+        if (!completedContentSyncedRef.current.has(job.id)) {
+          pendingContentRefreshRef.current.add(job.id);
+        }
+      }
+      if (pendingContentRefreshRef.current.size > 0) {
+        try {
+          const documents = await desktop.listKnowledgeDocuments(id);
+          if (generation !== kbaseLoadGeneration.current || id !== selectedIdRef.current) return;
+          setDocuments(documents);
+          if (tab === "chunks") {
+            const chunks = await desktop.listPostgresKnowledgeChunks(id);
+            if (generation !== kbaseLoadGeneration.current || id !== selectedIdRef.current) return;
+            setChunks(chunks);
+          }
+          for (const job of jobs) {
+            if (job.state === "completed" && pendingContentRefreshRef.current.has(job.id)) {
+              pendingContentRefreshRef.current.delete(job.id);
+              completedContentSyncedRef.current.add(job.id);
+            }
+          }
+          setContentRefreshDue(pendingContentRefreshRef.current.size > 0);
+        } catch {
+          setContentRefreshDue(true);
+        }
+      } else {
+        setContentRefreshDue(false);
+      }
+    } finally {
+      kbaseRefreshInFlight.current = false;
+    }
   };
   const reload = async (preferred?: string) => {
     setLoading(true);
@@ -170,9 +270,17 @@ export default function KnowledgeCenterWorkspace() {
       setBases(next);
       setBaseMetrics(await loadBaseMetrics(next));
       const id = preferred || selectedId || next[0]?.id || null;
-      setSelectedId(next.some((item) => item.id === id) ? id : next[0]?.id || null);
+      const resolvedId = next.some((item) => item.id === id) ? id : next[0]?.id || null;
+      const sameSelection = resolvedId === selectedId;
+      if (resolvedId !== selectedId) {
+        kbaseLoadGeneration.current += 1;
+        clearContentRefreshOwnership();
+      }
+      setSelectedId(resolvedId);
       setHealth(await desktop.getKnowledgeHealth());
-      await loadBase(id);
+      if (sameSelection && resolvedId) {
+        await loadBase(resolvedId, tab);
+      }
       setLoadFailed(false);
       setMessage(null);
     } catch (reason) {
@@ -182,22 +290,43 @@ export default function KnowledgeCenterWorkspace() {
     } finally { setLoading(false); }
   };
   useEffect(() => { void reload().catch(() => setMessage("知识库加载失败")); }, []);
-  useEffect(() => { void loadBase(selectedId).catch(() => setMessage("知识库内容加载失败")); }, [selectedId]);
+  useEffect(() => {
+    if (!selectedId) return;
+    void loadBase(selectedId, tab).catch(() => setMessage("知识库内容加载失败"));
+  }, [selectedId, tab]);
   useEffect(() => {
     if (!selectedId) { setAvailableWikiTags([]); return; }
-    void desktop.listPostgresTags(selectedId).then((tags) => setAvailableWikiTags(tags.map((tag) => tag.name))).catch(() => setAvailableWikiTags([]));
+    const generation = kbaseLoadGeneration.current;
+    void desktop.listPostgresTags(selectedId).then((tags) => {
+      if (generation !== kbaseLoadGeneration.current || selectedId !== selectedIdRef.current) return;
+      setAvailableWikiTags(tags.map((tag) => tag.name));
+    }).catch(() => {
+      if (generation !== kbaseLoadGeneration.current || selectedId !== selectedIdRef.current) return;
+      setAvailableWikiTags([]);
+    });
   }, [selectedId]);
   useEffect(() => {
-    if (!selectedId || (!busy && !jobs.some((job) => ["queued", "uploading", "parsing", "chunking", "embedding", "indexing", "pending", "running", "retrying"].includes(job.state)))) return;
+    const activeJobs = jobs.some((job) => ["queued", "uploading", "parsing", "chunking", "embedding", "indexing", "pending", "running", "retrying"].includes(job.state));
+    if (!selectedId || (!busy && !activeJobs && !contentRefreshDue)) return;
     let timer = 0;
     let stopped = false;
+    let cleanupScheduler: (() => void) | undefined;
     const refresh = async () => {
-      try { await loadBase(selectedId); } catch { /* Keep the last known task state during transient failures. */ }
-      if (!stopped) timer = window.setTimeout(() => void refresh(), 1500);
+      try { await refreshIngestionJobs(selectedId); } catch { /* Keep the last known task state during transient failures. */ }
+      if (!stopped) timer = window.setTimeout(() => void refresh(), 2500);
     };
-    timer = window.setTimeout(() => void refresh(), 1500);
-    return () => { stopped = true; window.clearTimeout(timer); };
-  }, [jobs, selectedId]);
+    void desktop.listenSchedulerProgress(() => {
+      if (!stopped) {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => void refresh(), 300);
+      }
+    }).then((unlisten) => {
+      if (stopped) unlisten();
+      else cleanupScheduler = unlisten;
+    }).catch(() => undefined);
+    timer = window.setTimeout(() => void refresh(), 2500);
+    return () => { stopped = true; window.clearTimeout(timer); cleanupScheduler?.(); };
+  }, [jobs, selectedId, busy, contentRefreshDue]);
 
   const createBase = async () => {
     const name = createName.trim();
@@ -519,14 +648,14 @@ export default function KnowledgeCenterWorkspace() {
     setLibraryTab(next);
     setTab("documents");
     if (next === "public") {
-      setSelectedId(null);
+      selectKnowledgeBase(null);
       setDocuments([]);
       setJobs([]);
       setChunks([]);
       setPages([]);
       setEdges([]);
     } else if (next === "mine") {
-      setSelectedId(bases[0]?.id || null);
+      selectKnowledgeBase(bases[0]?.id || null);
     }
   };
   const formatDate = (value: string) => value ? new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -546,7 +675,7 @@ export default function KnowledgeCenterWorkspace() {
   <SelectTrigger aria-label="排序方式"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="最近更新">最近更新</SelectItem><SelectItem value="名称">名称</SelectItem>
   </SelectContent>
-</Select><ChevronDown size={14} /></label><Button variant="ghost" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</Button><Button variant="ghost" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</Button><Button variant="primary" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</Button></div><div ref={dropRegion} className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <Button variant="none" key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => setSelectedId(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></Button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><div className="suna-knowledge-recent-title"><h2><Clock3 size={18} />最近文档</h2><span className="suna-knowledge-recent-badge">{documents.length} 篇</span></div>{documents.length > 0 && <button type="button" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={14} /></button>}</div>{documents.length === 0 ? <Empty onImport={() => void importFiles()} /> : filtered.length ? <DataTable columns={documentColumns} rows={filtered} rowKey={(item) => item.id} searchable={false} pageSizeOptions={[10, 20, 50]} exportName="knowledge-documents" emptyText="该知识库没有可展示的文档" onRowClick={(item) => void openDocument(item)} /> : <div className="suna-knowledge-document-empty is-filtered"><div className="suna-knowledge-empty-icon"><Search size={22} strokeWidth={1.8} /></div><h3>未找到匹配的文档</h3><p>没有找到符合当前筛选条件的文档，您可以尝试清空搜索关键词或重置筛选。</p><div className="suna-knowledge-empty-actions"><Button variant="ghost" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>重置筛选条件</Button></div></div>}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
+</Select><ChevronDown size={14} /></label><Button variant="ghost" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</Button><Button variant="ghost" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</Button><Button variant="primary" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</Button></div><div ref={dropRegion} className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <Button variant="none" key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => selectKnowledgeBase(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></Button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><div className="suna-knowledge-recent-title"><h2><Clock3 size={18} />最近文档</h2><span className="suna-knowledge-recent-badge">{documents.length} 篇</span></div>{documents.length > 0 && <button type="button" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={14} /></button>}</div>{documents.length === 0 ? <Empty onImport={() => void importFiles()} /> : filtered.length ? <DataTable columns={documentColumns} rows={filtered} rowKey={(item) => item.id} searchable={false} pageSizeOptions={[10, 20, 50]} exportName="knowledge-documents" emptyText="该知识库没有可展示的文档" onRowClick={(item) => void openDocument(item)} /> : <div className="suna-knowledge-document-empty is-filtered"><div className="suna-knowledge-empty-icon"><Search size={22} strokeWidth={1.8} /></div><h3>未找到匹配的文档</h3><p>没有找到符合当前筛选条件的文档，您可以尝试清空搜索关键词或重置筛选。</p><div className="suna-knowledge-empty-actions"><Button variant="ghost" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>重置筛选条件</Button></div></div>}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
       {tab === "search" && <KnowledgeSearchPanel query={searchQuery} filters={searchFilters} documentTypes={Array.from(new Set([...documents.map((item) => item.source_kind), ...DOCUMENT_CATEGORIES]))} results={searchResults} favoriteChunkIds={favoriteChunkIds} busy={searchBusy} hasKnowledgeBase={Boolean(selectedId)} embeddingDegradation={searchEmbeddingDegradation} rerankDegradation={searchRerankDegradation} onQueryChange={setSearchQuery} onFiltersChange={setSearchFilters} onSearch={() => void runSearch()} onOpen={openSearchHit} onCopy={copySearchHit} onAddToChat={addSearchHitToChat} onToggleFavorite={toggleSearchFavorite} onCite={citeSearchHit} />}
       {tab === "chunks" && <ChunkPanel chunks={chunks} />}
       {tab === "wiki" && <WikiPanel pages={pages} page={page} revisions={revisions} documents={documents} tags={wikiTags} availableTags={availableWikiTags} sourceDocumentId={wikiSourceDocumentId} onTagsChange={setWikiTags} onSourceDocumentChange={setWikiSourceDocumentId} onCreate={() => void createPage()} onSelect={(item) => void selectPage(item)} onChange={setPage} onSave={() => void savePage()} onRestore={(revision) => void restore(revision)} />}

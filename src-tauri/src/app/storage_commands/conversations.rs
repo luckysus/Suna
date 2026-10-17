@@ -1,6 +1,7 @@
 use super::logic::with_session;
 use crate::db::DbState;
-use crate::models::{Conversation, HistoryHit, Message};
+use crate::models::{Conversation, HistoryHit, Message, MessagePage};
+use serde::Deserialize;
 
 #[tauri::command]
 pub fn list_conversations(db: tauri::State<DbState>) -> Result<Vec<Conversation>, String> {
@@ -76,6 +77,30 @@ pub fn list_messages(
     conversation_id: String,
 ) -> Result<Vec<Message>, String> {
     with_session(&db, |session| session.list_messages(&conversation_id))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListMessagesPageRequest {
+    pub conversation_id: String,
+    pub limit: Option<usize>,
+    pub before_rowid: Option<i64>,
+    pub before_created_at: Option<String>,
+}
+
+#[tauri::command]
+pub fn list_messages_page(
+    db: tauri::State<DbState>,
+    request: ListMessagesPageRequest,
+) -> Result<MessagePage, String> {
+    with_session(&db, |session| {
+        session.list_messages_page(
+            &request.conversation_id,
+            request.limit.unwrap_or(80),
+            request.before_rowid,
+            request.before_created_at.as_deref(),
+        )
+    })
 }
 
 #[tauri::command]

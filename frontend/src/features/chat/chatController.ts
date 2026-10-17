@@ -23,6 +23,13 @@ import { useKnowledgeStore } from "../../stores/knowledgeStore";
 import { useModelStore } from "../../stores/modelStore";
 import { errorMessage } from "../../utils/errorMessage";
 import { isChatProfile } from "../../utils/providerModel";
+import {
+  CHAT_MESSAGE_PAGE_SIZE,
+  mergeTailMessages,
+  prependOlderMessages,
+  TERMINAL_AGENT_RUN_STATES,
+  type OlderMessagesPaginationGuard,
+} from "./chatMessagePage";
 
 function conversationTitle(message: string, fallback: string) {
   const title = message.trim().slice(0, 28);
@@ -148,6 +155,8 @@ export interface ChatControllerProps {
   onSelectKnowledgeBases: (knowledgeBaseIds: string[]) => void;
   onSelectKnowledgeFilters: (filters: PostgresKnowledgeSearchFilters) => void;
   onToggleSmartSearch: () => void;
+  onLoadOlderMessages: () => Promise<{ loaded: boolean; guard: OlderMessagesPaginationGuard | null }>;
+  isOlderMessagesPaginationActive: (guard: OlderMessagesPaginationGuard) => boolean;
 }
 
 const ChatControllerContext = createContext<ChatControllerProps | null>(null);
@@ -193,10 +202,15 @@ export function useChatController(): ChatControllerProps {
   const knowledgeBaseIds = useKnowledgeStore((state) => state.selectedKnowledgeBaseIds);
   const knowledgeFilters = useKnowledgeStore((state) => state.knowledgeFilters);
 
+  const messagePageCursor = useChatStore((state) => state.messagePageCursor);
+
   const {
     setConversations,
     setSelectedId,
     setMessages,
+    setHasOlderMessages,
+    setLoadingOlderMessages,
+    setMessagePageCursor,
     setDraft,
     setPendingQuestion,
     setStreamingCitations,
@@ -220,6 +234,56 @@ export function useChatController(): ChatControllerProps {
   const replayingRuns = useRef(new Set<string>());
   const recoveredRunsRef = useRef<RecoveredRun[]>([]);
   const loadedConversationsRef = useRef(false);
+  const conversationLoadGeneration = useRef(0);
+  const loadingOlderInFlight = useRef(0);
+  const olderMessagesLoadOwner = useRef(0);
+
+  const isActiveConversation = (conversationId: string, generation: number) =>
+    generation === conversationLoadGeneration.current
+    && conversationId === useChatStore.getState().selectedId;
+
+  const applyInitialMessagePage = (page: Awaited<ReturnType<typeof desktop.listMessagesPage>>) => {
+    setMessages(page.messages);
+    setHasOlderMessages(page.has_older);
+    if (page.has_older && page.oldest_rowid != null && page.oldest_created_at) {
+      setMessagePageCursor({ oldestRowid: page.oldest_rowid, oldestCreatedAt: page.oldest_created_at });
+    } else {
+      setMessagePageCursor(null);
+    }
+  };
+
+  const applyOlderMessagePage = (page: Awaited<ReturnType<typeof desktop.listMessagesPage>>) => {
+    setMessages((current) => prependOlderMessages(current, page.messages));
+    setHasOlderMessages(page.has_older);
+    if (page.has_older && page.oldest_rowid != null && page.oldest_created_at) {
+      setMessagePageCursor({ oldestRowid: page.oldest_rowid, oldestCreatedAt: page.oldest_created_at });
+    } else {
+      setMessagePageCursor(null);
+    }
+  };
+
+  const hydrateAgentRun = async (conversationId: string, runId: string, generation: number) => {
+    const recovered = recoveredRunsRef.current.find((candidate) => candidate.run.id === runId);
+    if (recovered) {
+      const view = recovered.events.length > 0
+        ? reduceAgentEvents(createAgentRunView(runId, conversationId), recovered.events)
+        : { ...createAgentRunView(runId, conversationId), state: recovered.run.state };
+      if (!isActiveConversation(conversationId, generation)) return;
+      agentViews.current.set(`${conversationId}:${runId}`, view);
+      setAgentRun(view);
+      return;
+    }
+    const run = await desktop.getAgentRun(runId).catch(() => null);
+    if (!isActiveConversation(conversationId, generation)) return;
+    if (!run || TERMINAL_AGENT_RUN_STATES.has(run.state)) {
+      return;
+    }
+    const events = await desktop.replayAgentRun(runId);
+    if (!isActiveConversation(conversationId, generation) || events.length === 0) return;
+    const view = reduceAgentEvents(createAgentRunView(runId, conversationId), events);
+    agentViews.current.set(`${conversationId}:${runId}`, view);
+    setAgentRun(view);
+  };
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
@@ -243,37 +307,85 @@ export function useChatController(): ChatControllerProps {
   };
 
   const loadConversation = async (conversationId: string) => {
+    const generation = ++conversationLoadGeneration.current;
     setLoadingMessages(true);
+    setLoadingOlderMessages(false);
+    loadingOlderInFlight.current = 0;
     setStreamingCitations([]);
+    setMessagePageCursor(null);
+    setHasOlderMessages(false);
     try {
-      const [nextMessages, nextDraft] = await Promise.all([
-        desktop.listMessages(conversationId),
+      const [page, nextDraft] = await Promise.all([
+        desktop.listMessagesPage(conversationId, { limit: CHAT_MESSAGE_PAGE_SIZE }),
         preferences.saveDrafts ? desktop.getConversationDraft(conversationId) : Promise.resolve(""),
       ]);
-      setMessages(nextMessages);
+      if (!isActiveConversation(conversationId, generation)) return;
+      applyInitialMessagePage(page);
       setDraft(nextDraft);
       setAgentRun(null);
       const recovered = recoveredRunsRef.current.find((candidate) => candidate.run.conversation_id === conversationId);
-      const runId = [...nextMessages].reverse().map(messageRunId).find((value): value is string => value !== null)
+      const runId = [...page.messages].reverse().map(messageRunId).find((value): value is string => value !== null)
         ?? recovered?.run.id;
       if (runId) {
-        const events = await desktop.replayAgentRun(runId);
-        if (events.length > 0) {
-          const view = reduceAgentEvents(createAgentRunView(runId, conversationId), events);
-          agentViews.current.set(`${conversationId}:${runId}`, view);
-          setAgentRun(view);
-        } else if (recovered) {
-          const view = { ...createAgentRunView(runId, conversationId), state: recovered.run.state };
-          agentViews.current.set(`${conversationId}:${runId}`, view);
-          setAgentRun(view);
-        }
+        await hydrateAgentRun(conversationId, runId, generation);
       }
     } catch (cause) {
-      setError(errorMessage(cause, t("chatError")));
+      if (generation === conversationLoadGeneration.current) {
+        setError(errorMessage(cause, t("chatError")));
+      }
     } finally {
-      setLoadingMessages(false);
+      if (generation === conversationLoadGeneration.current) {
+        setLoadingMessages(false);
+      }
     }
   };
+
+  const loadOlderMessages = async (): Promise<{
+    loaded: boolean;
+    guard: OlderMessagesPaginationGuard | null;
+  }> => {
+    const conversationId = selectedId;
+    const cursor = messagePageCursor;
+    if (!conversationId || !cursor || !useChatStore.getState().hasOlderMessages || loadingOlderInFlight.current !== 0) {
+      return { loaded: false, guard: null };
+    }
+    const generation = conversationLoadGeneration.current;
+    const owner = ++olderMessagesLoadOwner.current;
+    const guard: OlderMessagesPaginationGuard = { conversationId, epoch: generation, owner };
+    loadingOlderInFlight.current = owner;
+    setLoadingOlderMessages(true);
+    try {
+      const page = await desktop.listMessagesPage(conversationId, {
+        limit: CHAT_MESSAGE_PAGE_SIZE,
+        beforeRowid: cursor.oldestRowid,
+        beforeCreatedAt: cursor.oldestCreatedAt,
+      });
+      if (!isActiveConversation(conversationId, generation)) return { loaded: false, guard };
+      applyOlderMessagePage(page);
+      return { loaded: true, guard };
+    } catch (cause) {
+      if (isActiveConversation(conversationId, generation)) {
+        setError(errorMessage(cause, t("chatError")));
+      }
+      return { loaded: false, guard };
+    } finally {
+      if (loadingOlderInFlight.current === owner) {
+        loadingOlderInFlight.current = 0;
+        if (isActiveConversation(conversationId, generation)) {
+          setLoadingOlderMessages(false);
+        }
+      }
+    }
+  };
+
+  const isOlderMessagesPaginationActive = useCallback((guard: OlderMessagesPaginationGuard) => {
+    const activeConversationId = useChatStore.getState().selectedId;
+    return (
+      guard.conversationId === activeConversationId
+      && guard.epoch === conversationLoadGeneration.current
+      && guard.owner === olderMessagesLoadOwner.current
+    );
+  }, [selectedId]);
 
   useEffect(() => {
     if (!appearanceLoaded) return;
@@ -382,9 +494,14 @@ export function useChatController(): ChatControllerProps {
 
   useEffect(() => {
     if (!selectedId) {
+      conversationLoadGeneration.current += 1;
+      setLoadingOlderMessages(false);
+      loadingOlderInFlight.current = 0;
       setMessages([]);
       setDraft("");
       setAgentRun(null);
+      setMessagePageCursor(null);
+      setHasOlderMessages(false);
       return;
     }
     void loadConversation(selectedId);
@@ -438,11 +555,13 @@ export function useChatController(): ChatControllerProps {
   };
 
   const refreshConversation = async (conversationId: string) => {
-    const [nextMessages, nextConversations] = await Promise.all([
-      desktop.listMessages(conversationId),
+    const generation = conversationLoadGeneration.current;
+    const [page, nextConversations] = await Promise.all([
+      desktop.listMessagesPage(conversationId, { limit: CHAT_MESSAGE_PAGE_SIZE }),
       desktop.listConversations(),
     ]);
-    setMessages(nextMessages);
+    if (!isActiveConversation(conversationId, generation)) return;
+    setMessages((current) => mergeTailMessages(current, page));
     setConversations(nextConversations);
   };
 
@@ -723,5 +842,7 @@ export function useChatController(): ChatControllerProps {
     onSelectKnowledgeBases: selectKnowledgeBases,
     onSelectKnowledgeFilters: selectKnowledgeFilters,
     onToggleSmartSearch: () => setSmartSearchEnabled((enabled) => !enabled),
+    onLoadOlderMessages: loadOlderMessages,
+    isOlderMessagesPaginationActive,
   };
 }

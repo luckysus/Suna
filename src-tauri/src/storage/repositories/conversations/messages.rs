@@ -1,5 +1,5 @@
 use super::{ensure_id_available, normalize_role, now};
-use crate::models::{HistoryHit, Message};
+use crate::models::{HistoryHit, Message, MessagePage};
 use crate::retrieval::{search, SearchDocument};
 use rusqlite::{params, Connection, Transaction};
 use uuid::Uuid;
@@ -30,6 +30,128 @@ pub fn list_messages(
         .map_err(|error| error.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())
+}
+
+const DEFAULT_MESSAGE_PAGE_LIMIT: usize = 80;
+const MAX_MESSAGE_PAGE_LIMIT: usize = 200;
+
+pub fn list_messages_page(
+    conn: &Connection,
+    workspace_id: &str,
+    conversation_id: &str,
+    limit: usize,
+    before_rowid: Option<i64>,
+    before_created_at: Option<&str>,
+) -> Result<MessagePage, String> {
+    let limit = limit.clamp(1, MAX_MESSAGE_PAGE_LIMIT);
+    let fetch_limit = limit + 1;
+    let rows: Vec<Message> =
+        if let (Some(rowid), Some(created_at)) = (before_rowid, before_created_at) {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, conversation_id, role, content, response_json, created_at
+         FROM messages
+         WHERE workspace_id = ?1 AND conversation_id = ?2
+           AND (created_at < ?3 OR (created_at = ?3 AND rowid < ?4))
+         ORDER BY created_at DESC, rowid DESC
+         LIMIT ?5",
+                )
+                .map_err(|error| error.to_string())?;
+            let mapped = stmt
+                .query_map(
+                    params![
+                        workspace_id,
+                        conversation_id,
+                        created_at,
+                        rowid,
+                        fetch_limit
+                    ],
+                    |row| {
+                        Ok(Message {
+                            id: row.get(0)?,
+                            conversation_id: row.get(1)?,
+                            role: row.get(2)?,
+                            content: row.get(3)?,
+                            response_json: row.get(4)?,
+                            created_at: row.get(5)?,
+                        })
+                    },
+                )
+                .map_err(|error| error.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| error.to_string())?
+        } else {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, conversation_id, role, content, response_json, created_at
+         FROM messages
+         WHERE workspace_id = ?1 AND conversation_id = ?2
+         ORDER BY created_at DESC, rowid DESC
+         LIMIT ?3",
+                )
+                .map_err(|error| error.to_string())?;
+            let mapped = stmt
+                .query_map(params![workspace_id, conversation_id, fetch_limit], |row| {
+                    Ok(Message {
+                        id: row.get(0)?,
+                        conversation_id: row.get(1)?,
+                        role: row.get(2)?,
+                        content: row.get(3)?,
+                        response_json: row.get(4)?,
+                        created_at: row.get(5)?,
+                    })
+                })
+                .map_err(|error| error.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| error.to_string())?
+        };
+
+    let has_older = rows.len() > limit;
+    let page_rows = if has_older {
+        rows.into_iter().take(limit).collect::<Vec<_>>()
+    } else {
+        rows
+    };
+    let mut messages = page_rows;
+    messages.reverse();
+
+    let (oldest_rowid, oldest_created_at) = if messages.is_empty() {
+        (None, None)
+    } else {
+        let oldest = &messages[0];
+        let rowid = conn
+            .query_row(
+                "SELECT rowid FROM messages WHERE workspace_id = ?1 AND id = ?2",
+                params![workspace_id, oldest.id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|error| error.to_string())?;
+        (Some(rowid), Some(oldest.created_at.clone()))
+    };
+
+    Ok(MessagePage {
+        messages,
+        has_older,
+        oldest_rowid,
+        oldest_created_at,
+    })
+}
+
+pub fn list_messages_page_default(
+    conn: &Connection,
+    workspace_id: &str,
+    conversation_id: &str,
+) -> Result<MessagePage, String> {
+    list_messages_page(
+        conn,
+        workspace_id,
+        conversation_id,
+        DEFAULT_MESSAGE_PAGE_LIMIT,
+        None,
+        None,
+    )
 }
 
 pub fn search_history(

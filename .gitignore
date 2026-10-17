@@ -116,6 +116,7 @@ temp/
 cache/
 logs/
 .suna-temp/
+.cargo-target/
 .runtime/
 nohup.out
 .codex_*

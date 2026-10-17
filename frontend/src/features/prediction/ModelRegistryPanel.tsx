@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, CircleAlert, Loader2, RefreshCw, Star, Trash2 } from "lucide-react";
-import { desktop, type SteelDatasetRecord, type SteelModelRecord } from "../../bridge/desktop";
+import { desktop, type SteelDatasetRecord, type SteelModelSummary } from "../../bridge/desktop";
 import { algorithmLabel, formatMetricValue } from "./predictionModel";
 import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
@@ -16,42 +16,28 @@ import ScientificModelCards from "./ScientificModelCards";
 
 type CardMetrics = { r2: number | null; mae: number | null; rmse: number | null } | null;
 
-function parseArtifact(model: SteelModelRecord): Record<string, unknown> | null {
-  if (!model.artifact_json) return null;
-  try {
-    const parsed = JSON.parse(model.artifact_json) as unknown;
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function modelCardTitle(model: SteelModelRecord): string {
+export function modelCardTitle(model: SteelModelSummary): string {
   if (model.kind === "onnx") {
-    const manifest = parseManifest(model);
-    const modelId = typeof manifest?.model_id === "string" ? String(manifest.model_id) : "";
-    return `ONNX 模型${modelId ? ` ${modelId.slice(0, 12)}` : ""}`;
+    return "ONNX 模型";
   }
-  const artifact = parseArtifact(model);
-  const modelType = typeof artifact?.model_type === "string" ? artifact.model_type : null;
+  const modelType = model.model_type?.trim() || null;
   return modelType ? algorithmLabel(modelType) : model.kind;
 }
 
-function parseManifest(model: SteelModelRecord): Record<string, unknown> | null {
+function parseMetrics(model: SteelModelSummary): CardMetrics {
+  if (!model.metrics_json) return null;
   try {
-    const parsed = JSON.parse(model.manifest_json) as unknown;
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
+    const metrics = JSON.parse(model.metrics_json) as
+      | { train?: CardMetrics; validation?: CardMetrics }
+      | null;
+    return metrics?.validation ?? metrics?.train ?? null;
   } catch {
     return null;
   }
 }
 
-export function modelCardMetrics(model: SteelModelRecord): CardMetrics {
-  const artifact = parseArtifact(model);
-  const metrics = artifact?.metrics as
-    | { train?: CardMetrics; validation?: CardMetrics }
-    | undefined;
-  return metrics?.validation ?? metrics?.train ?? null;
+export function modelCardMetrics(model: SteelModelSummary): CardMetrics {
+  return parseMetrics(model);
 }
 
 function datasetName(lineageId: string, datasets: SteelDatasetRecord[]): string {
@@ -73,30 +59,37 @@ export default function ModelRegistryPanel({
   onNotice: (message: string) => void;
   onError: (message: string) => void;
 }) {
-  const [models, setModels] = useState<SteelModelRecord[]>([]);
+  const [models, setModels] = useState<SteelModelSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
+  const pageSize = 50;
   const [busyId, setBusyId] = useState("");
   const [cardId,setCardId]=useState("");
 
-  const load = async () => {
+  const load = async (reset = true) => {
     setLoading(true);
     try {
-      setModels(await desktop.listAllSteelModels());
+      const offset = reset ? 0 : nextOffset;
+      const page = await desktop.listAllSteelModels(pageSize, offset);
+      setModels((current) => (reset ? page.items : [...current, ...page.items]));
+      setNextOffset(offset + page.items.length);
+      setHasMore(page.has_more);
     } catch (reason) {
       onError(errorMessage(reason, "无法加载模型列表"));
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(true); }, []);
 
-  const activate = async (model: SteelModelRecord) => {
+  const activate = async (model: SteelModelSummary) => {
     setBusyId(model.id);
     onError("");
     try {
       await desktop.setActiveSteelModel(model.id);
       onNotice(`已将「${modelCardTitle(model)}」v${model.version} 设为活动版本`);
-      await load();
+      await load(true);
     } catch (reason) {
       onError(errorMessage(reason, "无法切换活动版本"));
     } finally {
@@ -104,13 +97,13 @@ export default function ModelRegistryPanel({
     }
   };
 
-  const remove = async (model: SteelModelRecord) => {
+  const remove = async (model: SteelModelSummary) => {
     setBusyId(model.id);
     onError("");
     try {
       await desktop.deleteSteelModel(model.id);
       onNotice(`已删除「${modelCardTitle(model)}」v${model.version}`);
-      await load();
+      await load(true);
     } catch (reason) {
       onError(errorMessage(reason, "无法删除该模型版本"));
     } finally {
@@ -122,7 +115,7 @@ export default function ModelRegistryPanel({
     <section className="suna-registry-panel">
       <div className="suna-registry-head">
         <p>模型中心汇总所有已注册的模型版本：训练完成的模型会自动注册，ONNX 导出的模型在注册后也会出现在这里。</p>
-        <Button variant="ghost" onClick={() => void load()} disabled={loading}>
+        <Button variant="ghost" onClick={() => void load(true)} disabled={loading}>
           {loading ? <Loader2 className="suna-spin" size={15} /> : <RefreshCw size={15} />}刷新
         </Button>
       </div>
@@ -148,7 +141,7 @@ export default function ModelRegistryPanel({
                 <div><dt>RMSE</dt><dd>{formatMetricValue(metrics?.rmse)}</dd></div>
               </dl>
               <div className="suna-registry-actions">
-                <Button variant="ghost" disabled={!model.artifact_json} title={model.artifact_json?"读取经过校验的科研卡":"ONNX 登记未包含完整训练元数据"} onClick={()=>setCardId(cardId===model.id?"":model.id)}>科研卡</Button>
+                <Button variant="ghost" disabled={!model.has_artifact_json} title={model.has_artifact_json ? "读取经过校验的科研卡" : "ONNX 登记未包含完整训练元数据"} onClick={()=>setCardId(cardId===model.id?"":model.id)}>科研卡</Button>
                 <Button variant="ghost" onClick={() => void activate(model)} disabled={busy || model.is_active} >
                   {busy ? <Loader2 className="suna-spin" size={14} /> : <Star size={14} />}设为活动
                 </Button>
@@ -161,6 +154,13 @@ export default function ModelRegistryPanel({
           );
         })}
       </div>
+      {hasMore && (
+        <div className="suna-registry-head">
+          <Button variant="ghost" disabled={loading} onClick={() => void load(false)}>
+            {loading ? <Loader2 className="suna-spin" size={15} /> : null}加载更多模型
+          </Button>
+        </div>
+      )}
       {models.length === 0 && !loading && (
         <div className="suna-prediction-empty">
           <CircleAlert size={30} />

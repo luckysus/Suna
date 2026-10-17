@@ -30,6 +30,14 @@ pub struct Message {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessagePage {
+    pub messages: Vec<Message>,
+    pub has_older: bool,
+    pub oldest_rowid: Option<i64>,
+    pub oldest_created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryHit {
     pub conversation_id: String,
     pub conversation_title: String,

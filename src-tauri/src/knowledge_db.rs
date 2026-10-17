@@ -604,6 +604,93 @@ async fn check_vector(pool: &PgPool) -> Result<bool, String> {
     Ok(row.try_get("installed").unwrap_or(false))
 }
 
+const PGVECTOR_ANN_MAX_DIMENSIONS: i32 = 2000;
+
+async fn ensure_pgvector_ann_indexes(
+    pool: &PgPool,
+    config: &KnowledgeDatabaseConfig,
+) -> Vec<String> {
+    let mut dimensions: Vec<i32> = match sqlx::query_scalar(
+        "SELECT DISTINCT dimension FROM chunk_embeddings WHERE dimension > 0 ORDER BY dimension",
+    )
+    .fetch_all(pool)
+    .await
+    {
+        Ok(values) => values,
+        Err(error) => {
+            return vec![format!(
+                "读取 pgvector 维度失败: {}",
+                safe_error(&error.to_string())
+            )];
+        }
+    };
+    let mut warnings = Vec::new();
+    let configured = match i32::try_from(config.vector_dimension) {
+        Ok(value) => value,
+        Err(_) => {
+            warnings.push("配置的向量维度无效，已跳过 ANN 索引创建".to_string());
+            return warnings;
+        }
+    };
+    if configured > 0 && !dimensions.contains(&configured) {
+        dimensions.push(configured);
+    }
+    for dimension in dimensions {
+        if dimension <= 0 {
+            continue;
+        }
+        if dimension > PGVECTOR_ANN_MAX_DIMENSIONS {
+            warnings.push(format!(
+                "维度 {dimension} 超过 pgvector ANN 索引上限 {PGVECTOR_ANN_MAX_DIMENSIONS}，将使用顺序扫描"
+            ));
+            continue;
+        }
+        let index_name = format!("chunk_embeddings_{}_{}", config.index_type, dimension);
+        let statement = match config.index_type.as_str() {
+            "hnsw" => format!(
+                "CREATE INDEX IF NOT EXISTS {index_name} ON chunk_embeddings USING hnsw ((embedding::vector({dimension})) vector_cosine_ops) WHERE dimension = {dimension}"
+            ),
+            "ivfflat" => {
+                let row_count = sqlx::query_scalar::<_, i64>(
+                    "SELECT COUNT(*)::bigint FROM chunk_embeddings WHERE dimension = $1",
+                )
+                .bind(dimension)
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
+                if row_count == 0 {
+                    warnings.push(format!(
+                        "维度 {dimension} 尚无向量数据，已跳过 IVFFlat 索引创建"
+                    ));
+                    continue;
+                }
+                format!(
+                    "CREATE INDEX IF NOT EXISTS {index_name} ON chunk_embeddings USING ivfflat ((embedding::vector({dimension})) vector_cosine_ops) WITH (lists = 100) WHERE dimension = {dimension}"
+                )
+            }
+            other => {
+                warnings.push(format!("向量索引类型无效: {other}"));
+                continue;
+            }
+        };
+        if let Err(error) = sqlx::query(&statement).execute(pool).await {
+            warnings.push(format!(
+                "维度 {dimension} 的 pgvector 索引创建失败: {}",
+                safe_error(&error.to_string())
+            ));
+        }
+    }
+    warnings
+}
+
+fn vector_distance_expr(dimension: i32, vector_param: &str) -> String {
+    format!(
+        "(e.embedding::vector({dimension})) <=> ({vector_param}::vector({dimension}))",
+        dimension = dimension,
+        vector_param = vector_param
+    )
+}
+
 async fn prepare_pool(pool: &PgPool) -> Result<i64, String> {
     let server_version: i64 =
         sqlx::query_scalar("SELECT current_setting('server_version_num')::bigint")
@@ -1594,6 +1681,7 @@ async fn import_postgres_document_inner_with_job(
     } else {
         update_ingestion_stage_or_fail(&pool, job_id, attempt_id, "completed").await?;
     }
+    spawn_pgvector_ann_index_ensure(app, &pool);
     Ok(PostgresDocumentImportResponse {
         task_id: job_id,
         knowledge_base_id: request.knowledge_base_id,
@@ -1603,6 +1691,22 @@ async fn import_postgres_document_inner_with_job(
         asset_count: parsed.assets.len() as u32,
         duplicate_content: false,
     })
+}
+
+fn spawn_pgvector_ann_index_ensure(app: &tauri::AppHandle, pool: &PgPool) {
+    let app = app.clone();
+    let pool = pool.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let db = app.state::<DbState>();
+        let config = match load_config(&db) {
+            Ok(Some(config)) => config,
+            _ => return,
+        };
+        for warning in ensure_pgvector_ann_indexes(&pool, &config).await {
+            log::warn!("PostgreSQL 向量索引: {warning}");
+        }
+    });
 }
 
 /// Internal adapter used by the loopback Knowledge REST API. It keeps the
@@ -2265,10 +2369,12 @@ async fn search_postgres_vectors_pool(
 ) -> Result<Vec<PostgresKnowledgeSearchHit>, String> {
     let vector = encode_pgvector(&request.embedding)?;
     let limit = request.limit.clamp(1, 100);
-    let rows = sqlx::query(
+    let dimension = i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?;
+    let distance = vector_distance_expr(dimension, "$2");
+    let sql = format!(
         "SELECT c.id, c.version_id, d.id AS document_id, d.knowledge_base_id, d.display_name,
                 c.text, c.source_location,
-                (1 - (e.embedding <=> $2::vector))::real AS rank
+                (1 - ({distance}))::real AS rank
          FROM chunk_embeddings e
          JOIN document_chunks c ON c.id = e.chunk_id
          JOIN document_versions v ON v.id = c.version_id AND v.activated_at IS NOT NULL
@@ -2280,21 +2386,22 @@ async fn search_postgres_vectors_pool(
            AND e.model_id = v.embedding_model_id
            AND v.manifest_sealed = TRUE
            AND v.id = (SELECT av.id FROM document_versions av WHERE av.document_id = d.id AND av.activated_at IS NOT NULL ORDER BY av.activated_at DESC LIMIT 1)
-         ORDER BY e.embedding <=> $2::vector, c.ordinal
-         LIMIT $4",
-    )
-    .bind(request.knowledge_base_id)
-    .bind(vector)
-    .bind(i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?)
-    .bind(i64::from(limit))
-    .fetch_all(pool)
-    .await
-    .map_err(|error| {
-        format!(
-            "PostgreSQL 向量检索失败: {}",
-            safe_error(&error.to_string())
-        )
-    })?;
+         ORDER BY {distance}, c.ordinal
+         LIMIT $4"
+    );
+    let rows = sqlx::query(&sql)
+        .bind(request.knowledge_base_id)
+        .bind(vector)
+        .bind(dimension)
+        .bind(i64::from(limit))
+        .fetch_all(pool)
+        .await
+        .map_err(|error| {
+            format!(
+                "PostgreSQL 向量检索失败: {}",
+                safe_error(&error.to_string())
+            )
+        })?;
     rows.into_iter()
         .map(|row| {
             Ok(PostgresKnowledgeSearchHit {
@@ -2341,7 +2448,9 @@ async fn search_postgres_hybrid_unfiltered_pool(
     let vector = encode_pgvector(&request.embedding)?;
     let limit = request.limit.clamp(1, 100);
     let rrf_k = request.rrf_k.clamp(1, 10_000);
-    let rows = sqlx::query(
+    let dimension = i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?;
+    let dense_distance = vector_distance_expr(dimension, "$3");
+    let hybrid_sql = format!(
         "WITH lexical AS (
             SELECT c.id,
                    ROW_NUMBER() OVER (
@@ -2358,7 +2467,7 @@ async fn search_postgres_hybrid_unfiltered_pool(
             LIMIT $4
          ), dense AS (
             SELECT c.id,
-                   ROW_NUMBER() OVER (ORDER BY e.embedding <=> $3::vector, c.ordinal) AS position
+                   ROW_NUMBER() OVER (ORDER BY {dense_distance}, c.ordinal) AS position
             FROM chunk_embeddings e
             JOIN document_chunks c ON c.id = e.chunk_id
             JOIN document_versions v ON v.id = c.version_id AND v.activated_at IS NOT NULL
@@ -2384,22 +2493,23 @@ async fn search_postgres_hybrid_unfiltered_pool(
          JOIN document_versions v ON v.id = c.version_id AND v.activated_at IS NOT NULL
          JOIN source_documents d ON d.id = v.document_id
          ORDER BY scored.rank DESC, c.ordinal
-         LIMIT $4",
-    )
-    .bind(request.knowledge_base_id)
-    .bind(query)
-    .bind(vector)
-    .bind(i64::from(limit))
-    .bind(rrf_k as f64)
-    .bind(i32::try_from(request.embedding.len()).map_err(|_| "Embedding 维度过大")?)
-    .fetch_all(pool)
-    .await
-    .map_err(|error| {
-        format!(
-            "PostgreSQL 混合检索失败: {}",
-            safe_error(&error.to_string())
-        )
-    })?;
+         LIMIT $4"
+    );
+    let rows = sqlx::query(&hybrid_sql)
+        .bind(request.knowledge_base_id)
+        .bind(query)
+        .bind(vector)
+        .bind(i64::from(limit))
+        .bind(rrf_k as f64)
+        .bind(dimension)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| {
+            format!(
+                "PostgreSQL 混合检索失败: {}",
+                safe_error(&error.to_string())
+            )
+        })?;
     let hits = rows
         .into_iter()
         .map(|row| {
@@ -2486,7 +2596,9 @@ pub(crate) async fn search_postgres_hybrid_pool(
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let year = filters.year;
-    let rows = sqlx::query(
+    let dimension = i32::try_from(embedding.len()).map_err(|_| "Embedding 维度过大")?;
+    let dense_distance = vector_distance_expr(dimension, "$3");
+    let filtered_hybrid_sql = format!(
         "WITH lexical AS (
             SELECT c.id, ROW_NUMBER() OVER (
               ORDER BY ts_rank_cd(c.search_vector, plainto_tsquery('simple', $2)) DESC, c.ordinal
@@ -2507,7 +2619,7 @@ pub(crate) async fn search_postgres_hybrid_pool(
             ORDER BY position
             LIMIT $4
          ), dense AS (
-            SELECT c.id, ROW_NUMBER() OVER (ORDER BY e.embedding <=> $3::vector, c.ordinal) AS position
+            SELECT c.id, ROW_NUMBER() OVER (ORDER BY {dense_distance}, c.ordinal) AS position
             FROM chunk_embeddings e
             JOIN document_chunks c ON c.id = e.chunk_id
             JOIN document_versions v ON v.id = c.version_id AND v.activated_at IS NOT NULL
@@ -2525,7 +2637,7 @@ pub(crate) async fn search_postgres_hybrid_pool(
               AND e.dimension = $6
               AND e.model_id = v.embedding_model_id
               AND v.manifest_sealed = TRUE
-              AND ($14::real IS NULL OR (1 - (e.embedding <=> $3::vector)) >= $14::real)
+              AND ($14::real IS NULL OR (1 - ({dense_distance})) >= $14::real)
             ORDER BY position
             LIMIT $4
          ), scored AS (
@@ -2540,25 +2652,31 @@ pub(crate) async fn search_postgres_hybrid_pool(
          JOIN document_chunks c ON c.id = scored.id
          JOIN document_versions v ON v.id = c.version_id AND v.activated_at IS NOT NULL
          JOIN source_documents d ON d.id = v.document_id
-         ORDER BY scored.rank DESC, c.ordinal LIMIT $4",
-    )
-    .bind(knowledge_base_id)
-    .bind(query)
-    .bind(vector)
-    .bind(i64::try_from(limit).map_err(|_| "检索数量无效")?)
-    .bind(rrf_k as f64)
-    .bind(i32::try_from(embedding.len()).map_err(|_| "Embedding 维度过大")?)
-    .bind(document_type)
-    .bind(material)
-    .bind(process)
-    .bind(property)
-    .bind(tag)
-    .bind(year)
-    .bind(source)
-    .bind(similarity_threshold)
-    .fetch_all(pool)
-    .await
-    .map_err(|error| format!("PostgreSQL 混合检索失败: {}", safe_error(&error.to_string())))?;
+         ORDER BY scored.rank DESC, c.ordinal LIMIT $4"
+    );
+    let rows = sqlx::query(&filtered_hybrid_sql)
+        .bind(knowledge_base_id)
+        .bind(query)
+        .bind(vector)
+        .bind(i64::try_from(limit).map_err(|_| "检索数量无效")?)
+        .bind(rrf_k as f64)
+        .bind(dimension)
+        .bind(document_type)
+        .bind(material)
+        .bind(process)
+        .bind(property)
+        .bind(tag)
+        .bind(year)
+        .bind(source)
+        .bind(similarity_threshold)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| {
+            format!(
+                "PostgreSQL 混合检索失败: {}",
+                safe_error(&error.to_string())
+            )
+        })?;
     rows.into_iter()
         .map(|row| {
             Ok(PostgresKnowledgeSearchHit {
@@ -5390,15 +5508,24 @@ pub async fn initialize_knowledge_database(
             });
         }
     };
+    let index_warnings = ensure_pgvector_ann_indexes(&pool, &config).await;
     clear_config_backup(&db, &secrets)?;
     *state.pool.lock().map_err(|_| "知识库状态已损坏")? = Some(pool);
+    let message = if index_warnings.is_empty() {
+        "PostgreSQL 知识库初始化完成".to_string()
+    } else {
+        format!(
+            "PostgreSQL 知识库已连接；部分向量索引未创建：{}",
+            index_warnings.join("；")
+        )
+    };
     Ok(KnowledgeDatabaseHealth {
         configured: true,
         config: Some(config),
         connected: true,
         vector_extension: true,
         migration_version: Some(version),
-        message: "PostgreSQL 知识库初始化完成".to_string(),
+        message,
     })
 }
 
@@ -5435,6 +5562,9 @@ pub(crate) fn auto_initialize_knowledge_database(app: tauri::AppHandle) {
             pool.close().await;
             log::error!("自动初始化 PostgreSQL 知识库失败: {error}");
             return;
+        }
+        for warning in ensure_pgvector_ann_indexes(&pool, &config).await {
+            log::warn!("PostgreSQL 向量索引: {warning}");
         }
         match state.pool.lock() {
             Ok(mut active) => *active = Some(pool),

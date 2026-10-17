@@ -7,6 +7,7 @@ import { resetAgentStoreForTests } from "../../stores/agentStore";
 import { resetChatStoreForTests } from "../../stores/chatStore";
 import { resetKnowledgeStoreForTests } from "../../stores/knowledgeStore";
 import { resetModelStoreForTests } from "../../stores/modelStore";
+import { messagePage } from "./testMessagePage";
 
 let publishAgentEvent: ((event: AgentEventEnvelope) => void) | undefined;
 
@@ -23,6 +24,8 @@ vi.mock("../../bridge/desktop", () => ({
     listArchivedConversations: vi.fn().mockResolvedValue([]),
     deleteConversationLocal: vi.fn(),
     listMessages: vi.fn(),
+    listMessagesPage: vi.fn(),
+    getAgentRun: vi.fn(),
     getConversationDraft: vi.fn(),
     saveConversationDraft: vi.fn(),
     listenAgentEvents: vi.fn(),
@@ -143,6 +146,8 @@ describe("ChatPage", () => {
     vi.mocked(desktop.archiveConversation).mockResolvedValue(undefined);
     vi.mocked(desktop.deleteConversationLocal).mockResolvedValue(undefined);
     vi.mocked(desktop.listMessages).mockResolvedValue([]);
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([]));
+    vi.mocked(desktop.getAgentRun).mockResolvedValue(null);
     vi.mocked(desktop.getConversationDraft).mockResolvedValue("");
     vi.mocked(desktop.saveConversationDraft).mockResolvedValue(undefined);
     vi.mocked(desktop.listenAgentEvents).mockImplementation(async (handler) => {
@@ -197,7 +202,7 @@ describe("ChatPage", () => {
   });
 
   it("loads a local conversation and its message history", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([userMessage]);
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([userMessage]));
     render(<ChatPage />);
 
     await screen.findByRole("heading", { name: "Q355B 标准" });
@@ -419,12 +424,12 @@ describe("ChatPage", () => {
 
   it("sends a message through the local agent command", async () => {
     vi.mocked(desktop.desktopAgentChat).mockImplementation(async () => {
-      vi.mocked(desktop.listMessages).mockResolvedValue([userMessage, {
+      vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([userMessage, {
         ...userMessage,
         id: "message-2",
         role: "agent",
         content: "Q355B 的要求需要结合厚度和适用标准判断。",
-      }]);
+      }]));
       return {
         run_id: "run-1",
         session_id: conversation.id,
@@ -494,19 +499,19 @@ describe("ChatPage", () => {
   });
 
   it("shows a citation entry for an assistant response with evidence", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([{
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([{
       ...userMessage,
       role: "agent",
       content: "The yield strength is 355 MPa 文献1。",
       response_json: JSON.stringify({ evidence_pack_id: evidencePack.id, evidence: evidencePack.evidence }),
-    }]);
+    }]));
     render(<ChatPage />);
 
-    expect(await screen.findByText("文献1")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/文献1/)).toBeInTheDocument());
   });
 
   it("renders the complete Web response blocks from the local agent payload", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([
       userMessage,
       {
         ...userMessage,
@@ -530,7 +535,7 @@ describe("ChatPage", () => {
           }],
         }),
       },
-    ]);
+    ]));
     render(<ChatPage />);
 
     expect(await screen.findByText("需要补充的信息")).toBeInTheDocument();
@@ -542,7 +547,7 @@ describe("ChatPage", () => {
   });
 
   it("shows local context status from the agent response metadata", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([
       userMessage,
       {
         ...userMessage,
@@ -560,7 +565,7 @@ describe("ChatPage", () => {
           tool_calls: [{ tool_name: "steel.carbon_equivalent" }],
         }),
       },
-    ]);
+    ]));
 
     render(<ChatPage />);
 
@@ -570,12 +575,12 @@ describe("ChatPage", () => {
   });
 
   it("fills the composer with a Web follow-up question", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([{
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([{
       ...userMessage,
       role: "agent",
       content: "请补充信息。",
       response_json: JSON.stringify({ follow_up_questions: ["请补充板厚"] }),
-    }]);
+    }]));
     render(<ChatPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "请补充板厚" }));
@@ -628,12 +633,23 @@ describe("ChatPage", () => {
 
   it("replays persisted agent events for the latest assistant response", async () => {
     const runId = "run-history";
-    vi.mocked(desktop.listMessages).mockResolvedValue([{
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([{
       ...userMessage,
       role: "agent",
       content: "Persisted answer",
       response_json: JSON.stringify({ run_id: runId }),
-    }]);
+    }]));
+    vi.mocked(desktop.getAgentRun).mockResolvedValue({
+      id: runId,
+      workspace_id: "local",
+      conversation_id: conversation.id,
+      user_message_id: userMessage.id,
+      state: "generating",
+      next_sequence: 2,
+      created_at: conversation.created_at,
+      updated_at: conversation.updated_at,
+      completed_at: null,
+    });
     vi.mocked(desktop.replayAgentRun).mockResolvedValue([{
       protocol_version: 1,
       event_id: "event-history-1",
@@ -716,7 +732,7 @@ describe("ChatPage", () => {
   });
 
   it("offers retry for an interrupted run and starts a fresh desktop turn", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([userMessage]);
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([userMessage]));
     vi.mocked(desktop.recoverAgentRuns).mockResolvedValue([{
       run: {
         id: "run-interrupted",
@@ -744,7 +760,7 @@ describe("ChatPage", () => {
   });
 
   it("offers resume for a checkpoint recovery action", async () => {
-    vi.mocked(desktop.listMessages).mockResolvedValue([userMessage]);
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([userMessage]));
     vi.mocked(desktop.recoverAgentRuns).mockResolvedValue([{
       run: {
         id: "run-resume",

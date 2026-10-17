@@ -10,7 +10,8 @@ pub use edits::{
     fork_from_anchor, fork_from_message, replace_after_edit, save_snapshot, truncate_after_message,
 };
 pub use messages::{
-    append_message, append_message_in_transaction, list_messages, rank_history_hits, search_history,
+    append_message, append_message_in_transaction, list_messages, list_messages_page,
+    list_messages_page_default, rank_history_hits, search_history,
 };
 pub use summary::{
     clear_draft, get_draft, get_summary, latest_summary, save_draft, save_summary,

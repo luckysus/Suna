@@ -170,8 +170,14 @@ mod tests {
                 split_policy: Some(model.split_policy.clone()),
                 algorithm: Some(model.algorithm.clone()),
             };
+            let prepared = logic::prepare_steel_training_task(
+                logic::load_train_dataset_snapshot(&f.connection, "local", &request.dataset_id)
+                    .unwrap(),
+                &request,
+            )
+            .unwrap();
             let node = delivery::scoped(&f.connection, Some(&f.input.project_id), || {
-                logic::train_steel_dataset_on_connection(&f.connection, "local", &request)
+                logic::train_steel_dataset_prepared(&f.connection, "local", &prepared)
             })
             .unwrap();
             provenance::bind_node(

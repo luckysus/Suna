@@ -63,7 +63,27 @@ pub struct DatasetTable {
     pub warnings: Vec<String>,
 }
 
-pub fn read_dataset_table(request: &DatasetPreviewRequest) -> Result<DatasetTable, String> {
+fn read_dataset_table_from_bytes(
+    bytes: &[u8],
+    path: &Path,
+    sheet: Option<&str>,
+) -> Result<DatasetTable, String> {
+    let format = format_for_path(path)?;
+    match format {
+        SourceFormat::Json => json::read_dataset_table_from_bytes(bytes, path, sheet),
+        SourceFormat::Csv => csv::read_dataset_table_from_bytes(bytes, path, sheet),
+        SourceFormat::Xlsx => xlsx::read_dataset_table_from_bytes(bytes, path, sheet),
+        SourceFormat::Xls => Err(
+            "legacy XLS is supported by knowledge indexing but not dataset analysis".to_string(),
+        ),
+        _ => Err(format!("unsupported dataset format: {}", format.as_str())),
+    }
+}
+
+/// Read the authorized dataset source once, hashing and parsing the same byte snapshot.
+pub fn hash_and_read_dataset_table(
+    request: &DatasetPreviewRequest,
+) -> Result<(String, DatasetTable), String> {
     let source_path = request.source_path.trim();
     if source_path.is_empty() {
         return Err("dataset source path is required".to_string());
@@ -71,16 +91,33 @@ pub fn read_dataset_table(request: &DatasetPreviewRequest) -> Result<DatasetTabl
     let (authorized, file) = authorize_existing_file_with_handle(Path::new(source_path))
         .map_err(|error| format!("dataset source path is not authorized: {error}"))?;
     let path = authorized.canonical_path();
-    let format = format_for_path(path)?;
-    match format {
-        SourceFormat::Json => json::read_dataset_table(file, path, request.sheet.as_deref()),
-        SourceFormat::Csv => csv::read_dataset_table(file, path, request.sheet.as_deref()),
-        SourceFormat::Xlsx => xlsx::read_dataset_table(file, path, request.sheet.as_deref()),
-        SourceFormat::Xls => Err(
-            "legacy XLS is supported by knowledge indexing but not dataset analysis".to_string(),
-        ),
-        _ => Err(format!("unsupported dataset format: {}", format.as_str())),
+    let max_source_bytes = crate::rag::parse::ParseLimits::default().max_source_bytes;
+    let mut hasher = Sha256::new();
+    let mut bytes = Vec::new();
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = reader
+            .read(&mut buffer)
+            .map_err(|error| format!("could not read dataset source: {error}"))?;
+        if read == 0 {
+            break;
+        }
+        if bytes.len() + read > max_source_bytes as usize {
+            return Err(format!(
+                "parse_source_too_large: parse source exceeds the {max_source_bytes}-byte limit"
+            ));
+        }
+        hasher.update(&buffer[..read]);
+        bytes.extend_from_slice(&buffer[..read]);
     }
+    let hash = format!("{:x}", hasher.finalize());
+    let table = read_dataset_table_from_bytes(&bytes, path, request.sheet.as_deref())?;
+    Ok((hash, table))
+}
+
+pub fn read_dataset_table(request: &DatasetPreviewRequest) -> Result<DatasetTable, String> {
+    hash_and_read_dataset_table(request).map(|(_, table)| table)
 }
 
 pub fn preview_dataset(request: &DatasetPreviewRequest) -> Result<DatasetPreview, String> {
@@ -259,6 +296,27 @@ mod tests {
         assert_eq!(preview.columns[1].max, Some(355.0));
         assert_eq!(preview.sample_rows.len(), 3);
 
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn hash_and_read_uses_the_same_byte_snapshot() {
+        let path =
+            std::env::temp_dir().join(format!("suna-dataset-hash-{}.csv", uuid::Uuid::new_v4()));
+        fs::write(&path, "heat_id,yield\nH-01,355\n").expect("write fixture");
+        let request = DatasetPreviewRequest {
+            source_path: path.to_string_lossy().into_owned(),
+            sheet: None,
+        };
+        let (hash, table) = hash_and_read_dataset_table(&request).expect("hash and read");
+        assert_eq!(table.row_count, 1);
+        assert_eq!(
+            hash,
+            hash_dataset_source(&request.source_path).expect("hash")
+        );
+        fs::write(&path, "heat_id,yield\nH-01,999\n").expect("mutate fixture");
+        let (changed, _) = hash_and_read_dataset_table(&request).expect("hash and read changed");
+        assert_ne!(hash, changed);
         let _ = fs::remove_file(path);
     }
 }

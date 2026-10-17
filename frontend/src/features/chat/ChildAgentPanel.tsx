@@ -8,6 +8,18 @@ import { errorMessage as toErrorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/ui/button";
 
 const settledStates: AgentRunState[] = ["completed", "cancelled", "failed", "interrupted"];
+
+export function shouldReplayChildTurn(
+  child: AgentChildTurnRecord,
+  view?: AgentRunView,
+  terminalReplayed?: ReadonlySet<string>,
+) {
+  if (terminalReplayed?.has(child.child_turn_id)) return false;
+  if (!view || view.sequence === 0) return true;
+  const locallySettled = settledStates.includes(view.state);
+  return !(settledStates.includes(child.state) && locallySettled);
+}
+
 const stateLabels: Record<AgentRunState, string> = {
   created: "等待启动", preparing: "准备中", generating: "生成中", awaiting_permission: "等待授权",
   executing_tools: "执行工具", verifying: "核对结果", completing: "整合结果", completed: "已完成",
@@ -35,24 +47,29 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
   const [cancelRequested, setCancelRequested] = useState<string[]>([]);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const viewsRef = useRef<Record<string, AgentRunView>>({});
+  const terminalReplayedRef = useRef(new Set<string>());
   const generation = useRef(0);
+  const refreshRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     const currentGeneration = ++generation.current;
     let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let reconcileTimer: ReturnType<typeof setTimeout> | undefined;
+    let schedulerTimer: ReturnType<typeof setTimeout> | undefined;
     let unlisten: (() => void) | undefined;
+    let unlistenScheduler: (() => void) | undefined;
     let fetching = false;
     let started = false;
     let pendingChildEvents: AgentEventEnvelope[] = [];
     viewsRef.current = {};
+    terminalReplayedRef.current = new Set();
     setChildren([]); setViews({}); setSelectedId(null); setCancelling(null); setCancelRequested([]); setError(""); setLoading(true);
     if (typeof desktop.listAgentChildTurns !== "function") { setLoading(false); return; }
 
     const accept = (child: AgentChildTurnRecord, events: AgentEventEnvelope[]) => {
       if (!active) return;
-      // Child events use the parent conversation id; the child session id remains metadata.
-      const current = viewsRef.current[child.child_turn_id] ?? { ...createAgentRunView(child.child_turn_id, parentConversationId), state: child.state };
+      const current = viewsRef.current[child.child_turn_id]
+        ?? createAgentRunView(child.child_turn_id, parentConversationId);
       const queued = pendingChildEvents.filter((event) => event.run_id === child.child_turn_id);
       pendingChildEvents = pendingChildEvents.filter((event) => event.run_id !== child.child_turn_id);
       viewsRef.current = { ...viewsRef.current, [child.child_turn_id]: reduceAgentEvents(current, [...events, ...queued]) };
@@ -69,15 +86,22 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
         setSelectedId((current) => scoped.some((child) => child.child_turn_id === current) ? current : scoped[0]?.child_turn_id ?? null);
         scoped.forEach((child) => accept(child, []));
         const results = await Promise.allSettled(scoped.map(async (child) => {
-          const events = await desktop.replayAgentChildTurn(child.child_turn_id, viewsRef.current[child.child_turn_id]?.sequence ?? 0);
+          const view = viewsRef.current[child.child_turn_id];
+          const afterSequence = view?.sequence ?? 0;
+          if (!shouldReplayChildTurn(child, view, terminalReplayedRef.current)) return;
+          const events = await desktop.replayAgentChildTurn(child.child_turn_id, afterSequence);
           accept(child, events);
+          const nextView = viewsRef.current[child.child_turn_id];
+          if (nextView && settledStates.includes(child.state) && settledStates.includes(nextView.state)) {
+            terminalReplayedRef.current.add(child.child_turn_id);
+          }
         }));
         const failed = results.find((result) => result.status === "rejected");
         if (active) setError(failed?.status === "rejected" ? errorMessage(failed.reason) : "");
       } catch (reason) { if (active) setError(errorMessage(reason)); }
       finally {
         fetching = false;
-        if (active) { setLoading(false); timer = setTimeout(() => void refresh(), 3000); }
+        if (active) setLoading(false);
       }
     };
     const listenChildEvents = desktop.listenAgentChildEvents ?? desktop.listenAgentEvents;
@@ -90,9 +114,13 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
         }
         if (!current && event.run_id !== parentRunId && event.conversation_id === parentConversationId) {
           pendingChildEvents = [...pendingChildEvents, event].slice(-512);
-          if (timer) clearTimeout(timer);
           if (started) void refresh();
         }
+    };
+    const scheduleReconcile = () => {
+      if (!active) return;
+      if (schedulerTimer) clearTimeout(schedulerTimer);
+      schedulerTimer = setTimeout(() => { schedulerTimer = undefined; void refresh(); }, 300);
     };
     void (async () => {
       try {
@@ -101,12 +129,34 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
           if (!active || currentGeneration !== generation.current) { stop(); return; }
           unlisten = stop;
         }
+        unlistenScheduler = await desktop.listenSchedulerProgress(() => scheduleReconcile());
       } catch (reason) { if (active) setError(errorMessage(reason)); }
       started = true;
       if (active) await refresh();
+      if (active) {
+        const reconcile = () => {
+          if (!active) return;
+          const hasActiveChild = Object.values(viewsRef.current).some((view) => !settledStates.includes(view.state));
+          if (hasActiveChild) void refresh();
+          reconcileTimer = setTimeout(reconcile, 30_000);
+        };
+        reconcileTimer = setTimeout(reconcile, 30_000);
+      }
     })();
-    return () => { active = false; generation.current += 1; if (timer) clearTimeout(timer); unlisten?.(); };
-  }, [parentRunId, parentConversationId, refreshNonce]);
+    refreshRef.current = () => { void refresh(); };
+    return () => {
+      active = false;
+      generation.current += 1;
+      if (schedulerTimer) clearTimeout(schedulerTimer);
+      if (reconcileTimer) clearTimeout(reconcileTimer);
+      unlisten?.();
+      unlistenScheduler?.();
+    };
+  }, [parentRunId, parentConversationId]);
+
+  useEffect(() => {
+    if (refreshNonce > 0) refreshRef.current();
+  }, [refreshNonce]);
 
   const cancel = async (child: AgentChildTurnRecord) => {
     const requestGeneration = generation.current;

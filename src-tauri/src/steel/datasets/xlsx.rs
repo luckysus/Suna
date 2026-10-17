@@ -27,8 +27,23 @@ pub(super) fn read_dataset_table(
             limits.max_source_bytes
         ));
     }
+    read_dataset_table_from_bytes(&bytes, path, requested_sheet)
+}
 
-    let mut archive = OfficeArchive::open(&bytes, limits).map_err(|error| error.to_string())?;
+pub(super) fn read_dataset_table_from_bytes(
+    bytes: &[u8],
+    path: &Path,
+    requested_sheet: Option<&str>,
+) -> Result<DatasetTable, String> {
+    let limits = ParseLimits::default();
+    if bytes.len() as u64 > limits.max_source_bytes {
+        return Err(format!(
+            "parse_source_too_large: parse source exceeds the {}-byte limit",
+            limits.max_source_bytes
+        ));
+    }
+
+    let mut archive = OfficeArchive::open(bytes, limits).map_err(|error| error.to_string())?;
     let workbook = archive
         .read_required_limited("xl/workbook.xml", MAX_XLSX_ENTRY_BYTES)
         .map_err(|error| error.to_string())?;

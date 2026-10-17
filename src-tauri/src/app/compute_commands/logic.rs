@@ -1,7 +1,7 @@
 use crate::app::task_commands::tasks::{background_task_response, BackgroundTaskResponse};
 use crate::db::{current_workspace_id, with_conn, with_conn_mut, DbState};
 use crate::permissions::path::authorize_existing_file_with_handle;
-use crate::steel::{hash_dataset_source, read_dataset_table, DatasetTable};
+use crate::steel::DatasetTable;
 use crate::storage::repositories::compute_tasks;
 use crate::storage::repositories::steel::{self as steel_repository, SteelDatasetColumnRecord};
 use crate::storage::repositories::steel_models::{
@@ -867,12 +867,143 @@ fn is_supported_optimization_artifact(artifact: &Value) -> bool {
     }
 }
 
+pub struct TrainDatasetSnapshot {
+    dataset_id: String,
+    source_path: String,
+    source_sha256: String,
+    selected_sheet: String,
+    columns: Vec<SteelDatasetColumnRecord>,
+    mapping_state: String,
+    updated_at: String,
+}
+
+pub struct PreparedSteelTrainingTask {
+    dataset_id: String,
+    snapshot: TrainDatasetSnapshot,
+    payload_json: String,
+    task_kind: &'static str,
+}
+
+fn dataset_matches_snapshot(
+    dataset: &steel_repository::SteelDatasetRecord,
+    snapshot: &TrainDatasetSnapshot,
+) -> bool {
+    dataset.id == snapshot.dataset_id
+        && dataset.mapping_state == snapshot.mapping_state
+        && dataset.source_sha256 == snapshot.source_sha256
+        && dataset.selected_sheet == snapshot.selected_sheet
+        && dataset.updated_at == snapshot.updated_at
+        && dataset.columns == snapshot.columns
+}
+
+pub fn load_train_dataset_snapshot(
+    connection: &rusqlite::Connection,
+    workspace_id: &str,
+    dataset_id: &str,
+) -> Result<TrainDatasetSnapshot, String> {
+    let dataset = steel_repository::get(connection, workspace_id, dataset_id)?
+        .ok_or_else(|| "steel dataset was not found in the local workspace".to_string())?;
+    Ok(TrainDatasetSnapshot {
+        dataset_id: dataset_id.to_string(),
+        source_path: dataset.source_path,
+        source_sha256: dataset.source_sha256,
+        selected_sheet: dataset.selected_sheet,
+        columns: dataset.columns,
+        mapping_state: dataset.mapping_state,
+        updated_at: dataset.updated_at,
+    })
+}
+
+pub fn prepare_steel_training_task(
+    snapshot: TrainDatasetSnapshot,
+    request: &TrainSteelDatasetRequest,
+) -> Result<PreparedSteelTrainingTask, String> {
+    if snapshot.mapping_state != "ready" {
+        return Err("steel dataset must be activated before training".to_string());
+    }
+    let algorithm = requested_training_algorithm(request)?;
+    let (content_hash, table) =
+        crate::steel::hash_and_read_dataset_table(&crate::steel::DatasetPreviewRequest {
+            source_path: snapshot.source_path.clone(),
+            sheet: Some(snapshot.selected_sheet.clone()),
+        })?;
+    if content_hash != snapshot.source_sha256 {
+        return Err(
+            "steel dataset source changed since it was saved; preview and save it again"
+                .to_string(),
+        );
+    }
+    let payload = build_linear_regression_payload(&table, &snapshot.columns, request)?;
+    let operation = if algorithm == "linear_regression" {
+        "train_linear_regression"
+    } else {
+        "train_sklearn_model"
+    };
+    let mut compute_payload = payload;
+    compute_payload["data_version"] = json!(content_hash);
+    compute_payload["algorithm"] = json!(algorithm);
+    let task_payload = json!({ "operation": operation, "payload": compute_payload });
+    let task_kind = if algorithm == "linear_regression" {
+        crate::compute::handler::COMPUTE_TRAIN_LINEAR_REGRESSION_KIND
+    } else {
+        crate::compute::handler::COMPUTE_TRAIN_SKLEARN_KIND
+    };
+    let payload_json = serialize_compute_task_payload(&task_payload)?;
+    Ok(PreparedSteelTrainingTask {
+        dataset_id: snapshot.dataset_id.clone(),
+        snapshot,
+        payload_json,
+        task_kind,
+    })
+}
+
+pub fn enqueue_prepared_steel_training(
+    connection: &rusqlite::Connection,
+    workspace_id: &str,
+    prepared: &PreparedSteelTrainingTask,
+) -> Result<crate::tasks::TaskRecord, String> {
+    let dataset = steel_repository::get(connection, workspace_id, &prepared.dataset_id)?
+        .ok_or_else(|| "steel dataset was not found in the local workspace".to_string())?;
+    if dataset.mapping_state != "ready" {
+        return Err("steel dataset must be activated before training".to_string());
+    }
+    if !dataset_matches_snapshot(&dataset, &prepared.snapshot) {
+        return Err(
+            "steel dataset changed during training preparation; preview and save it again"
+                .to_string(),
+        );
+    }
+    if dataset.source_sha256 != prepared.snapshot.source_sha256 {
+        return Err(
+            "steel dataset source changed since it was saved; preview and save it again"
+                .to_string(),
+        );
+    }
+    task_repository::create(
+        connection,
+        NewTask {
+            workspace_id: workspace_id.to_string(),
+            kind: prepared.task_kind.to_string(),
+            payload_json: prepared.payload_json.clone(),
+            checkpoint_json: Some(json!({"stage": "queued"}).to_string()),
+            next_run_at: None,
+            progress: 0,
+        },
+    )
+    .map_err(|error| error.to_string())
+}
+
 pub(crate) fn train_steel_dataset(
     db: tauri::State<DbState>,
     request: TrainSteelDatasetRequest,
 ) -> Result<BackgroundTaskResponse, String> {
+    let workspace_id = current_workspace_id();
+    let snapshot = with_conn(&db, |connection| {
+        load_train_dataset_snapshot(connection, workspace_id, &request.dataset_id)
+    })?;
+    let prepared = prepare_steel_training_task(snapshot, &request)?;
     with_conn_mut(&db, |connection| {
-        train_steel_dataset_on_connection(connection, current_workspace_id(), &request)
+        enqueue_prepared_steel_training(connection, workspace_id, &prepared)
             .map(background_task_response)
     })
 }
@@ -882,50 +1013,17 @@ pub fn train_steel_dataset_on_connection(
     workspace_id: &str,
     request: &TrainSteelDatasetRequest,
 ) -> Result<crate::tasks::TaskRecord, String> {
-    let algorithm = requested_training_algorithm(request)?;
-    let dataset = steel_repository::get(connection, workspace_id, &request.dataset_id)?
-        .ok_or_else(|| "steel dataset was not found in the local workspace".to_string())?;
-    if dataset.mapping_state != "ready" {
-        return Err("steel dataset must be activated before training".to_string());
-    }
-    let current_hash = hash_dataset_source(&dataset.source_path)?;
-    if current_hash != dataset.source_sha256 {
-        return Err(
-            "steel dataset source changed since it was saved; preview and save it again"
-                .to_string(),
-        );
-    }
-    let table = read_dataset_table(&crate::steel::DatasetPreviewRequest {
-        source_path: dataset.source_path.clone(),
-        sheet: Some(dataset.selected_sheet.clone()),
-    })?;
-    let payload = build_linear_regression_payload(&table, &dataset.columns, request)?;
-    let operation = if algorithm == "linear_regression" {
-        "train_linear_regression"
-    } else {
-        "train_sklearn_model"
-    };
-    let mut compute_payload = payload;
-    compute_payload["data_version"] = json!(dataset.source_sha256);
-    compute_payload["algorithm"] = json!(algorithm);
-    let task_payload = json!({ "operation": operation, "payload": compute_payload });
-    let task_kind = if algorithm == "linear_regression" {
-        crate::compute::handler::COMPUTE_TRAIN_LINEAR_REGRESSION_KIND
-    } else {
-        crate::compute::handler::COMPUTE_TRAIN_SKLEARN_KIND
-    };
-    task_repository::create(
-        connection,
-        NewTask {
-            workspace_id: workspace_id.to_string(),
-            kind: task_kind.to_string(),
-            payload_json: serialize_compute_task_payload(&task_payload)?,
-            checkpoint_json: Some(json!({"stage": "queued"}).to_string()),
-            next_run_at: None,
-            progress: 0,
-        },
-    )
-    .map_err(|error| error.to_string())
+    let snapshot = load_train_dataset_snapshot(connection, workspace_id, &request.dataset_id)?;
+    let prepared = prepare_steel_training_task(snapshot, request)?;
+    enqueue_prepared_steel_training(connection, workspace_id, &prepared)
+}
+
+pub fn train_steel_dataset_prepared(
+    connection: &rusqlite::Connection,
+    workspace_id: &str,
+    prepared: &PreparedSteelTrainingTask,
+) -> Result<crate::tasks::TaskRecord, String> {
+    enqueue_prepared_steel_training(connection, workspace_id, prepared)
 }
 
 pub(crate) fn get_compute_training_result(
@@ -1275,6 +1373,12 @@ pub fn register_steel_model_on_connection_with_policy(
             };
             let artifact_json =
                 serde_json::to_string(artifact).map_err(|error| error.to_string())?;
+            let manifest_json = serde_json::to_string(&json!({
+                "artifact_version": artifact.get("artifact_version"),
+                "model_type": artifact.get("model_type"),
+                "metrics": artifact.get("metrics"),
+            }))
+            .map_err(|error| error.to_string())?;
             let mut digest = Sha256::new();
             digest.update(artifact_json.as_bytes());
             let dataset_id = payload["payload"]["dataset_id"]
@@ -1284,7 +1388,7 @@ pub fn register_steel_model_on_connection_with_policy(
                 kind,
                 format!("{lineage_prefix}:{dataset_id}"),
                 format!("{:x}", digest.finalize()),
-                artifact_json.clone(),
+                manifest_json,
                 Some(artifact_json),
                 None,
             )
@@ -1356,9 +1460,16 @@ pub(crate) fn list_steel_models(
 /// 第 35 章模型中心：列出当前工作区的全部模型版本（跨 lineage）。
 pub(crate) fn list_all_steel_models(
     db: tauri::State<DbState>,
-) -> Result<Vec<SteelModelRecord>, String> {
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<model_repository::SteelModelListPage, String> {
     with_conn(&db, |connection| {
-        model_repository::list_all(connection, current_workspace_id())
+        model_repository::list_all_page(
+            connection,
+            current_workspace_id(),
+            limit.unwrap_or(100) as usize,
+            offset.unwrap_or(0) as usize,
+        )
     })
 }
 

@@ -15,10 +15,18 @@ import type {
 } from "../bridge/desktop";
 import { resolveUpdater, type Updater } from "./storeUtils";
 
+export type MessagePageCursor = {
+  oldestRowid: number;
+  oldestCreatedAt: string;
+};
+
 export interface ChatStoreState {
   conversations: Conversation[];
   selectedId: string | null;
   messages: Message[];
+  hasOlderMessages: boolean;
+  loadingOlderMessages: boolean;
+  messagePageCursor: MessagePageCursor | null;
   draft: string;
   pendingQuestion: string | null;
   streamingCitations: EvidenceItem[];
@@ -33,6 +41,9 @@ export interface ChatStoreState {
   setConversations: (next: Updater<Conversation[]>) => void;
   setSelectedId: (next: Updater<string | null>) => void;
   setMessages: (next: Updater<Message[]>) => void;
+  setHasOlderMessages: (next: Updater<boolean>) => void;
+  setLoadingOlderMessages: (next: Updater<boolean>) => void;
+  setMessagePageCursor: (next: Updater<MessagePageCursor | null>) => void;
   setDraft: (next: Updater<string>) => void;
   setPendingQuestion: (next: Updater<string | null>) => void;
   setStreamingCitations: (next: Updater<EvidenceItem[]>) => void;
@@ -51,6 +62,9 @@ function createInitialState() {
     conversations: [] as Conversation[],
     selectedId: null as string | null,
     messages: [] as Message[],
+    hasOlderMessages: false,
+    loadingOlderMessages: false,
+    messagePageCursor: null as MessagePageCursor | null,
     draft: "",
     pendingQuestion: null as string | null,
     streamingCitations: [] as EvidenceItem[],
@@ -70,6 +84,9 @@ export const useChatStore = create<ChatStoreState>((set) => ({
   setConversations: (next) => set((state) => ({ conversations: resolveUpdater(next, state.conversations) })),
   setSelectedId: (next) => set((state) => ({ selectedId: resolveUpdater(next, state.selectedId) })),
   setMessages: (next) => set((state) => ({ messages: resolveUpdater(next, state.messages) })),
+  setHasOlderMessages: (next) => set((state) => ({ hasOlderMessages: resolveUpdater(next, state.hasOlderMessages) })),
+  setLoadingOlderMessages: (next) => set((state) => ({ loadingOlderMessages: resolveUpdater(next, state.loadingOlderMessages) })),
+  setMessagePageCursor: (next) => set((state) => ({ messagePageCursor: resolveUpdater(next, state.messagePageCursor) })),
   setDraft: (next) => set((state) => ({ draft: resolveUpdater(next, state.draft) })),
   setPendingQuestion: (next) => set((state) => ({ pendingQuestion: resolveUpdater(next, state.pendingQuestion) })),
   setStreamingCitations: (next) => set((state) => ({ streamingCitations: resolveUpdater(next, state.streamingCitations) })),

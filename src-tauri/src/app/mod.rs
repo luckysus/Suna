@@ -32,7 +32,7 @@ pub(crate) mod report_commands;
 pub(crate) mod research_commands;
 pub(crate) mod secret_commands;
 pub(crate) mod skills_commands;
-pub(crate) mod steel_agent_gateway;
+pub mod steel_agent_gateway;
 pub(crate) mod steel_commands;
 pub(crate) mod storage_commands;
 pub(crate) mod task_commands;

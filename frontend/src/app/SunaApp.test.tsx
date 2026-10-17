@@ -20,6 +20,8 @@ vi.mock("../bridge/desktop", () => ({
     listArchivedConversations: vi.fn().mockResolvedValue([]),
     deleteConversationLocal: vi.fn(),
     listMessages: vi.fn(),
+    listMessagesPage: vi.fn(),
+    getAgentRun: vi.fn(),
     getConversationDraft: vi.fn(),
     saveConversationDraft: vi.fn(),
     listenAgentEvents: vi.fn(),
@@ -71,6 +73,13 @@ describe("SunaApp global sidebar", () => {
     vi.mocked(desktop.archiveConversation).mockResolvedValue(undefined);
     vi.mocked(desktop.deleteConversationLocal).mockResolvedValue(undefined);
     vi.mocked(desktop.listMessages).mockResolvedValue([]);
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue({
+      messages: [],
+      has_older: false,
+      oldest_rowid: null,
+      oldest_created_at: null,
+    });
+    vi.mocked(desktop.getAgentRun).mockResolvedValue(null);
     vi.mocked(desktop.getConversationDraft).mockResolvedValue("");
     vi.mocked(desktop.saveConversationDraft).mockResolvedValue(undefined);
     vi.mocked(desktop.listenAgentEvents).mockResolvedValue(() => undefined);

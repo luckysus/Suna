@@ -52,6 +52,13 @@ export interface Message {
   created_at: string;
 }
 
+export interface MessagePage {
+  messages: Message[];
+  has_older: boolean;
+  oldest_rowid: number | null;
+  oldest_created_at: string | null;
+}
+
 export interface LocalAgentChatRequest {
   sessionId?: string;
   agentId?: string;
@@ -477,20 +484,31 @@ export interface ScientificCardsResponse {
   };
 }
 
-export interface SteelModelRecord {
+export interface SteelModelSummary {
   id: string;
   lineage_id: string;
   kind: "linear_artifact" | "sklearn_artifact" | "transformer_artifact" | "onnx";
   version: number;
   source_task_id: string | null;
   model_sha256: string;
-  /** 注册时的 manifest；artifact 类模型含 metrics，ONNX 模型含 I/O schema。 */
-  manifest_json: string;
+  model_type: string | null;
+  metrics_json: string | null;
+  has_artifact_json: boolean;
+  has_model_base64: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SteelModelListPage {
+  items: SteelModelSummary[];
+  total: number;
+  has_more: boolean;
+}
+
+export interface SteelModelRecord extends SteelModelSummary {
   /** artifact 类模型的完整训练产物；ONNX 模型为 null。 */
   artifact_json: string | null;
   model_base64: string | null;
-  is_active: boolean;
-  created_at: string;
 }
 
 export interface ComputePredictionResult {
@@ -1762,6 +1780,11 @@ export const desktop = {
 
   listenFileDrop: (callback: (event: NativeFileDragEvent) => void) =>
     getCurrentWebview().onDragDropEvent((event) => callback(event.payload)),
+  minimizeMainWindow: () => getCurrentWindow().minimize(),
+  toggleMainWindowMaximize: () => getCurrentWindow().toggleMaximize(),
+  closeMainWindow: () => getCurrentWindow().close(),
+  isMainWindowMaximized: () => getCurrentWindow().isMaximized(),
+  onMainWindowResized: (handler: () => void) => getCurrentWindow().onResized(handler),
   setNativeTheme: async (theme: "light" | "dark") => {
     if (!isDesktopRuntime()) return;
     try {
@@ -1815,6 +1838,20 @@ export const desktop = {
     call<void>("delete_conversation_local", { conversationId }),
   listMessages: (conversationId: string) =>
     call<Message[]>("list_messages", { conversationId }),
+  listMessagesPage: (
+    conversationId: string,
+    options?: { limit?: number; beforeRowid?: number; beforeCreatedAt?: string },
+  ) =>
+    call<MessagePage>("list_messages_page", {
+      request: {
+        conversationId,
+        limit: options?.limit,
+        beforeRowid: options?.beforeRowid,
+        beforeCreatedAt: options?.beforeCreatedAt,
+      },
+    }),
+  getAgentRun: (runId: string) =>
+    call<AgentRunRecord | null>("get_agent_run", { runId }),
   exportConversation: (conversationId: string, outputPath: string, format: ConversationExportFormat) =>
     call<ConversationExportSummary>("export_conversation", { conversationId, outputPath, format }),
   getConversationDraft: (conversationId: string) =>
@@ -1926,7 +1963,8 @@ export const desktop = {
     call<string>("hash_onnx_model_file", { path }),
   registerSteelModel: (request: { taskId: string; lineageId?: string }) =>
     call<SteelModelRecord>("register_steel_model", { request }),
-  listAllSteelModels: () => call<SteelModelRecord[]>("list_all_steel_models"),
+  listAllSteelModels: (limit = 100, offset = 0) =>
+    call<SteelModelListPage>("list_all_steel_models", { limit, offset }),
   getSteelModelScientificCards: (id:string) => call<ScientificCardsResponse>("get_steel_model_scientific_cards",{id}),
   createExperimentPlan: (request: {
     source: "optimization" | "manual";

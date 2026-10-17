@@ -1044,13 +1044,47 @@ impl DesktopSteelAgentGateway {
         }
         let request: TrainSteelDatasetRequest = serde_json::from_value(arguments)
             .map_err(|error| format!("invalid training request: {error}"))?;
+        // Replay must return the existing task without re-reading the dataset source.
+        if let (Some(run_id), Some(tool_call_id)) = (self.run_id, self.tool_call_id) {
+            let connection = self.open()?;
+            let source = crate::tasks::sources::AgentTaskSource {
+                workspace_id: self.workspace_id.clone(),
+                run_id,
+                tool_call_id,
+            };
+            if let Some(task) = crate::tasks::sources::for_tool_call(&connection, &source)? {
+                return Ok(json!({
+                    "success": true,
+                    "task": background_task_response(task),
+                }));
+            }
+        }
+        let prepare_started = std::time::Instant::now();
+        let prepared = {
+            let connection = self.open()?;
+            let snapshot = logic::load_train_dataset_snapshot(
+                &connection,
+                &self.workspace_id,
+                &request.dataset_id,
+            )?;
+            logic::prepare_steel_training_task(snapshot, &request)?
+        };
+        let prepare_ms = prepare_started.elapsed().as_millis();
+        let enqueue_started = std::time::Instant::now();
         let task = self.submit_compute_task(|connection| {
-            logic::train_steel_dataset_on_connection(connection, &self.workspace_id, &request)
+            logic::train_steel_dataset_prepared(connection, &self.workspace_id, &prepared)
         })?;
-        Ok(json!({
+        let enqueue_or_tx_ms = enqueue_started.elapsed().as_millis();
+        let mut response = json!({
             "success": true,
             "task": background_task_response(task),
-        }))
+        });
+        // Test/benchmark consumers record prepare vs short submit/lock separately.
+        response["timings"] = json!({
+            "prepare_ms": prepare_ms,
+            "enqueue_or_tx_ms": enqueue_or_tx_ms,
+        });
+        Ok(response)
     }
 
     fn remember_memory(&self, arguments: Value) -> Result<Value, String> {
@@ -1895,7 +1929,10 @@ fn truncate(value: &str, limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::steel::{preview_dataset, DatasetColumnPreview, DatasetPreview};
+    use crate::steel::{
+        hash_dataset_source, preview_dataset, DatasetColumnPreview, DatasetPreview,
+        DatasetPreviewRequest,
+    };
 
     #[test]
     fn model_status_uses_verified_cards_and_does_not_return_raw_model_or_secret_fields() {
@@ -2556,5 +2593,128 @@ mod tests {
 
         let _ = std::fs::remove_file(database);
         let _ = std::fs::remove_file(source);
+    }
+
+    #[test]
+    fn start_training_tool_call_replay_returns_existing_task_after_source_removed() {
+        let root =
+            std::env::temp_dir().join(format!("suna-agent-train-replay-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).expect("create fixture root");
+        let database = root.join("workspace.sqlite3");
+        let source = root.join("train.csv");
+        std::fs::write(&source, "feature_0,yield_strength\n1,355\n2,360\n3,365\n")
+            .expect("write csv");
+        let (mut connection, _) =
+            crate::storage::database::open(&database).expect("open migrated db");
+        let hash = hash_dataset_source(&source.to_string_lossy()).expect("hash dataset");
+        let preview = preview_dataset(&DatasetPreviewRequest {
+            source_path: source.to_string_lossy().into_owned(),
+            sheet: None,
+        })
+        .expect("preview");
+        let dataset = steel_repository::save_preview(
+            &mut connection,
+            "local",
+            &source.to_string_lossy(),
+            &hash,
+            &preview,
+            &[
+                steel_repository::DatasetColumnMapping {
+                    ordinal: 0,
+                    canonical_field: Some("feature_0".into()),
+                    unit: None,
+                },
+                steel_repository::DatasetColumnMapping {
+                    ordinal: 1,
+                    canonical_field: Some("yield_strength".into()),
+                    unit: None,
+                },
+            ],
+        )
+        .expect("save dataset");
+        steel_repository::activate(&mut connection, "local", &dataset.id).expect("activate");
+
+        let conversation = Uuid::new_v4().to_string();
+        let message = Uuid::new_v4().to_string();
+        let run_id = Uuid::new_v4();
+        let tool_call_id = Uuid::new_v4();
+        connection
+            .execute(
+                "INSERT INTO conversations (id, workspace_id, title, created_at, updated_at)
+                 VALUES (?1, 'local', 'train', '2026-10-17T00:00:00Z', '2026-10-17T00:00:00Z')",
+                rusqlite::params![conversation],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO messages (id, workspace_id, conversation_id, role, content, created_at)
+                 VALUES (?1, 'local', ?2, 'user', 'train', '2026-10-17T00:00:00Z')",
+                rusqlite::params![message, conversation],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO agent_runs
+                    (id, workspace_id, conversation_id, user_message_id, state, created_at, updated_at)
+                 VALUES (?1, 'local', ?2, ?3, 'executing_tools', '2026-10-17T00:00:00Z', '2026-10-17T00:00:00Z')",
+                rusqlite::params![run_id.to_string(), conversation, message],
+            )
+            .unwrap();
+        drop(connection);
+
+        let gateway = DesktopSteelAgentGateway::new(database.clone(), "local").with_run_id(run_id);
+        let args = json!({
+            "datasetId": dataset.id,
+            "targetColumn": 1,
+            "featureColumns": [0],
+            "algorithm": "linear_regression"
+        });
+        let first = tauri::async_runtime::block_on(
+            <DesktopSteelAgentGateway as SteelAgentGateway>::execute_for_tool_call(
+                &gateway,
+                "start_training",
+                tool_call_id,
+                args.clone(),
+                CancellationToken::new(|| false),
+            ),
+        )
+        .expect("first training enqueue");
+        assert_eq!(first["success"], json!(true));
+        let first_task_id = first["task"]["id"].as_str().expect("task id").to_string();
+
+        std::fs::remove_file(&source).expect("remove source after enqueue");
+
+        let second = tauri::async_runtime::block_on(
+            <DesktopSteelAgentGateway as SteelAgentGateway>::execute_for_tool_call(
+                &gateway,
+                "start_training",
+                tool_call_id,
+                args,
+                CancellationToken::new(|| false),
+            ),
+        )
+        .expect("replay must not depend on source file");
+        assert_eq!(second["success"], json!(true));
+        assert_eq!(second["task"]["id"], json!(first_task_id));
+
+        let connection = Connection::open(&database).expect("reopen db");
+        let task_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM background_tasks WHERE workspace_id = 'local'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(task_count, 1, "replay must not create a duplicate task");
+        let source_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM agent_task_sources
+                 WHERE workspace_id = 'local' AND run_id = ?1 AND tool_call_id = ?2",
+                rusqlite::params![run_id.to_string(), tool_call_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(source_count, 1);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

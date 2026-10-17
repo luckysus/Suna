@@ -2,10 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { desktop, type AgentChildTurnRecord } from "../../bridge/desktop";
 import type { AgentEventData, AgentEventEnvelope } from "../../bridge/generated/protocol";
-import ChildAgentPanel from "./ChildAgentPanel";
+import ChildAgentPanel, { shouldReplayChildTurn } from "./ChildAgentPanel";
+import { createAgentRunView } from "./agentEvents";
 
 vi.mock("../../bridge/desktop", () => ({ desktop: {
   listAgentChildTurns: vi.fn(), replayAgentChildTurn: vi.fn(), cancelAgentChildTurn: vi.fn(), listenAgentChildEvents: vi.fn(),
+  listenSchedulerProgress: vi.fn().mockResolvedValue(() => undefined),
 } }));
 
 const child: AgentChildTurnRecord = {
@@ -82,6 +84,48 @@ describe("ChildAgentPanel", () => {
     await act(async () => replay.resolve([event(1, { type: "run_created", data: { state: "generating", user_message_id: "user-1" } })]));
     expect(await screen.findByText("初步结果。补充证据。")).toBeInTheDocument();
     expect(screen.getByText(/^事件 3/)).toBeInTheDocument();
+  });
+
+  it("keeps replaying completed server runs until the local view is terminal", () => {
+    const activeView = { ...createAgentRunView(child.child_turn_id, child.session_id), state: "executing_tools" as const, sequence: 3 };
+    expect(shouldReplayChildTurn({ ...child, state: "completed" }, activeView)).toBe(true);
+    const settledView = { ...activeView, state: "completed" as const };
+    expect(shouldReplayChildTurn({ ...child, state: "completed" }, settledView)).toBe(false);
+    const replayed = new Set([child.child_turn_id]);
+    expect(shouldReplayChildTurn({ ...child, state: "completed" }, settledView, replayed)).toBe(false);
+  });
+
+  it("replays a server-completed child from sequence 0 and shows assistant text", async () => {
+    vi.mocked(desktop.listAgentChildTurns).mockResolvedValue([{ ...child, state: "completed" }]);
+    vi.mocked(desktop.replayAgentChildTurn).mockResolvedValue([
+      event(1, { type: "message_completed", data: { message_id: "answer-1", role: "assistant", content: "终态回放正文。", partial: false } }),
+      event(2, { type: "run_completed", data: { outcome: "completed", assistant_message_id: "answer-1" } }),
+    ]);
+    render(<ChildAgentPanel parentRunId="parent-1" parentConversationId="conversation-1" onResolvePermission={vi.fn()} />);
+    expect(await screen.findByText("终态回放正文。")).toBeInTheDocument();
+    expect(desktop.replayAgentChildTurn).toHaveBeenCalledWith("child-1", 0);
+  });
+
+  it("replays a failed child and restores the error message", async () => {
+    vi.mocked(desktop.listAgentChildTurns).mockResolvedValue([{ ...child, state: "failed" }]);
+    vi.mocked(desktop.replayAgentChildTurn).mockResolvedValue([
+      event(1, { type: "error_raised", data: { error: { code: "tool_error", message: "子任务执行失败", category: "internal", retryable: false, details: null }, fatal: true } }),
+      event(2, { type: "run_completed", data: { outcome: "failed", assistant_message_id: null } }),
+    ]);
+    render(<ChildAgentPanel parentRunId="parent-1" parentConversationId="conversation-1" onResolvePermission={vi.fn()} />);
+    expect(await screen.findByText(/tool_error: 子任务执行失败/)).toBeInTheDocument();
+  });
+
+  it("does not repeat replay after a completed child has been synchronized", async () => {
+    vi.mocked(desktop.listAgentChildTurns).mockResolvedValue([{ ...child, state: "completed" }]);
+    vi.mocked(desktop.replayAgentChildTurn).mockResolvedValue([
+      event(1, { type: "run_completed", data: { outcome: "completed", assistant_message_id: null } }),
+    ]);
+    render(<ChildAgentPanel parentRunId="parent-1" parentConversationId="conversation-1" onResolvePermission={vi.fn()} />);
+    await waitFor(() => expect(desktop.replayAgentChildTurn).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "刷新子任务" }));
+    await waitFor(() => expect(desktop.listAgentChildTurns).toHaveBeenCalledTimes(2));
+    expect(desktop.replayAgentChildTurn).toHaveBeenCalledTimes(1);
   });
 
   it("shows a requested cancellation until the runtime confirms its terminal event", async () => {

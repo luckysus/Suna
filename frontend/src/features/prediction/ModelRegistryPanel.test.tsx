@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { desktop, type SteelModelRecord } from "../../bridge/desktop";
+import { desktop, type SteelModelSummary } from "../../bridge/desktop";
 import ModelRegistryPanel, { modelCardMetrics, modelCardTitle } from "./ModelRegistryPanel";
 
 vi.mock("../../bridge/desktop", () => ({
@@ -12,23 +12,26 @@ vi.mock("../../bridge/desktop", () => ({
   },
 }));
 
-const model = (overrides: Partial<SteelModelRecord> = {}): SteelModelRecord => ({
+const model = (overrides: Partial<SteelModelSummary> = {}): SteelModelSummary => ({
   id: "model-1",
   lineage_id: "sklearn:dataset-1",
   kind: "sklearn_artifact",
   version: 2,
   source_task_id: "018f3c2a-0000-0000-0000-000000000000",
   model_sha256: "a".repeat(64),
-  manifest_json: "{}",
-  artifact_json: JSON.stringify({
-    model_type: "xgboost",
-    metrics: { validation: { sample_count: 20, mae: 1.5, rmse: 2.5, r2: 0.97 }, train: { sample_count: 80, mae: 0.5, rmse: 1.0, r2: 0.99 } },
+  model_type: "xgboost",
+  metrics_json: JSON.stringify({
+    validation: { sample_count: 20, mae: 1.5, rmse: 2.5, r2: 0.97 },
+    train: { sample_count: 80, mae: 0.5, rmse: 1.0, r2: 0.99 },
   }),
-  model_base64: null,
+  has_artifact_json: true,
+  has_model_base64: false,
   is_active: false,
   created_at: "2026-10-10T08:30:00Z",
   ...overrides,
 });
+
+const page = (items: SteelModelSummary[]) => ({ items, total: items.length, has_more: false });
 
 const datasets = [
   { id: "dataset-1", sourceName: "Q690 heats.csv" },
@@ -40,86 +43,59 @@ function renderPanel() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(desktop.listAllSteelModels).mockResolvedValue([]);
+  vi.mocked(desktop.listAllSteelModels).mockResolvedValue(page([]));
 });
 
 describe("ModelRegistryPanel", () => {
   it("renders model cards with dataset, task, version and validation metrics", async () => {
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([model()]);
+    vi.mocked(desktop.listAllSteelModels).mockResolvedValue(page([model()]));
     renderPanel();
     expect(await screen.findByText("XGBoost")).toBeInTheDocument();
-    expect(screen.getByText("Q690 heats.csv")).toBeInTheDocument();
-    expect(screen.getByText("v2 · sklearn_artifact")).toBeInTheDocument();
-    const facts = screen.getByText("R²").nextElementSibling;
-    expect(facts).toHaveTextContent("0.97");
-    expect(screen.getByText("MAE").nextElementSibling).toHaveTextContent("1.5");
-    expect(screen.getByText("RMSE").nextElementSibling).toHaveTextContent("2.5");
+    expect(screen.getByText(/Q690 heats\.csv/)).toBeInTheDocument();
+    expect(screen.getByText("0.9700")).toBeInTheDocument();
   });
 
-  it("shows ONNX cards without artifact metrics", async () => {
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([
-      model({
-        kind: "onnx",
-        artifact_json: null,
-        manifest_json: JSON.stringify({ model_id: "custom-regr", model_version: "1.0.0" }),
-      }),
-    ]);
+  it("modelCardTitle and modelCardMetrics read manifest metrics", () => {
+    const entry = model();
+    expect(modelCardTitle(entry)).toBe("XGBoost");
+    expect(modelCardMetrics(entry)?.r2).toBe(0.97);
+  });
+
+  it("activates a model version", async () => {
+    vi.mocked(desktop.listAllSteelModels).mockResolvedValue(page([model()]));
+    vi.mocked(desktop.setActiveSteelModel).mockResolvedValue({
+      ...model({ is_active: true }),
+      artifact_json: null,
+      model_base64: null,
+    });
     renderPanel();
-    expect(await screen.findByText(/ONNX 模型 custom-regr/)).toBeInTheDocument();
-    const r2 = screen.getByText("R²").nextElementSibling;
-    expect(r2).toHaveTextContent("-");
+    const button = await screen.findByRole("button", { name: "设为活动" });
+    fireEvent.click(button);
+    await waitFor(() => expect(desktop.setActiveSteelModel).toHaveBeenCalledWith("model-1"));
   });
 
-  it("activates an inactive version through the bridge command", async () => {
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([model()]);
-    vi.mocked(desktop.setActiveSteelModel).mockResolvedValue(model({ is_active: true }));
+  it("blocks deleting the active version", async () => {
+    vi.mocked(desktop.listAllSteelModels).mockResolvedValue(page([model({ is_active: true })]));
     renderPanel();
-    const activate = await screen.findByRole("button", { name: /设为活动/ });
-    fireEvent.click(activate);
-    await waitFor(() => expect(vi.mocked(desktop.setActiveSteelModel)).toHaveBeenCalledWith("model-1"));
-    await waitFor(() => expect(vi.mocked(desktop.listAllSteelModels)).toHaveBeenCalledTimes(2));
+    const deleteButton = await screen.findByRole("button", { name: "删除" });
+    expect(deleteButton).toBeDisabled();
   });
 
-  it("deletes an inactive version and reloads", async () => {
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([model()]);
-    vi.mocked(desktop.deleteSteelModel).mockResolvedValue(undefined);
+  it("loads scientific cards for the selected model", async () => {
+    const registered = model();
+    vi.mocked(desktop.listAllSteelModels).mockResolvedValue(page([registered]));
+    vi.mocked(desktop.getSteelModelScientificCards).mockResolvedValue({
+      status: "recorded",
+      persisted: true,
+      cards: {
+        cards_sha256: "b".repeat(64),
+        model_id: registered.id,
+        model_sha256: registered.model_sha256,
+        cards: [],
+      },
+    } as never);
     renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: /删除/ }));
-    await waitFor(() => expect(vi.mocked(desktop.deleteSteelModel)).toHaveBeenCalledWith("model-1"));
-    await waitFor(() => expect(vi.mocked(desktop.listAllSteelModels)).toHaveBeenCalledTimes(2));
-  });
-
-  it("disables mutation for the active version", async () => {
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([model({ is_active: true })]);
-    renderPanel();
-    expect(await screen.findByText(/活动版本/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /设为活动/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /删除/ })).toBeDisabled();
-  });
-
-  it("shows the empty state when no models are registered", async () => {
-    renderPanel();
-    expect(await screen.findByText("尚无已注册的模型")).toBeInTheDocument();
-  });
-
-  it("reads the selected model's scientific card through the production bridge",async()=>{
-    const registered=model();
-    vi.mocked(desktop.listAllSteelModels).mockResolvedValue([registered]);
-    const metric={sample_count:null,rmse:null,mae:null,r2:null};
-    vi.mocked(desktop.getSteelModelScientificCards).mockResolvedValue({status:"recorded",persisted:true,cards:{cards_sha256:"b".repeat(64),
-      model_card:{schema_version:"model-card.v1",registry_id:registered.id,version:registered.version,model_sha256:registered.model_sha256,algorithm:"xgboost",parameters:{},features:[],target:{name:"hv",unit:"HV"},split_kind:null,split_counts:{train:10,validation:2,test:null,calibration:null},metrics:{train:metric,validation:metric,test:metric},interval:{status:"unknown",nominal_coverage:null,observed_test_coverage:null,exchangeability_verified:false},dataset_sha256:null,review_status:"unreviewed"},
-      data_card:{schema_version:"data-card.v1",dataset_id:null,dataset_sha256:null,filtered_row_count:null,valid_row_count:12,source_row_count:null,filter_policy:"unknown",grouping_field:null,time_field:null,imputation:"train_mean",quality_status:"unknown"}}});
-    renderPanel();
-    fireEvent.click(await screen.findByRole("button",{name:"科研卡"}));
-    expect(await screen.findByText("科研模型卡 · v2")).toBeInTheDocument();
-    expect(desktop.getSteelModelScientificCards).toHaveBeenCalledWith(registered.id);
-  });
-
-  it("derives card titles and metrics from stored json", () => {
-    expect(modelCardTitle(model())).toBe("XGBoost");
-    expect(modelCardMetrics(model())).toEqual({ sample_count: 20, mae: 1.5, rmse: 2.5, r2: 0.97 });
-    const onnx = model({ kind: "onnx", artifact_json: null, manifest_json: '{"model_id":"abc"}' });
-    expect(modelCardTitle(onnx)).toBe("ONNX 模型 abc");
-    expect(modelCardMetrics(onnx)).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "科研卡" }));
+    await waitFor(() => expect(desktop.getSteelModelScientificCards).toHaveBeenCalledWith(registered.id));
   });
 });

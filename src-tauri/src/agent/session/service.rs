@@ -67,6 +67,24 @@ impl<'a> SessionService<'a> {
         conversations::list_messages(self.connection, self.workspace_id, conversation_id)
     }
 
+    pub fn list_messages_page(
+        &self,
+        conversation_id: &str,
+        limit: usize,
+        before_rowid: Option<i64>,
+        before_created_at: Option<&str>,
+    ) -> Result<crate::models::MessagePage, String> {
+        self.require_conversation(conversation_id)?;
+        conversations::list_messages_page(
+            self.connection,
+            self.workspace_id,
+            conversation_id,
+            limit,
+            before_rowid,
+            before_created_at,
+        )
+    }
+
     pub fn search_history(
         &self,
         query: &str,
