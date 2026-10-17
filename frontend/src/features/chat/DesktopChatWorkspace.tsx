@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import {
-  Archive,
   ArrowUp,
   Check,
   ChevronDown,
@@ -13,23 +12,18 @@ import {
   Globe,
   LoaderCircle,
   MessageSquarePlus,
-  MoreHorizontal,
   Pencil,
-  Pin,
-  PinOff,
   Play,
   RotateCcw,
-  Search,
   ShieldAlert,
   SlidersHorizontal,
   Square,
-  Trash2,
   Wrench,
   X,
 } from "lucide-react";
 import { useLocale } from "../../i18n/locale";
 import type { SectionId } from "../../app/navigation";
-import type { Conversation, Message, PostgresKnowledgeSearchFilters } from "../../bridge/desktop";
+import type { Message, PostgresKnowledgeSearchFilters } from "../../bridge/desktop";
 import type { PermissionDecision } from "../../bridge/generated/protocol";
 import AIAnswerRenderer from "../../components/answer/AnswerRenderer";
 import CitationPanel from "./CitationPanel";
@@ -48,7 +42,6 @@ import { useAppearanceSettings } from "../../settings/appearance";
 import { desktop } from "../../bridge/desktop";
 import SunaLogo from "../../components/SunaLogo";
 import { Button } from "../../components/ui/button";
-import ArchivedConversationsDialog from "./ArchivedConversationsDialog";
 
 function isAssistant(message: Message) {
   return message.role === "agent" || message.role === "assistant";
@@ -282,10 +275,6 @@ function NativeMessage({
   );
 }
 
-function conversationTitle(conversation: Conversation) {
-  return conversation.title.trim() || "新建对话";
-}
-
 /** Provider 显示名（第 19 章：模型选择需展示 Provider）。 */
 const PROVIDER_KIND_LABELS: Record<string, string> = {
   open_ai_compatible: "OpenAI 兼容",
@@ -303,17 +292,12 @@ export default function DesktopChatWorkspace({
 }: ChatControllerProps & { onOpenSection?: (section: SectionId) => void }) {
   const { t } = useLocale();
   const { preferences } = useAppearanceSettings();
-  const [search, setSearch] = useState("");
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renamingTitle, setRenamingTitle] = useState("");
-  const [menuId, setMenuId] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [knowledgeMenuOpen, setKnowledgeMenuOpen] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [sendShortcut, setSendShortcut] = useState("Ctrl+Enter");
-  const [archivedOpen, setArchivedOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -322,10 +306,6 @@ export default function DesktopChatWorkspace({
   const activeProfile = controller.chatProfiles.find((profile) => profile.id === controller.activeChatProfileId);
   const selectedModel = activeProfile?.model_id || activeProfile?.display_name || "本地模型";
   const providerLabel = activeProfile ? PROVIDER_KIND_LABELS[activeProfile.kind] ?? activeProfile.kind : "未配置";
-  const conversations = controller.conversations.filter((conversation) => {
-    if (conversation.archived) return false;
-    return !search.trim() || conversation.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
-  });
 
   useEffect(() => {
     let active = true;
@@ -427,18 +407,6 @@ export default function DesktopChatWorkspace({
     }
   };
 
-  const beginRename = (conversation: Conversation) => {
-    setMenuId(null);
-    setRenamingId(conversation.id);
-    setRenamingTitle(conversation.title);
-  };
-
-  const commitRename = () => {
-    if (!renamingId) return;
-    void controller.onRenameConversation(renamingId, renamingTitle);
-    setRenamingId(null);
-  };
-
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (controller.pendingQuestion !== null) {
@@ -450,106 +418,19 @@ export default function DesktopChatWorkspace({
 
   return (
     <section className={`suna-chat ${preferences.showAgentPanel ? "" : "has-agent-panel-hidden"}`} aria-label="本地智能体对话">
-      <aside className="suna-chat-sidebar" aria-label={t("conversationList")}>
-        <div className="suna-chat-sidebar-actions">
-          <button type="button" className="suna-chat-sidebar-action is-primary" onClick={() => void controller.onNewConversation()}>
-            <MessageSquarePlus size={17} aria-hidden="true" />
-            <span>{t("newConversation")}</span>
-          </button>
-        </div>
-        <label className="suna-chat-search">
-          <Search size={15} aria-hidden="true" />
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t("searchConversationsPlaceholder")}
-            aria-label={t("searchConversations")}
-          />
-          {search && <button type="button" aria-label="清除搜索" title="清除搜索" onClick={() => setSearch("")}><X size={14} /></button>}
-        </label>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 4 }}>
-          <p className="suna-chat-recent-heading">{t("chatRecent")}</p>
-          <button
-            type="button"
-            className="suna-chat-archived-toggle"
-            title="查看已归档对话"
-            aria-label="查看已归档对话"
-            onClick={() => setArchivedOpen(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--suna-text-muted)", background: "transparent", border: 0, cursor: "pointer", padding: "2px 4px", borderRadius: 4 }}
-          >
-            <Archive size={12} />
-            <span>已归档</span>
-          </button>
-        </div>
-        <div className="suna-chat-session-list">
-          {controller.loading ? (
-            <div className="suna-chat-list-state"><LoaderCircle size={16} className="suna-spin" />{t("loading")}</div>
-          ) : conversations.length === 0 ? (
-            <div className="suna-chat-list-state">{search ? t("noMatchingConversations") : t("noLocalSessions")}</div>
-          ) : conversations.map((conversation) => (
-            <div className={`suna-chat-session-wrap ${conversation.id === controller.selectedId ? "is-active" : ""}`} key={conversation.id}>
-              {renamingId === conversation.id ? (
-                <Input
-                  className="suna-chat-session-rename"
-                  value={renamingTitle}
-                  autoFocus
-                  onChange={(event) => setRenamingTitle(event.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") commitRename();
-                    if (event.key === "Escape") setRenamingId(null);
-                  }}
-                  aria-label="重命名对话"
-                />
-              ) : (
-                <button
-                  type="button"
-                  className={`suna-chat-session ${conversation.id === controller.selectedId ? "is-active" : ""}`}
-                  onClick={() => controller.onSelectConversation(conversation.id)}
-                >
-                  {conversation.pinned && <Pin size={11} className="suna-chat-pin-icon" style={{ marginRight: 5, flexShrink: 0, color: "var(--suna-primary)" }} />}
-                  <span>{conversationTitle(conversation)}</span>
-                </button>
-              )}
-              {renamingId !== conversation.id && (
-                <div className={`suna-chat-session-actions ${menuId === conversation.id ? "is-visible" : ""}`}>
-                  <button type="button" className="suna-chat-session-action" aria-label="更多操作" title="更多操作" onClick={() => setMenuId(menuId === conversation.id ? null : conversation.id)}>
-                    <MoreHorizontal size={15} aria-hidden="true" />
-                  </button>
-                </div>
-              )}
-              {menuId === conversation.id && (
-                <div className="suna-chat-session-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => void controller.onToggleConversationPinned(conversation)}>
-                    {conversation.pinned ? <PinOff size={14} /> : <Pin size={14} />}{conversation.pinned ? "取消置顶" : "置顶聊天"}
-                  </button>
-                  <button type="button" role="menuitem" onClick={() => beginRename(conversation)}><Pencil size={14} />{t("rename")}</button>
-                  <button type="button" role="menuitem" onClick={() => void controller.onArchiveConversation(conversation.id)}><Archive size={14} />归档</button>
-                  <button type="button" role="menuitem" className="is-danger" onClick={() => void controller.onDeleteConversation(conversation.id)}><Trash2 size={14} />{t("delete")}</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <p className="suna-sidebar-footer">{t("chatSidebarFooter")}</p>
-      </aside>
-
       <main className="suna-chat-main">
-        <header className="suna-chat-header" style={{ justifyContent: "space-between" }}>
-          <div>
-            <p className="suna-eyebrow">{t("steelRuntime")}</p>
-            <h2>{controller.selectedConversation?.title ?? t("chatTitle")}</h2>
-          </div>
-          <div className="suna-chat-header-actions">
-            {controller.selectedConversation && (
-              <>
-                <Button size="icon" type="button" aria-label={t("chatExportMarkdown")} title={t("chatExportMarkdown")} onClick={() => controller.onExportConversation("markdown")}><Download size={16} /></Button>
-                <Button size="icon" type="button" aria-label={t("chatExportJson")} title={t("chatExportJson")} onClick={() => controller.onExportConversation("json")}><FileJson size={16} /></Button>
-              </>
-            )}
-          </div>
-        </header>
+        {controller.selectedConversation && (
+          <header className="suna-chat-header" style={{ justifyContent: "space-between" }}>
+            <div>
+              <p className="suna-eyebrow">{t("steelRuntime")}</p>
+              <h2>{controller.selectedConversation.title}</h2>
+            </div>
+            <div className="suna-chat-header-actions">
+              <Button size="icon" type="button" aria-label={t("chatExportMarkdown")} title={t("chatExportMarkdown")} onClick={() => controller.onExportConversation("markdown")}><Download size={16} /></Button>
+              <Button size="icon" type="button" aria-label={t("chatExportJson")} title={t("chatExportJson")} onClick={() => controller.onExportConversation("json")}><FileJson size={16} /></Button>
+            </div>
+          </header>
+        )}
 
         {(controller.error || controller.notice) && (
           <div className="suna-chat-main-alerts">
@@ -826,12 +707,6 @@ export default function DesktopChatWorkspace({
           onRetry={controller.onRetry}
           onResume={controller.onResume}
         />}
-
-      <ArchivedConversationsDialog
-        open={archivedOpen}
-        onOpenChange={setArchivedOpen}
-        onSelectConversation={controller.onSelectConversation}
-      />
     </section>
   );
 }

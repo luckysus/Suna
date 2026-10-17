@@ -656,26 +656,6 @@
   margin-bottom: 8px;
 }
 
-/* Modals & Dialogs */
-.suna-literature-library-dialog {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  margin: 14px 0;
-  padding: 14px;
-  border: 1px solid var(--suna-line);
-  border-radius: 6px;
-  background: var(--suna-bg-soft);
-}
-
-.suna-literature-library-dialog label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--suna-text-soft);
-  font-size: calc(11px * var(--suna-ui-font-scale));
-}
-
 .suna-literature-library-modal {
   max-width: 440px;
   display: flex;

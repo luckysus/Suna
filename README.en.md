@@ -57,25 +57,78 @@ Users choose SiliconFlow Free or Pro themselves. API keys are entered in Setting
 
 ## Quick start
 
-The development environment requires Windows 10, Node.js 20/22/24, Rust stable, Visual Studio Build Tools with `Desktop development with C++`, WebView2 Runtime, Git, and the Tauri 2 Windows prerequisites.
+The development environment requires Windows 10, Node.js 20 / 22 / 24 (`.nvmrc` pins 24), Rust stable, Visual Studio Build Tools with `Desktop development with C++`, WebView2 Runtime, Git, and the Tauri 2 Windows prerequisites.
 
 ```powershell
 git clone https://github.com/luckysus/Suna.git
-Set-Location suna/frontend
+Set-Location Suna
+
+Set-Location frontend
 npm install
-npm run build
 
 Set-Location ../src-tauri
 cargo tauri dev
 ```
 
-If the Tauri CLI is not installed:
+`cargo tauri dev` starts the Vite dev server automatically through Tauri's `beforeDevCommand`. If the Tauri CLI is not installed:
 
 ```powershell
 cargo install tauri-cli --version "^2"
 ```
 
-You can also run `./start-desktop.bat` from the repository root to start the development environment.
+You can also run `./start-desktop.bat` from the repository root: it checks Node, Rust, and the Tauri CLI, installs frontend dependencies, and starts the development environment.
+
+### Optional: build the Python compute worker
+
+Training, prediction, and constrained optimization run in a separate Python compute worker. It runs as a restricted subprocess (stdio JSON-RPC) and exposes no network port. To enable these capabilities in development, build it into the resources directory (requires Python 3.12+ and [uv](https://docs.astral.sh/uv/)):
+
+```powershell
+Set-Location compute-worker
+powershell -File build.ps1 -OutputDirectory ..\src-tauri\resources\compute-worker
+```
+
+The script runs the worker tests inside the locked environment (`uv sync --frozen`), packages a single-file `suna-compute-worker.exe` with PyInstaller, and emits a SHA-256 checksum and component manifest.
+
+## Repository layout
+
+| Directory | Contents |
+| --- | --- |
+| `frontend/` | React 19 + TypeScript + Vite desktop frontend |
+| `src-tauri/` | Rust desktop main process: agent runtime, tools and MCP, storage and migrations |
+| `compute-worker/` | Python compute worker: training, prediction, constrained optimization, and design of experiments |
+| `domain-packs/` | Domain packages shipped with the installer (steel prompts, skills, and evaluation definitions) |
+| `fixtures/` | Data fixtures for tests and acceptance runs |
+| `docs/` | Architecture, protocol, development, and validation documents; start at [docs/INDEX.md](docs/INDEX.md) |
+| `scripts/` | Build, release, quality, and lifecycle scripts |
+| `tools/windows-acceptance/` | Windows end-to-end acceptance tooling |
+| `case-studies/` | Steel case-study materials and demo data |
+
+## Development and testing
+
+**Frontend** (`frontend/`)
+
+```powershell
+npm test                # Vitest unit and integration tests
+npm run test:boundaries # Runtime boundary checks
+npm run build           # Type check + production build
+npm run test:e2e        # Playwright end-to-end tests
+```
+
+**Rust** (`src-tauri/`)
+
+```powershell
+cargo fmt --all -- --check
+cargo test
+```
+
+**Compute worker** (`compute-worker/`)
+
+```powershell
+uv sync --frozen --extra test
+.venv\Scripts\python -m pytest -q
+```
+
+**Full quality gate**: run `scripts/test.ps1` from the repository root. It executes the contract, frontend, and Rust stages in order (select one with `-Stage contracts|frontend|rust`). CI is defined in [.github/workflows/quality.yml](.github/workflows/quality.yml).
 
 ## Local data, privacy, and network
 
@@ -85,13 +138,12 @@ Local-first does not mean automatically offline. When you enable a cloud LLM, Si
 
 ## Extensions and documentation
 
+- [Documentation index](docs/INDEX.md)
 - [Contributing](CONTRIBUTING.md)
-- [Event protocol](docs/PROTOCOL.md)
-- [Memory](docs/memory.md)
-- [MCP extensions](docs/extensions/mcp.md)
-- [Skills extensions](docs/extensions/skills.md)
-- [Domain packages](docs/extensions/domain-packages.md)
-- [Steel case study](docs/releases/case-study.md)
+- [Event protocol](docs/AGENT_RUNTIME.md)
+- [MCP and Skills extensions](docs/TOOLS_MCP_SKILLS.md)
+- [Architecture and domain packages](docs/ARCHITECTURE.md)
+- [Steel case study](case-studies/steel-release/README.md)
 - [Security policy](SECURITY.md)
 
 ## Contributing

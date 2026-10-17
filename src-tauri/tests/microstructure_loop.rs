@@ -1,6 +1,6 @@
 //! Real framed Worker and existing Scheduler; synthetic rasters only.
 use rusqlite::Connection;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{
     path::PathBuf,
     sync::Arc,

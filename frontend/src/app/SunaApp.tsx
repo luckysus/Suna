@@ -8,6 +8,7 @@ import { useChatControllerContext } from "../features/chat/chatController";
 import ResearchProjectContext from "../features/research/ResearchProjectContext";
 import { getNavigationSection, navigationSections, primaryNavigationSections, sidebarManageSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
 import { isRootPath, useSectionRoute } from "./sectionRoute";
+import SunaTitleBar from "./SunaTitleBar";
 import { defaultShortcuts, normalizeShortcuts, parseShortcut, type ShortcutSettings } from "./shortcuts";
 import { filterGlobalEntities, loadGlobalEntities, searchLiteratureItems, type GlobalEntity } from "./globalSearch";
 import { CommandMenu, type CommandMenuGroup, type CommandMenuItem } from "../components/ui/command-menu";
@@ -17,7 +18,8 @@ import { ThemeProvider, useTheme } from "../theme/theme";
 import { AppearanceProvider, useAppearanceSettings } from "../settings/appearance";
 import SunaLogo from "../components/SunaLogo";
 import ArchivedConversationsDialog from "../features/chat/ArchivedConversationsDialog";
-import {deferredPage} from "./deferredPage";
+import { deferredPage } from "./deferredPage";
+import { dismissBootScreen, markBoot } from "../startupSplash";
 import "./suna-shell.css";
 
 const DiagnosticsPage = deferredPage(() => import("../features/diagnostics/DiagnosticsPage"));
@@ -44,6 +46,7 @@ function SunaAppShell() {
   const { preferences, loaded: appearanceLoaded, updatePreferences } = useAppearanceSettings();
   const { resolvedTheme, setPreference: setThemePreference } = useTheme();
   const startupApplied = useRef(false);
+  const bootDismissScheduled = useRef(false);
   const updateCheckStarted = useRef(false);
   const [activeSection, setActiveSection] = useSectionRoute();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -61,6 +64,22 @@ function SunaAppShell() {
     startupApplied.current = true;
     if (preferences.startupPage !== "chat" && isRootPath(window.location.pathname)) setActiveSection(preferences.startupPage);
   }, [appearanceLoaded, preferences.startupPage]);
+  useEffect(() => {
+    if (!appearanceLoaded || bootDismissScheduled.current) return;
+    bootDismissScheduled.current = true;
+    markBoot("appearance-loaded");
+    // 外观偏好重排与启动页重定向提交、字体就绪后再淡出，让重排全部发生在启动画面底下。
+    const fontsReady = document.fonts?.ready ?? Promise.resolve();
+    void fontsReady.catch(() => undefined).then(() => {
+      markBoot("fonts-ready");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          markBoot("dismiss");
+          dismissBootScreen();
+        });
+      });
+    });
+  }, [appearanceLoaded]);
   useEffect(() => {
     if (!appearanceLoaded || !preferences.autoUpdate || !isDesktopRuntime() || updateCheckStarted.current) return;
     updateCheckStarted.current = true;
@@ -200,8 +219,11 @@ function SunaAppShell() {
     }
     return groups;
   })();
+  const desktopShell = isDesktopRuntime();
   return (
-    <div className={`suna-new-app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
+    <div className={`suna-new-app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}${desktopShell ? " is-desktop-shell" : ""}`}>
+      {desktopShell && <SunaTitleBar />}
+      <div className="suna-new-body">
       <aside className="suna-new-sidebar">
         <div className="suna-new-brand">
           <SunaMark />
@@ -210,8 +232,12 @@ function SunaAppShell() {
             <span>Steel Research Agent</span>
           </div>
         </div>
-        <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }}>
-          <Plus size={17} />新对话 <kbd>{shortcuts.newConversation.replace("+", " + ")}</kbd>
+        <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }} title="新建对话" aria-label="新建对话">
+          <div className="suna-new-create-left">
+            <Plus size={16} />
+            <span>新对话</span>
+          </div>
+          <kbd>{shortcuts.newConversation.replace("+", " + ")}</kbd>
         </button>
         <div className="suna-new-nav-scroll">
           <p className="suna-new-nav-label">研究工作区</p>
@@ -326,20 +352,18 @@ function SunaAppShell() {
         </div>
       </aside>
       <main className="suna-new-main">
-        <header className="suna-new-header">
-          <div className="suna-new-breadcrumb">
-            <House size={16} />
-            <strong>{activeSection === "chat" ? (chat.selectedConversation?.title?.trim() || "新对话") : active.label}</strong>
-            {activeSection === "chat" && (
-              <button className="suna-header-new-button" onClick={() => { void chat.onNewConversation(); }} aria-label="新建对话" title="新建对话">
-                <Plus size={18} />
-              </button>
-            )}
-          </div>
-        </header>
+        {activeSection !== "chat" && (
+          <header className="suna-new-header">
+            <div className="suna-new-breadcrumb">
+              <House size={16} />
+              <strong>{active.label}</strong>
+            </div>
+          </header>
+        )}
         <ResearchProjectContext />
         <div className="suna-new-content">{content}</div>
       </main>
+      </div>
       <CommandMenu
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

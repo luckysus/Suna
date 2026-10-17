@@ -2,7 +2,6 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Button } from "./button";
 import { Card } from "./card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 /**
  * 第 88 章：共享组件的变体必须与既有 `suna-*` 样式类一一对应，
@@ -73,44 +72,5 @@ describe("Card", () => {
     const { container } = render(<Card variant="registry" className="suna-registry-card" />);
     const classes = container.firstElementChild?.className.split(/\s+/) ?? [];
     expect(classes.filter((name) => name === "suna-registry-card")).toHaveLength(2);
-  });
-});
-
-describe("Table", () => {
-  it("renders semantic table elements and puts the wrapper class on the scroll container", () => {
-    const { container } = render(
-      <Table wrapperClassName="suna-knowledge-table-wrap">
-        <TableHeader>
-          <TableRow>
-            <TableHead>名称</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell>Q690</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>,
-    );
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.tagName).toBe("DIV");
-    expect(wrapper.className.split(/\s+/)).toContain("suna-knowledge-table-wrap");
-    expect(container.querySelector("table")).not.toBeNull();
-    expect(container.querySelector("thead th")?.textContent).toBe("名称");
-    expect(container.querySelector("tbody td")?.textContent).toBe("Q690");
-  });
-
-  it("does not impose its own visual classes", () => {
-    const { container } = render(
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell>值</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>,
-    );
-    expect(container.querySelector("table")?.className).toBe("");
-    expect(container.querySelector("td")?.className).toBe("");
   });
 });

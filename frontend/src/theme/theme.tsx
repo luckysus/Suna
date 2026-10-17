@@ -51,8 +51,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = resolvedTheme;
-    root.style.colorScheme = resolvedTheme;
+    if (root.dataset.theme !== resolvedTheme) {
+      root.dataset.theme = resolvedTheme;
+    }
+    if (root.style.colorScheme !== resolvedTheme) {
+      root.style.colorScheme = resolvedTheme;
+    }
     if (isDesktopRuntime()) {
       const nativeThemeUpdate = desktop.setNativeTheme?.(resolvedTheme);
       if (nativeThemeUpdate) void nativeThemeUpdate.catch(() => undefined);

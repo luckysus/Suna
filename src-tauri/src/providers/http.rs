@@ -1,11 +1,13 @@
 use crate::diagnostics::redaction::Redactor;
 use chrono::{DateTime, Utc};
+use futures_util::StreamExt;
 use reqwest::header::{HeaderMap, RETRY_AFTER};
 use reqwest::{redirect, Client, StatusCode};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::time::Duration;
 use std::{fmt, sync::Once};
+use tokio::time::timeout;
 
 const USER_AGENT: &str = concat!("Suna/", env!("CARGO_PKG_VERSION"), " (desktop)");
 static RUSTLS_PROVIDER_INIT: Once = Once::new();
@@ -108,6 +110,95 @@ fn is_cross_origin_redirect(previous: Option<&reqwest::Url>, next: &reqwest::Url
             || url.host_str() != next.host_str()
             || url.port_or_known_default() != next.port_or_known_default()
     })
+}
+
+const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+pub(crate) enum BodyRead {
+    Complete(Vec<u8>),
+    Cancelled,
+}
+
+pub(crate) async fn read_bounded_body(
+    response: reqwest::Response,
+    is_cancelled: &(dyn Fn() -> bool + Send + Sync),
+    limit: usize,
+) -> Result<BodyRead, ProviderError> {
+    let mut body = Vec::new();
+    let mut stream = response.bytes_stream();
+    loop {
+        if is_cancelled() {
+            return Ok(BodyRead::Cancelled);
+        }
+        let chunk = match timeout(CANCELLATION_POLL_INTERVAL, stream.next()).await {
+            Ok(Some(chunk)) => chunk,
+            Ok(None) => return Ok(BodyRead::Complete(body)),
+            Err(_) => continue,
+        };
+        let chunk = chunk.map_err(|error| ProviderError::from_reqwest(&error))?;
+        append_bounded(&mut body, &chunk, limit)?;
+    }
+}
+
+pub(crate) async fn read_bounded(
+    response: reqwest::Response,
+    limit: usize,
+    message: &str,
+) -> Result<Vec<u8>, ProviderError> {
+    if response
+        .content_length()
+        .and_then(|length| usize::try_from(length).ok())
+        .is_some_and(|length| length > limit)
+    {
+        return Err(provider_response(message));
+    }
+    let mut bytes = Vec::new();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| ProviderError::from_reqwest(&error))?;
+        if chunk.len() > limit.saturating_sub(bytes.len()) {
+            return Err(provider_response(message));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+pub(crate) fn append_bounded(
+    buffer: &mut Vec<u8>,
+    bytes: &[u8],
+    limit: usize,
+) -> Result<(), ProviderError> {
+    if bytes.len() > limit.saturating_sub(buffer.len()) {
+        return Err(provider_response("provider response exceeded size limit"));
+    }
+    buffer.extend_from_slice(bytes);
+    Ok(())
+}
+
+pub(crate) fn provider_response(message: impl Into<String>) -> ProviderError {
+    ProviderError::new(ProviderErrorCode::ProviderResponse, None, message)
+}
+
+pub(crate) fn retry_delay(attempt: usize) -> Duration {
+    Duration::from_millis(100 * (1u64 << attempt.saturating_sub(1)))
+}
+
+pub(crate) fn parse_retry_after_duration(value: &str, now: DateTime<Utc>) -> Option<Duration> {
+    let value = value.trim();
+    value
+        .parse::<u64>()
+        .ok()
+        .map(Duration::from_secs)
+        .or_else(|| {
+            DateTime::parse_from_rfc2822(value).ok().map(|deadline| {
+                deadline
+                    .with_timezone(&Utc)
+                    .signed_duration_since(now)
+                    .to_std()
+                    .unwrap_or(Duration::ZERO)
+            })
+        })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

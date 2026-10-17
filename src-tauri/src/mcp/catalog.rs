@@ -134,7 +134,6 @@ impl McpServerConfig {
                 working_directory: self.working_directory.clone(),
                 inherited_env: self.inherited_env.clone(),
                 env,
-                max_stderr_bytes: 1024 * 1024,
             })),
             McpTransportKind::StreamableHttp => {
                 let mut config = McpHttpConfig::new(self.url.clone().expect("validated URL"));

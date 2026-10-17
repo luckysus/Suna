@@ -1,8 +1,10 @@
 # 数据库、API 与事件契约
 
+> 注：本文为早期服务端设计草案，REST `/api/v1` 接口在仓库中尚未实现。当前桌面版为本地优先架构：SQLite（`suna.sqlite3`）持久化 + Tauri IPC（`frontend/src/bridge/desktop.ts`）调用 Rust 后端。下文实体与事件结构仍作为数据模型参考。
+
 ## 数据库
 
-PostgreSQL 为默认持久化层；使用版本化迁移，不得启动时 drop/recreate
+桌面版默认持久化层为本地 SQLite（`suna.sqlite3`），PostgreSQL / SQL Server 仅用于可选的数据库连接器场景；使用版本化迁移，不得启动时 drop/recreate
 用户数据。建议实体：conversations、messages、attachments、tasks、task_steps、agent_definitions、agent_runs、tool_calls、task_events、checkpoints、model_providers、model_profiles、tools、mcp_servers、skills、knowledge_bases、knowledge_documents、document_chunks、datasets、prediction_runs、optimization_runs、experiment_runs、app_settings、audit_logs。按真实需求逐步建表，避免无用字段。
 
 ## API

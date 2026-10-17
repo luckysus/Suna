@@ -17,5 +17,5 @@ pub use model::{
     McpCallResult, McpCapabilities, McpError, McpPrompt, McpResource, McpServerIdentity, McpTool,
 };
 pub use sse::{McpLegacySseConfig, McpSseConfig};
-pub use stdio::{McpStderrCapture, McpStderrSnapshot, McpStdioConfig, McpStdioEnv, StdioTransport};
+pub use stdio::{McpStdioConfig, McpStdioEnv, StdioTransport};
 pub use supervisor::{McpSupervisor, McpTransportConfig};

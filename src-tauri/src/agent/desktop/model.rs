@@ -1,4 +1,4 @@
-use crate::agent::context::{SummaryMessage, SummaryPlan};
+use crate::agent::context::SummaryPlan;
 use crate::agent::runtime::AgentLoopLimits;
 use crate::providers::profiles::ProviderCapability;
 use crate::storage::repositories::provider_profiles;
@@ -388,6 +388,3 @@ pub(crate) struct SummaryPreparation {
     pub prompt: String,
     pub plan: SummaryPlan,
 }
-
-#[allow(dead_code)]
-pub(crate) type SummaryMessageList = Vec<SummaryMessage>;

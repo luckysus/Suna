@@ -34,14 +34,6 @@ impl PermissionPolicy {
         Self::default()
     }
 
-    pub fn set_dangerous_enabled(&mut self, enabled: bool) {
-        self.dangerous_enabled = enabled;
-    }
-
-    pub fn dangerous_enabled(&self) -> bool {
-        self.dangerous_enabled
-    }
-
     pub fn evaluate(
         &mut self,
         definition: &ToolDefinition,

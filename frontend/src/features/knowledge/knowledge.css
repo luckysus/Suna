@@ -38,11 +38,6 @@
   font-size: var(--suna-font-sub, calc(13px * var(--suna-ui-font-scale)));
 }
 
-.suna-knowledge-actions {
-  display: flex;
-  gap: 8px;
-}
-
 /* Alert */
 .suna-knowledge-center-alert {
   display: flex;
@@ -365,7 +360,7 @@
 .suna-knowledge-library-card.is-active {
   border-color: var(--suna-primary);
   background: var(--suna-bg-soft);
-  box-shadow: 0 0 0 1px var(--suna-primary), var(--suna-shadow);
+  box-shadow: 0 0 0 1px var(--suna-primary), 0 4px 16px rgba(59, 130, 246, 0.12);
 }
 
 .suna-knowledge-library-icon {
@@ -466,9 +461,9 @@
 /* Recent documents section */
 .suna-knowledge-recent {
   margin-top: 22px;
-  padding: 18px 20px 16px;
+  padding: 20px 22px 18px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--suna-bg-raised);
 }
 
@@ -476,7 +471,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.suna-knowledge-recent-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .suna-knowledge-recent-head h2 {
@@ -486,42 +487,190 @@
   color: var(--suna-text);
   font-size: calc(15px * var(--suna-ui-font-scale));
   font-weight: 650;
+  margin: 0;
+}
+
+.suna-knowledge-recent-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-muted);
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  font-family: var(--suna-mono);
 }
 
 .suna-knowledge-recent-head button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
   background: transparent;
-  color: var(--suna-primary);
+  color: var(--suna-text-soft);
   font: inherit;
   font-size: calc(12px * var(--suna-ui-font-scale));
   cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.suna-knowledge-recent-head button:hover {
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  border-color: var(--suna-line);
+}
+
+/* Empty states (documents, knowledge bases, chunks) */
+.suna-knowledge-document-empty,
+.suna-knowledge-base-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 24px 38px;
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  border: 1px dashed var(--suna-line);
+  margin: 4px 0 2px;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.suna-knowledge-document-empty:hover,
+.suna-knowledge-base-empty:hover {
+  border-color: var(--suna-line-strong);
+}
+
+.suna-knowledge-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-muted);
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.suna-knowledge-document-empty:hover .suna-knowledge-empty-icon,
+.suna-knowledge-base-empty:hover .suna-knowledge-empty-icon {
+  transform: translateY(-2px);
+  color: var(--suna-primary);
+  border-color: var(--suna-line-strong);
+}
+
+.suna-knowledge-document-empty h3,
+.suna-knowledge-base-empty h3 {
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  font-weight: 600;
+  color: var(--suna-text);
+  margin: 0 0 8px;
+  letter-spacing: -0.2px;
+}
+
+.suna-knowledge-document-empty p,
+.suna-knowledge-base-empty p {
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  margin: 0 0 20px;
+  max-width: 460px;
+  line-height: 1.6;
+}
+
+.suna-knowledge-empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.suna-knowledge-empty-formats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 20px;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  flex-wrap: wrap;
+}
+
+.suna-knowledge-empty-formats span {
+  margin-right: 2px;
+}
+
+.suna-format-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text-soft);
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
+  font-weight: 500;
 }
 
 /* File type badge */
 .suna-file-type {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 24px;
+  width: 32px;
+  height: 22px;
   margin-right: 8px;
   border-radius: 4px;
   border: 1px solid var(--suna-line);
   background: var(--suna-bg-soft);
-  color: var(--suna-text);
+  color: var(--suna-text-soft);
   font-size: calc(9px * var(--suna-ui-font-scale));
+  font-family: var(--suna-mono);
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
 }
 
-.suna-file-type-pdf,
-.suna-file-type-docx,
-.suna-file-type-xlsx {
-  background: var(--suna-bg-soft);
-  border-color: var(--suna-line-strong);
-  color: var(--suna-text);
+.suna-file-type-pdf {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.suna-file-type-doc,
+.suna-file-type-docx {
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.suna-file-type-xls,
+.suna-file-type-xlsx,
+.suna-file-type-csv {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.28);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.suna-file-type-md,
+.suna-file-type-markdown,
+.suna-file-type-txt {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.28);
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.suna-file-type-json,
+.suna-file-type-html {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .suna-doc-state {
@@ -544,9 +693,9 @@
 /* Jobs queue */
 .suna-knowledge-jobs {
   margin-top: 18px;
-  padding: 18px;
+  padding: 18px 20px 16px;
   border: 1px solid var(--suna-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--suna-bg-raised);
 }
 
@@ -594,9 +743,16 @@
 }
 
 .suna-knowledge-jobs-empty {
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 16px;
   color: var(--suna-text-muted);
-  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  background: var(--suna-bg-soft);
+  border-radius: 6px;
+  border: 1px dashed var(--suna-line);
+  text-align: center;
 }
 
 .suna-knowledge-job-progress {
@@ -1216,9 +1372,6 @@
   }
   .suna-knowledge-center-header {
     display: block;
-  }
-  .suna-knowledge-actions {
-    margin-top: 12px;
   }
   .suna-knowledge-main {
     padding: 0 14px 14px;

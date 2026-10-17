@@ -10,7 +10,7 @@ use super::events;
 use crate::agent::protocol::{AgentEventEnvelope, AgentRunState, RunOutcome};
 use crate::storage::StorageError;
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
+use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -188,9 +188,4 @@ pub(super) fn storage(error: rusqlite::Error) -> StorageError {
 
 pub(super) fn decode(error: impl std::fmt::Display) -> StorageError {
     StorageError::new("agent_run_decode_failed", error.to_string())
-}
-
-#[allow(dead_code)]
-pub(super) fn _transaction_marker(_transaction: &Transaction<'_>) -> bool {
-    true
 }

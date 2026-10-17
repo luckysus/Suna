@@ -1,26 +1,29 @@
 # =========================
-# Python
+# Rust / Tauri
+# =========================
+src-tauri/target/
+src-tauri/gen/
+
+# 打包产物：compute worker 由 compute-worker/build.ps1 生成后放入 resources
+src-tauri/resources/compute-worker/*
+!src-tauri/resources/compute-worker/.gitkeep
+
+# =========================
+# Python 计算 worker
 # =========================
 __pycache__/
 *.py[cod]
 *$py.class
 *.pyd
-*.pyo
-
-# Virtual environments
 .venv/
 venv/
 env/
-
-# Packaging / build
-build/
-dist/
+.uv-cache/
 *.egg-info/
-*.spec
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-compute-worker/.uv-cache/
+.pyright/
 .ipynb_checkpoints/
 .coverage
 .coverage.*
@@ -28,107 +31,29 @@ htmlcov/
 .tox/
 .nox/
 .hypothesis/
-.pyre/
-.pytype/
+compute-worker/build/
+compute-worker/dist/
+*.spec
 
 # =========================
-# Frontend (Vite / Node)
+# 前端 (Node / Vite / Playwright)
 # =========================
 node_modules/
-frontend/node_modules/
 frontend/dist/
-frontend/build/
 frontend/.vite/
-frontend/.cache/
-.suna-temp/
-frontend/.env
-frontend/.env.*
-!frontend/.env.example
-frontend/coverage/
-coverage/
-*.tsbuildinfo
-tsconfig.tsbuildinfo
-frontend/tsconfig.tsbuildinfo
 frontend/.tools/
+frontend/coverage/
 playwright-report/
 test-results/
-
-# Rust / Tauri
-src-tauri/target/
-src-tauri/gen/schemas/
-src-tauri/resources/compute-worker/*
-!src-tauri/resources/compute-worker/.gitkeep
-src-tauri/final_local_agent_tests.txt
-src-tauri/final_test_results.txt
-src-tauri/test_output_*.txt
-src-tauri/test_results_*.txt
+*.tsbuildinfo
 
 # =========================
-# IDE / OS
-# =========================
-.vscode/
-.idea/
-.workbuddy-ai/
-.zcodeignore
-*.swp
-*.swo
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-.DS_Store
-
-# =========================
-# Logs / runtime files
-# =========================
-*.log
-*.pid
-*.tmp
-*.bak
-*.backup
-*.orig
-*.rej
-.runtime/
-runtime/
-!src-tauri/src/research_workflow/runtime/
-!src-tauri/src/research_workflow/runtime/*.rs
-tmp/
-temp/
-.cache/
-cache/
-logs/
-uploads/
-upload/
-exports/
-downloads/
-deploy-backups/
-_packages/
-artifacts/
-agent_artifacts/
-run_artifacts/
-runtime_artifacts/
-
-# The agent runtime is source code, not a runtime artifact directory.
-!src-tauri/src/agent/runtime/
-!src-tauri/src/agent/runtime/**
-
-# Package manager logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# =========================
-# Environment / secrets
+# 环境变量与密钥（切勿提交）
 # =========================
 .env
 .env.*
 !.env.example
 .envrc
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 *.env.local
 *.pem
 *.key
@@ -157,56 +82,94 @@ kubeconfig
 .config/gcloud/
 .ssh/
 ssh-keys/
-server-secrets/
-server-env/
-systemd-overrides/
-
-# Do not commit copied server units or environment dumps.
-*.service.local
-*.envdump
-env.dump
-systemctl-cat-*.txt
-journalctl-*.txt
 
 # =========================
-# Project local large assets
-# (avoid pushing local datasets/models to GitHub)
+# IDE / 操作系统
 # =========================
-bge-small-zh-v1.5/
-models/
-literature/
-!backend/rag/literature/
-!backend/rag/literature/*.py
-!frontend/src/features/literature/
-!frontend/src/features/literature/**
+.vscode/
+.idea/
+.workbuddy-ai/
+.zcodeignore
+*.suo
+*.user
+*.swp
+*.swo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# =========================
+# 日志、临时文件与草稿
+# =========================
+*.log
+*.pid
+*.tmp
+*.bak
+*.backup
+*.orig
+*.rej
+tmp/
+temp/
+.cache/
+cache/
+logs/
+.suna-temp/
+.runtime/
+nohup.out
+.codex_*
+codex_tmp/
+codex_deploy/
+codex-archive/
+review_diff.txt
+review_*.txt
+audit_*.txt
+*_audit.txt
+*_report.txt
+scratch/
+scratch_*/
+tmp_*/
+
+# =========================
+# 本地数据与大型资产
+# =========================
+# 仅忽略仓库根目录的数据目录；features/*/data、case-studies 数据不受影响
+/data/
+uploads/
+upload/
+exports/
+downloads/
+agent_artifacts/
+run_artifacts/
+runtime_artifacts/
 experimental_photos/
 lab_tasks/
 lab_uploads/
 optimization_results/
 training_runs/
-data/**/*copy*
-data/**/*backup*
-data/**/*.xlsx
-data/**/*.xls
 
-# Model / ML artifacts
-*.pkl
-*.cbm
-*.joblib
-*.h5
-*.pt
-*.pth
-*.onnx
-*.safetensors
+# 本地语料与模型（frontend 的 literature 源码目录需重新纳入）
+literature/
+!frontend/src/features/literature/
+!frontend/src/features/literature/**
+bge-small-zh-v1.5/
+models/
+
+# 运行时/训练输出目录（与源码同名目录冲突时重新纳入，顺序敏感）
+runtime/
+!src-tauri/src/agent/runtime/
+!src-tauri/src/agent/runtime/**
+!src-tauri/src/research_workflow/runtime/
+!src-tauri/src/research_workflow/runtime/*.rs
+
 runs/
-# The Rust repository named `runs` contains source modules, not generated run data.
 !src-tauri/src/storage/repositories/runs/
 !src-tauri/src/storage/repositories/runs/*.rs
-checkpoints/
-wandb/
-mlruns/
 
-# Database / vector stores
+# =========================
+# 数据库与 ML 产物
+# =========================
 *.db
 *.sqlite
 *.sqlite3
@@ -218,63 +181,27 @@ mlruns/
 *.duckdb.wal
 *.dump
 *.sql.gz
-pgdata/
-postgres_data/
 vector_store/
 faiss_index/
 chroma/
 chroma_db/
 qdrant_storage/
 milvus/
+*.pkl
+*.cbm
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+*.safetensors
+checkpoints/
+wandb/
+mlruns/
 
-# Project specific temp files
-review_diff.txt
-review_*.txt
-audit_*.txt
-*_audit.txt
-*_report.txt
-scratch/
-scratch_*/
-tmp_*/
-codex_tmp/
-codex_deploy/
-.codex_*
-codex-archive/
-rag-deploy-*.tar
-rag-deploy-*.tar.gz
-rag-*-fix-*.tar
-rag-*-patch-*.tar
-codex-clipboard-*.png
-generated_code_*.txt
-*_generated_code*.txt
-codex_kb_upload_smoke.pdf
-*.tmp.pdf
-*.smoke.pdf
-
-# Optional outputs
-db_setup.log
-literature_processor.log
-backend_uvicorn.log
-server_out.log
-nohup.out
-uvicorn*.log
-gunicorn*.log
-celery*.log
-worker*.log
-
-# Local debug outputs
-debug_*.json
-debug_*.md
-debug_*.log
-local_*.json
-backend/services/literature_ingestion_jobs.json
-backend/services/literature_ingestion_jobs.json.tmp
-backend/services/literature_knowledge_bases.json
-backend/services/literature_knowledge_bases.json.tmp
-backend/services/mineru_cloud_jobs.json
-backend/services/mineru_cloud_jobs.json.tmp
-
-# Local archives / handoff packages
+# =========================
+# 归档包（发布产物 / 本地打包）
+# =========================
 *.zip
 *.tar
 *.tar.gz

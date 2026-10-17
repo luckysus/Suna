@@ -1,10 +1,9 @@
-use std::{collections::BTreeMap, path::PathBuf, process::Stdio, sync::Arc};
+use std::{collections::BTreeMap, path::PathBuf, process::Stdio};
 
 use rmcp::transport::TokioChildProcess;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
     process::Command,
-    sync::{Mutex, Notify},
 };
 
 use super::McpError;
@@ -18,7 +17,6 @@ pub struct McpStdioConfig {
     pub working_directory: Option<PathBuf>,
     pub inherited_env: Vec<String>,
     pub env: McpStdioEnv,
-    pub max_stderr_bytes: usize,
 }
 
 pub(crate) fn validate_inherited_env_name(name: &str) -> Result<(), McpError> {
@@ -44,11 +42,6 @@ impl McpStdioConfig {
                 "stdio executable is required".to_string(),
             ));
         }
-        if self.max_stderr_bytes == 0 {
-            return Err(McpError::InvalidTransport(
-                "stdio stderr limit must be positive".to_string(),
-            ));
-        }
         for (name, value) in &self.env {
             if name.is_empty() || name.contains('=') || name.contains('\0') || value.contains('\0')
             {
@@ -66,59 +59,6 @@ impl McpStdioConfig {
 
 pub struct StdioTransport {
     transport: TokioChildProcess,
-    pub stderr: McpStderrCapture,
-}
-
-#[derive(Clone)]
-pub struct McpStderrCapture {
-    state: Arc<Mutex<StderrState>>,
-    complete: Arc<Notify>,
-}
-
-#[derive(Debug, Default)]
-struct StderrState {
-    bytes: Vec<u8>,
-    truncated: bool,
-    finished: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct McpStderrSnapshot {
-    pub bytes: Vec<u8>,
-    pub truncated: bool,
-}
-
-impl McpStderrCapture {
-    fn new() -> Self {
-        Self {
-            state: Arc::new(Mutex::new(StderrState::default())),
-            complete: Arc::new(Notify::new()),
-        }
-    }
-
-    pub async fn wait(&self) {
-        loop {
-            let notified = self.complete.notified();
-            if self.state.lock().await.finished {
-                return;
-            }
-            notified.await;
-        }
-    }
-
-    pub async fn snapshot(&self) -> McpStderrSnapshot {
-        let state = self.state.lock().await;
-        McpStderrSnapshot {
-            bytes: state.bytes.clone(),
-            truncated: state.truncated,
-        }
-    }
-}
-
-impl std::fmt::Debug for McpStderrCapture {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("StderrCapture(..)")
-    }
 }
 
 pub fn spawn(config: McpStdioConfig) -> Result<StdioTransport, McpError> {
@@ -141,18 +81,10 @@ pub fn spawn(config: McpStdioConfig) -> Result<StdioTransport, McpError> {
         .map_err(|error| {
             McpError::Transport(format!("failed to start MCP stdio server: {error}"))
         })?;
-    let capture = McpStderrCapture::new();
     if let Some(stderr) = stderr {
-        tokio::spawn(read_stderr(
-            stderr,
-            capture.clone(),
-            config.max_stderr_bytes,
-        ));
+        tokio::spawn(drain_stderr(stderr));
     }
-    Ok(StdioTransport {
-        transport,
-        stderr: capture,
-    })
+    Ok(StdioTransport { transport })
 }
 
 impl StdioTransport {
@@ -175,7 +107,7 @@ impl StdioTransport {
     }
 }
 
-async fn read_stderr<R>(mut reader: R, capture: McpStderrCapture, max_bytes: usize)
+async fn drain_stderr<R>(mut reader: R)
 where
     R: AsyncRead + Unpin,
 {
@@ -183,22 +115,9 @@ where
     loop {
         match reader.read(&mut buffer).await {
             Ok(0) | Err(_) => break,
-            Ok(read) => {
-                let mut state = capture.state.lock().await;
-                let remaining = max_bytes.saturating_sub(state.bytes.len());
-                if remaining > 0 {
-                    state
-                        .bytes
-                        .extend_from_slice(&buffer[..read.min(remaining)]);
-                }
-                if read > remaining {
-                    state.truncated = true;
-                }
-            }
+            Ok(_) => {}
         }
     }
-    capture.state.lock().await.finished = true;
-    capture.complete.notify_waiters();
 }
 
 #[cfg(test)]

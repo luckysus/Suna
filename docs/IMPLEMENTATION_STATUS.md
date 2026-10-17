@@ -128,7 +128,7 @@
 | 主题（Light/Dark/System） | 已实现 | `theme/` + 设置页外观 tab |
 | 空 / 加载 / 错误态 | 已实现 | 各页面均有 empty/loading/error 分支，且已有对应测试 |
 | 页面清单（对照 `UI_DESIGN.md`） | 部分实现 | 见下表 |
-| Design Token 集中化 | 部分实现 | 存在 `design-system/suna/MASTER.md` 与 CSS 变量，但 `UI_DESIGN.md` 建议的色值（`#1677ff` 等）与现状 `#2563EB` 不一致，未统一 |
+| Design Token 集中化 | 部分实现 | 存在集中式 CSS 变量（`frontend/src/design/tokens.css`），但 `UI_DESIGN.md` 建议的色值（`#1677ff` 等）与现状 `#2563EB` 不一致，未统一 |
 
 页面级状态（前端实现规模，按字节）：
 
@@ -237,7 +237,7 @@
 | `compute-worker/` | Python 计算子进程 | 文档建议 `research_service/`（FastAPI）—— **目录与形态均不同** |
 | `src-tauri/src/storage/migrations/` | 32 个迁移 | 文档建议顶层 `migrations/` —— 位置不同 |
 | `docs/` | 文档 | 一致；但 `docs/adr/` **缺失** |
-| `domain-packs/`、`case-studies/`、`design-system/`、`scripts/` | 领域包 / 案例 / 设计系统 / 脚本 | 文档未提及，属现有资产 |
+| `domain-packs/`、`case-studies/`、`scripts/` | 领域包 / 案例 / 脚本 | 文档未提及，属现有资产 |
 | `界面UI/` | 已空（内容移至 `docs/ui-reference/`） | — |
 
 后端模块规模（行）：`agent` 13674、`app` 14766、`storage` 9095、`rag` 8746、`knowledge_db.rs` 5622、`providers` 4272、`tasks` 3613、`steel` 3050、`mcp` 2146、`compute` 1519、`domains` 1316、`diagnostics` 894、`tools` 852、`skills` 819、`permissions` 617、`database` 577。

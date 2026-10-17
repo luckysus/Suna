@@ -771,7 +771,7 @@ fn remove_database_sidecars(database_path: &Path) -> Result<(), String> {
 }
 
 fn read_manifest(archive: &mut ZipArchive<File>) -> Result<BackupManifest, String> {
-    let mut entry = archive
+    let entry = archive
         .by_name("manifest.json")
         .map_err(|_| "backup manifest is missing".to_string())?;
     let mut bytes = Vec::new();

@@ -62,7 +62,7 @@ function createInitialState() {
     appearanceSaveState: "idle" as AppearanceSaveState,
     appearanceLoaded: false,
     appearanceLoadError: null as string | null,
-    themePreference: "light" as ThemePreference,
+    themePreference: readStoredTheme(),
     systemTheme: readSystemTheme(),
     themeSaveState: "idle" as ThemeSaveState,
     themeLoadError: null as string | null,
@@ -132,14 +132,14 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     try {
       const value = await desktop.getSetting("ui.theme");
       if (persistenceState.themeUserChanged) return;
-      // 桌面设置是权威值；仅在没有桥接值的浏览器预览里才用 localStorage，
-      // 避免陈旧的预览值覆盖已被清空的桌面偏好。
-      const next = value ? parseThemePreference(value) : desktopRuntime ? "light" : readStoredTheme();
+      // 桌面设置是权威值；在初次运行尚未写入或非桌面环境中，
+      // 保持与当前已有存储/HTML 初始主题一致，避免强制降级为浅色导致闪烁。
+      const next = value ? parseThemePreference(value) : readStoredTheme();
       persistenceState.pendingTheme = next;
       set({ themePreference: next });
     } catch {
       if (persistenceState.themeUserChanged) return;
-      const next = desktopRuntime ? "light" : readStoredTheme();
+      const next = readStoredTheme();
       persistenceState.pendingTheme = next;
       set({ themePreference: next });
       if (desktopRuntime) set({ themeLoadError: "无法读取主题设置，请重试" });

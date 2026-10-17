@@ -1,5 +1,4 @@
 use super::manifest::{AssetSpec, DomainManifest};
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
@@ -10,7 +9,6 @@ const MAX_MANIFEST_BYTES: usize = 1024 * 1024;
 const MAX_ASSET_COUNT: usize = 512;
 const MAX_ASSET_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_TOTAL_ASSET_BYTES: u64 = 512 * 1024 * 1024;
-const DEFAULT_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DomainError {
@@ -357,15 +355,4 @@ fn allowed_license(value: &str) -> bool {
 
 fn is_windows_absolute(value: &str) -> bool {
     value.as_bytes().get(1) == Some(&b':')
-}
-
-#[allow(dead_code)]
-fn _default_app_version() -> &'static str {
-    DEFAULT_APP_VERSION
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct _ManifestShapeGuard {
-    _unused: Option<String>,
 }

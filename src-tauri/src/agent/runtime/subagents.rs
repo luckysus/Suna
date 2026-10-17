@@ -93,27 +93,6 @@ impl SubagentTool {
         )
     }
 
-    pub fn new_for_parent_with_store(
-        model: Arc<dyn ModelAdapter>,
-        tools: Arc<dyn ToolExecutor>,
-        permissions: Arc<dyn PermissionResolver>,
-        hooks: Arc<dyn AgentHooks>,
-        runtime: RuntimeHost,
-        parent_turn_id: Uuid,
-        store: Arc<dyn ChildTurnStore>,
-    ) -> Self {
-        Self::new_with_parent(
-            model,
-            tools,
-            permissions,
-            hooks,
-            Some(runtime),
-            Some(parent_turn_id),
-            Some(store),
-            Vec::new(),
-        )
-    }
-
     pub fn new_for_parent_with_profiles(
         model: Arc<dyn ModelAdapter>,
         tools: Arc<dyn ToolExecutor>,

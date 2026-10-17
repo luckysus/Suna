@@ -85,9 +85,15 @@ pub fn db_init(
     agent_state: tauri::State<crate::agent::runtime::RuntimeHost>,
     scheduler_state: tauri::State<SchedulerState>,
 ) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    log::info!("启动计时: db_init 开始");
     let path = database_path(&app)?;
     let (mut connection, _migration_report) =
         crate::storage::database::open(&path).map_err(|error| error.to_string())?;
+    log::info!(
+        "启动计时: DB 打开与迁移检查完成 (+{}ms)",
+        started.elapsed().as_millis()
+    );
     crate::storage::repositories::child_turns::interrupt_orphans(
         &mut connection,
         current_workspace_id(),
@@ -210,6 +216,10 @@ pub fn db_init(
         }
     }
     crate::app::agent_automation::start_for_database(&app, path)?;
+    log::info!(
+        "启动计时: db_init 完成 (+{}ms)",
+        started.elapsed().as_millis()
+    );
     Ok(())
 }
 

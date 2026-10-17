@@ -25,7 +25,7 @@ pwsh -NoProfile -File .\tools\windows-acceptance\scripts\prepare-windows-accepta
 pwsh -NoProfile -NonInteractive -File .\tools\windows-acceptance\scripts\tests\acceptance-evidence.contract.ps1
 ```
 
-测试在 Linux PowerShell 7.6.6 上执行，使用文本冒充二进制的**合成夹具**检查哈希/篡改/路径/不覆盖/未验收状态；夹具从未作为程序执行。这些结果不能代替 Windows 原生测试。附带 `fixtures/research-synthetic.csv` 是仓库已有演示数据的逐字节副本，不是真实实验测量。
+测试在 Linux PowerShell 7.6.6 上执行，使用文本冒充二进制的**合成夹具**检查哈希/篡改/路径/不覆盖/未验收状态；夹具从未作为程序执行。这些结果不能代替 Windows 原生测试。
 
 明日仍需人工或本地授权 Codex 验证安装、WebView2、Worker 实际加载、中文路径导出、迁移、办公格式、Windows Credential Manager、离线边界、真实服务、长任务及备份恢复；保留上传手册的全部确认与隔离要求。
 

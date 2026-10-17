@@ -3,7 +3,10 @@ use crate::providers::capabilities::{
     ChatEvent, ChatMessage, ChatProvider, ChatRequest, ChatResponse, ChatToolCall, ChatUsage,
     ProviderCapabilities, ToolCallDelta,
 };
-use crate::providers::http::{build_client, HttpClientConfig, ProviderError, ProviderErrorCode};
+use crate::providers::http::{
+    append_bounded, build_client, read_bounded_body, BodyRead, HttpClientConfig, ProviderError,
+    ProviderErrorCode,
+};
 use crate::providers::profiles::{
     validate_bearer_transport, ProviderCapability, ProviderKind, ProviderProfile,
 };
@@ -209,15 +212,16 @@ impl ChatProvider for OpenAiProvider {
         let status = response.status();
         if !status.is_success() {
             let headers = response.headers().clone();
-            let body = match read_bounded_body(response, is_cancelled).await? {
-                BodyRead::Complete(body) => body,
-                BodyRead::Cancelled => {
-                    return Ok(ChatResponse {
-                        cancelled: true,
-                        ..ChatResponse::default()
-                    });
-                }
-            };
+            let body =
+                match read_bounded_body(response, is_cancelled, MAX_RESPONSE_BODY_BYTES).await? {
+                    BodyRead::Complete(body) => body,
+                    BodyRead::Cancelled => {
+                        return Ok(ChatResponse {
+                            cancelled: true,
+                            ..ChatResponse::default()
+                        });
+                    }
+                };
             return Err(ProviderError::from_status_with_headers(
                 status,
                 &headers,
@@ -241,15 +245,16 @@ impl ChatProvider for OpenAiProvider {
             )
             .await
         } else {
-            let body = match read_bounded_body(response, is_cancelled).await? {
-                BodyRead::Complete(body) => body,
-                BodyRead::Cancelled => {
-                    return Ok(ChatResponse {
-                        cancelled: true,
-                        ..ChatResponse::default()
-                    });
-                }
-            };
+            let body =
+                match read_bounded_body(response, is_cancelled, MAX_RESPONSE_BODY_BYTES).await? {
+                    BodyRead::Complete(body) => body,
+                    BodyRead::Cancelled => {
+                        return Ok(ChatResponse {
+                            cancelled: true,
+                            ..ChatResponse::default()
+                        });
+                    }
+                };
             let body = std::str::from_utf8(&body).map_err(|_| {
                 ProviderError::new(
                     ProviderErrorCode::ProviderResponse,
@@ -318,43 +323,6 @@ fn openai_message_content(message: &ChatMessage) -> Value {
         })
     }));
     Value::Array(parts)
-}
-
-enum BodyRead {
-    Complete(Vec<u8>),
-    Cancelled,
-}
-
-async fn read_bounded_body(
-    response: reqwest::Response,
-    is_cancelled: &(dyn Fn() -> bool + Send + Sync),
-) -> Result<BodyRead, ProviderError> {
-    let mut body = Vec::new();
-    let mut stream = response.bytes_stream();
-    loop {
-        if is_cancelled() {
-            return Ok(BodyRead::Cancelled);
-        }
-        let chunk = match timeout(CANCELLATION_POLL_INTERVAL, stream.next()).await {
-            Ok(Some(chunk)) => chunk,
-            Ok(None) => return Ok(BodyRead::Complete(body)),
-            Err(_) => continue,
-        };
-        let chunk = chunk.map_err(|error| ProviderError::from_reqwest(&error))?;
-        append_bounded(&mut body, &chunk, MAX_RESPONSE_BODY_BYTES)?;
-    }
-}
-
-fn append_bounded(buffer: &mut Vec<u8>, bytes: &[u8], limit: usize) -> Result<(), ProviderError> {
-    if bytes.len() > limit.saturating_sub(buffer.len()) {
-        return Err(ProviderError::new(
-            ProviderErrorCode::ProviderResponse,
-            None,
-            "provider response exceeded size limit",
-        ));
-    }
-    buffer.extend_from_slice(bytes);
-    Ok(())
 }
 
 #[derive(Default)]

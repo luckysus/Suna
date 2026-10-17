@@ -1,7 +1,7 @@
 use crate::agent::context::{ContextItem, ContextReport, ContextSource};
 use crate::agent::protocol::{
-    AgentError, AgentEventData, AgentEventEnvelope, AgentMessageRole, AgentRunState,
-    PermissionDecision, PermissionRisk, RunOutcome, RunStateChanged,
+    AgentEventData, AgentEventEnvelope, AgentMessageRole, AgentRunState, PermissionDecision,
+    PermissionRisk, RunOutcome, RunStateChanged,
 };
 use crate::agent::tool_repair::ToolSpec;
 use crate::providers::capabilities::ChatUsage;
@@ -167,20 +167,6 @@ impl AgentInputQueue {
 
     pub fn enqueue_follow_up(&self, entry: ContextEntry) -> Result<(), String> {
         self.enqueue(AgentInputKind::FollowUp, entry)
-    }
-
-    pub fn set_modes(
-        &self,
-        steering: AgentInputQueueMode,
-        follow_up: AgentInputQueueMode,
-    ) -> Result<(), String> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|_| "agent input queue is poisoned".to_string())?;
-        state.steering_mode = steering;
-        state.follow_up_mode = follow_up;
-        Ok(())
     }
 
     pub fn take(&self, kind: AgentInputKind) -> Result<Vec<ContextEntry>, String> {
@@ -705,14 +691,4 @@ pub(super) struct PreparedToolCall {
 pub(super) struct RepairedToolBatch {
     pub(super) model_calls: Vec<crate::providers::capabilities::ChatToolCall>,
     pub(super) calls: Vec<PreparedToolCall>,
-}
-
-#[allow(dead_code)]
-pub(super) fn _agent_error_marker(_error: AgentError) -> bool {
-    true
-}
-
-#[allow(dead_code)]
-pub(super) fn _agent_state_marker(_state: AgentRunState) -> bool {
-    true
 }

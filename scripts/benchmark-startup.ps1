@@ -34,7 +34,7 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out
 
 Push-Location $tauriRoot
 try {
-    & cargo build --release --offline --bin suna
+    & cargo build --release --offline --features custom-protocol --bin suna
     if ($LASTEXITCODE -ne 0) {
         throw "Release binary build failed with exit code $LASTEXITCODE"
     }
@@ -107,8 +107,9 @@ try {
         $env:TMP = $env:TEMP
         New-Item -ItemType Directory -Force -Path $env:APPDATA, $env:LOCALAPPDATA, $env:TEMP | Out-Null
 
+        $roundErrorLog = Join-Path $roundRoot "startup-stderr.log"
         $started = [Diagnostics.Stopwatch]::StartNew()
-        $process = Start-Process -FilePath $binaryPath -WorkingDirectory $tauriRoot -PassThru
+        $process = Start-Process -FilePath $binaryPath -WorkingDirectory $tauriRoot -WindowStyle Normal -RedirectStandardError $roundErrorLog -PassThru
         $ready = $false
         try {
             while ($started.ElapsedMilliseconds -lt $StartupTimeoutMilliseconds) {
@@ -116,14 +117,26 @@ try {
                 if ($process.HasExited) {
                     throw "Suna exited during startup with code $($process.ExitCode)"
                 }
-                if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
+                $logText = ""
+                try {
+                    if (Test-Path -LiteralPath $roundErrorLog) {
+                        $stream = [System.IO.File]::Open($roundErrorLog, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+                        try {
+                            $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+                            try { $logText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                        } finally { $stream.Dispose() }
+                    }
+                } catch {
+                    # The log file can be momentarily locked while the child appends to it.
+                }
+                if ($logText -match '\[dismiss\] \+') {
                     $ready = $true
                     break
                 }
                 Start-Sleep -Milliseconds 50
             }
             if (-not $ready) {
-                throw "Suna did not expose a main window within $StartupTimeoutMilliseconds ms"
+                throw "Suna did not finish booting (no frontend dismiss mark) within $StartupTimeoutMilliseconds ms"
             }
             $startupSamples.Add([double]$started.Elapsed.TotalMilliseconds)
 
@@ -188,7 +201,7 @@ $report = [ordered]@{
         p95_ms = $startupP95
         max_ms = ($startupRaw | Measure-Object -Maximum).Maximum
         raw_ms = $startupRaw
-        readiness = "main_window_handle"
+        readiness = "boot_log_frontend_dismiss"
     }
     idle_memory = [ordered]@{
         samples = $memoryRaw.Count

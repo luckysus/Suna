@@ -1,6 +1,5 @@
 use super::model::{
-    LocalLlmConfig, StreamedLlmAnswer, LOCAL_SUMMARY_CONTEXT_CHAR_LIMIT,
-    LOCAL_SUMMARY_CONTEXT_LIMIT,
+    StreamedLlmAnswer, LOCAL_SUMMARY_CONTEXT_CHAR_LIMIT, LOCAL_SUMMARY_CONTEXT_LIMIT,
 };
 use crate::domains::DomainManifest;
 use serde_json::Value;
@@ -168,9 +167,4 @@ pub(crate) fn truncate_text(value: &str, limit: usize) -> String {
         result.push('\u{2026}');
     }
     result
-}
-
-#[allow(dead_code)]
-fn _config_is_local(config: &LocalLlmConfig) -> bool {
-    config.provider.eq_ignore_ascii_case("ollama")
 }

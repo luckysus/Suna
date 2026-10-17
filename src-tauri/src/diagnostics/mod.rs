@@ -282,6 +282,11 @@ pub fn clear_storage_cache(app: tauri::AppHandle, kind: String) -> Result<u64, S
     }
     Ok(removed)
 }
+#[tauri::command]
+pub fn boot_timing(stage: String, elapsed_ms: f64) {
+    log::info!("启动计时: 前端[{stage}] +{elapsed_ms:.0}ms");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

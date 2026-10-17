@@ -5,6 +5,7 @@ import type {PackagePreview, PackageSaved, PackageInspection} from "./researchPa
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { setTheme as setNativeTheme } from "@tauri-apps/api/app";
 import {
   open as openNativeDialog,
@@ -1761,9 +1762,18 @@ export const desktop = {
 
   listenFileDrop: (callback: (event: NativeFileDragEvent) => void) =>
     getCurrentWebview().onDragDropEvent((event) => callback(event.payload)),
-  setNativeTheme: (theme: "light" | "dark") => {
-    if (!isDesktopRuntime()) return Promise.resolve();
-    return setNativeTheme(theme);
+  setNativeTheme: async (theme: "light" | "dark") => {
+    if (!isDesktopRuntime()) return;
+    try {
+      await setNativeTheme(theme);
+    } catch {
+      // ignore
+    }
+    try {
+      await getCurrentWindow().setTheme(theme);
+    } catch {
+      // ignore
+    }
   },
   async initialize() {
     if (!isDesktopRuntime()) return;
@@ -1776,6 +1786,7 @@ export const desktop = {
   setSetting: (key: string, valueJson: string) =>
     call<void>("set_setting", { key, valueJson }),
   checkForUpdates: () => call<UpdateCheckResult>("check_for_updates"),
+  reportBootTiming: (stage: string, elapsedMs: number) => call<void>("boot_timing", { stage, elapsedMs }),
   listConversations: () => call<Conversation[]>("list_conversations"),
   searchHistory: (request: {
     query: string;

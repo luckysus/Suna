@@ -14,6 +14,51 @@
   display: none;
 }
 
+.suna-new-app.is-desktop-shell {
+  flex-direction: column;
+}
+
+.suna-new-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.suna-new-body > .suna-new-sidebar {
+  height: auto;
+}
+
+.suna-titlebar {
+  flex: 0 0 32px;
+  height: 32px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: var(--suna-bg);
+  user-select: none;
+}
+
+.suna-titlebar-button {
+  width: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-soft);
+  cursor: default;
+}
+
+.suna-titlebar-button:hover {
+  background: var(--suna-bg-hover);
+  color: var(--suna-text);
+}
+
+.suna-titlebar-button.is-close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
 /* ==========================================================================
    Sidebar: Minimalist Precision Navigation Rail
    ========================================================================== */
@@ -21,7 +66,7 @@
 .suna-new-sidebar {
   width: var(--suna-sidebar-width, 236px);
   flex: 0 0 var(--suna-sidebar-width, 236px);
-  height: 100vh;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -50,18 +95,6 @@
   user-select: none;
 }
 
-.suna-new-mark {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  filter: grayscale(100%);
-  transition: filter 200ms ease;
-}
-
-.suna-new-brand:hover .suna-new-mark {
-  filter: grayscale(100%) brightness(1.2);
-}
-
 .suna-new-brand > div {
   display: flex;
   flex-direction: column;
@@ -86,51 +119,81 @@
   text-transform: uppercase;
 }
 
-/* "+ 新对话" Action Button */
+/* "+ 新对话" Action Button - Elevated Precision Desktop Control */
 .suna-new-create {
   margin: 0 12px 14px;
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: var(--suna-radius-small);
-  background: var(--suna-primary-fill);
-  color: var(--suna-bg);
-  border: 1px solid transparent;
-  font-size: calc(13.5px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  border-radius: var(--suna-radius-small, 6px);
+  background: var(--suna-bg-raised);
+  color: var(--suna-text);
+  border: 1px solid var(--suna-line);
+  font: inherit;
+  font-family: inherit;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 550;
   cursor: pointer;
-  box-shadow: var(--suna-shadow-soft);
-  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.suna-new-create span {
+  color: var(--suna-text);
+  font-weight: 550;
+}
+
+.suna-new-create-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .suna-new-create svg {
-  margin-right: 6px;
+  color: var(--suna-text-muted);
+  flex-shrink: 0;
+  transition: color 140ms ease, transform 140ms ease;
 }
 
 .suna-new-create kbd {
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
+  padding: 1.5px 5px;
   border-radius: 4px;
   font-family: var(--suna-mono);
-  font-size: calc(11px * var(--suna-ui-font-scale));
-  font-weight: 600;
+  font-size: calc(10.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
   letter-spacing: 0.02em;
-  background: rgba(128, 128, 128, 0.2);
-  color: inherit;
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  border: 1px solid var(--suna-line);
+  transition: all 140ms ease;
 }
 
 .suna-new-create:hover {
-  background: var(--suna-primary-fill-hover);
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+  color: var(--suna-text);
   transform: translateY(-1px);
-  box-shadow: var(--suna-shadow);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.suna-new-create:hover svg {
+  color: var(--suna-text);
+  transform: scale(1.08);
+}
+
+.suna-new-create:hover kbd {
+  color: var(--suna-text);
+  border-color: var(--suna-line-strong);
 }
 
 .suna-new-create:active {
   transform: translateY(0);
+  box-shadow: none;
 }
 
 /* Navigation Scroll Area */
@@ -333,7 +396,7 @@
   transition: opacity 120ms ease;
   padding: 2px 3px;
   border-radius: 4px;
-  background: var(--suna-bg-card, #ffffff);
+  background: var(--suna-bg-raised);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--suna-line);
 }
@@ -495,7 +558,7 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--suna-bg);
@@ -550,109 +613,6 @@
   border-color: var(--suna-line-strong);
 }
 
-.suna-new-header-actions {
-  display: none !important;
-}
-
-/* Model Selector */
-.suna-model-menu-anchor {
-  position: relative;
-}
-
-.suna-header-model {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--suna-line);
-  border-radius: 999px;
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-  font-family: inherit;
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
-  font-weight: 550;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.suna-header-model:hover {
-  background: var(--suna-bg-hover);
-  color: var(--suna-text);
-  border-color: var(--suna-line-strong);
-}
-
-.suna-header-model svg {
-  transition: transform 160ms ease;
-}
-
-.suna-header-model svg.is-open {
-  transform: rotate(90deg);
-}
-
-.suna-header-model-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 50;
-  min-width: 210px;
-  padding: 6px;
-  border: 1px solid var(--suna-line-strong);
-  border-radius: 12px;
-  background: var(--suna-bg-raised);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.suna-header-model-menu button {
-  width: 100%;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--suna-text-soft);
-  font-family: inherit;
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
-  text-align: left;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.suna-header-model-menu button:hover {
-  background: var(--suna-bg-hover);
-  color: var(--suna-text);
-}
-
-.suna-header-model-menu button.is-active {
-  background: var(--suna-primary-fill);
-  color: var(--suna-bg);
-  font-weight: 600;
-}
-
-/* Header Quick Icons */
-.suna-header-icon {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--suna-text-soft);
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.suna-header-icon:hover {
-  background: var(--suna-bg-hover);
-  color: var(--suna-text);
-  border-color: var(--suna-line);
-}
-
 /* ==========================================================================
    Content Area & Inspector Layout
    ========================================================================== */
@@ -672,7 +632,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--suna-chat-inspector-width, 300px);
   height: 100%;
-  min-height: calc(100vh - var(--suna-topbar-height, 48px));
+  min-height: 100%;
   background: var(--suna-bg);
   border: 0;
   border-radius: 0;
@@ -681,224 +641,6 @@
 
 .suna-new-content > .suna-chat.has-agent-panel-hidden {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.suna-new-content .suna-chat-sidebar {
-  display: none !important;
-}
-
-/* --------------------------------------------------------------------------
-   1. Left Conversation Sidebar (.suna-chat-sidebar)
-   -------------------------------------------------------------------------- */
-.suna-chat-sidebar {
-  display: flex;
-  flex-direction: column;
-  background: var(--suna-bg-soft);
-  border-right: 1px solid var(--suna-line);
-  padding: 14px 12px;
-  overflow: hidden;
-}
-
-.suna-chat-sidebar-actions {
-  display: flex;
-  margin-bottom: 10px;
-}
-
-.suna-chat-sidebar-action.is-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--suna-primary-fill);
-  color: var(--suna-primary-contrast);
-  border: 1px solid transparent;
-  transition: transform 140ms ease, opacity 140ms ease;
-}
-
-.suna-chat-sidebar-action.is-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.suna-chat-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  height: 36px;
-  border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  background: var(--suna-bg-raised);
-  color: var(--suna-text-muted);
-  margin-bottom: 12px;
-  transition: border-color 140ms ease;
-}
-
-.suna-chat-search:focus-within {
-  border-color: var(--suna-text);
-  color: var(--suna-text);
-}
-
-.suna-chat-search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--suna-text);
-  font-size: 12px;
-}
-
-.suna-chat-search button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  color: var(--suna-text-muted);
-  cursor: pointer;
-}
-
-.suna-chat-recent-heading {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--suna-text-muted);
-  padding: 6px 6px 8px;
-}
-
-.suna-chat-session-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.suna-chat-session-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border-radius: 8px;
-  transition: background 140ms ease;
-}
-
-.suna-chat-session {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  height: 36px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--suna-text-soft);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.suna-chat-session span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.suna-chat-session-wrap:hover .suna-chat-session {
-  background: var(--suna-bg-hover);
-  color: var(--suna-text);
-}
-
-.suna-chat-session-wrap.is-active .suna-chat-session {
-  background: var(--suna-bg-raised);
-  border: 1px solid var(--suna-line);
-  border-left: 1px solid var(--suna-line);
-  color: var(--suna-text);
-  font-weight: 600;
-}
-
-.suna-chat-session-actions {
-  position: absolute;
-  right: 6px;
-  opacity: 0;
-  transition: opacity 140ms ease;
-}
-
-.suna-chat-session-wrap:hover .suna-chat-session-actions,
-.suna-chat-session-actions.is-visible {
-  opacity: 1;
-}
-
-.suna-chat-session-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--suna-text-muted);
-  cursor: pointer;
-}
-
-.suna-chat-session-action:hover {
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-}
-
-.suna-chat-session-menu {
-  position: absolute;
-  top: 100%;
-  right: 6px;
-  z-index: 30;
-  min-width: 140px;
-  padding: 4px;
-  border: 1px solid var(--suna-line);
-  border-radius: 8px;
-  background: var(--suna-bg-raised);
-  box-shadow: var(--suna-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.suna-chat-session-menu button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--suna-text-soft);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.suna-chat-session-menu button:hover {
-  background: var(--suna-bg-hover);
-  color: var(--suna-text);
-}
-
-.suna-sidebar-footer {
-  padding: 10px 6px 0;
-  border-top: 1px solid var(--suna-line);
-  font-size: 11px;
-  color: var(--suna-text-muted);
 }
 
 /* --------------------------------------------------------------------------
@@ -939,10 +681,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.suna-chat-runtime {
-  display: none !important;
 }
 
 .suna-chat-main-alerts {
@@ -1099,7 +837,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   width: 100%;
-  max-width: 880px;
+  max-width: var(--suna-content-reading-max, 880px);
   text-align: left;
 }
 
@@ -1202,7 +940,7 @@
   flex-direction: column;
   align-items: flex-start;
   margin-right: auto;
-  max-width: min(920px, 92%);
+  max-width: min(1040px, 96%);
   width: 100%;
   gap: 6px;
 }
@@ -1896,27 +1634,40 @@
 }
 
 [data-theme="dark"] .suna-new-create {
-  background: var(--suna-primary-fill);
-  color: var(--suna-primary-contrast) !important;
-  border-color: transparent;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  background: var(--suna-bg-raised);
+  border-color: var(--suna-line);
+  color: var(--suna-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .suna-new-create:hover {
-  background: var(--suna-primary-fill-hover);
-  border-color: transparent;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+  color: var(--suna-text);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
-[data-theme="dark"] .suna-new-create svg,
+[data-theme="dark"] .suna-new-create svg {
+  color: var(--suna-text-muted);
+}
+
+[data-theme="dark"] .suna-new-create:hover svg {
+  color: var(--suna-text);
+}
+
 [data-theme="dark"] .suna-new-create span {
-  color: var(--suna-primary-contrast) !important;
+  color: var(--suna-text) !important;
 }
 
 [data-theme="dark"] .suna-new-create kbd {
-  background: rgba(0, 0, 0, 0.16);
-  border-color: rgba(0, 0, 0, 0.24);
-  color: var(--suna-primary-contrast) !important;
+  background: var(--suna-bg-soft);
+  border-color: var(--suna-line);
+  color: var(--suna-text-muted) !important;
+}
+
+[data-theme="dark"] .suna-new-create:hover kbd {
+  border-color: var(--suna-line-strong);
+  color: var(--suna-text) !important;
 }
 
 [data-theme="dark"] .suna-new-nav-label {
@@ -1967,9 +1718,9 @@
 }
 
 [data-theme="dark"] .suna-new-history-actions {
-  background: #181f30;
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: var(--suna-bg-raised);
+  border-color: var(--suna-line);
+  box-shadow: var(--suna-shadow);
 }
 
 [data-theme="dark"] .suna-new-history-archived-toggle:hover {
@@ -2026,66 +1777,9 @@
   background: var(--suna-bg-soft);
 }
 
-[data-theme="dark"] .suna-header-model {
-  border-color: var(--suna-line);
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-}
-
-[data-theme="dark"] .suna-header-icon {
-  color: var(--suna-text-muted);
-}
-
-[data-theme="dark"] .suna-header-icon:hover,
-[data-theme="dark"] .suna-header-model:hover {
-  background: var(--suna-bg-hover);
-  border-color: var(--suna-line-strong);
-  color: var(--suna-text);
-}
-
-[data-theme="dark"] .suna-header-model-menu {
-  border-color: var(--suna-line);
-  background: var(--suna-bg-raised);
-  box-shadow: var(--suna-shadow);
-}
-
 /* Dark Mode Chat */
 [data-theme="dark"] .suna-new-content > .suna-chat {
   background: var(--suna-bg);
-}
-
-[data-theme="dark"] .suna-chat-sidebar {
-  background: var(--suna-sidebar);
-  border-right-color: var(--suna-line);
-}
-
-[data-theme="dark"] .suna-chat-sidebar-action.is-primary {
-  background: var(--suna-primary-fill);
-  color: var(--suna-primary-contrast) !important;
-  border-color: transparent;
-}
-
-[data-theme="dark"] .suna-chat-search {
-  background: var(--suna-bg-soft);
-  border-color: var(--suna-line);
-  color: var(--suna-text);
-}
-
-[data-theme="dark"] .suna-chat-search:focus-within {
-  border-color: var(--suna-line-strong);
-}
-
-[data-theme="dark"] .suna-chat-session-wrap.is-active .suna-chat-session {
-  background: var(--suna-bg-soft);
-  border-color: var(--suna-line);
-  border-left-color: var(--suna-primary);
-  color: var(--suna-text);
-}
-
-[data-theme="dark"] .suna-chat-session-menu {
-  background: var(--suna-bg-raised);
-  border-color: var(--suna-line);
-  box-shadow: var(--suna-shadow);
 }
 
 [data-theme="dark"] .suna-new-content .suna-chat-main {
@@ -2095,16 +1789,6 @@
 [data-theme="dark"] .suna-new-content .suna-chat-header {
   background: var(--suna-bg);
   border-bottom-color: var(--suna-line);
-}
-
-[data-theme="dark"] .suna-chat-runtime {
-  background: var(--suna-bg-soft);
-  border-color: var(--suna-line);
-  color: var(--suna-text);
-}
-
-[data-theme="dark"] .suna-chat-runtime .suna-state-dot {
-  background: var(--suna-text);
 }
 
 [data-theme="dark"] .suna-welcome-card {
@@ -2286,18 +1970,5 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .suna-new-header-actions {
-    gap: 3px;
-  }
-  .suna-header-model {
-    max-width: 108px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .suna-header-icon {
-    width: 28px;
-    height: 28px;
   }
 }

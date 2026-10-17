@@ -546,7 +546,7 @@ export default function KnowledgeCenterWorkspace() {
   <SelectTrigger aria-label="排序方式"><SelectValue /></SelectTrigger>
   <SelectContent><SelectItem value="最近更新">最近更新</SelectItem><SelectItem value="名称">名称</SelectItem>
   </SelectContent>
-</Select><ChevronDown size={14} /></label><Button variant="ghost" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</Button><Button variant="ghost" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</Button><Button variant="primary" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</Button></div><div ref={dropRegion} className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <Button variant="none" key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => setSelectedId(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></Button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />最近文档</h2><button onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={15} /></button></div>{filtered.length ? <DataTable columns={documentColumns} rows={filtered} rowKey={(item) => item.id} searchable={false} pageSizeOptions={[10, 20, 50]} exportName="knowledge-documents" emptyText="该知识库没有可展示的文档" onRowClick={(item) => void openDocument(item)} /> : <Empty onImport={() => void importFiles()} />}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
+</Select><ChevronDown size={14} /></label><Button variant="ghost" onClick={() => void importFolder()} disabled={busy || libraryTab === "public"}><Database size={15} />导入文件夹</Button><Button variant="ghost" onClick={() => void importFiles()} disabled={busy || libraryTab === "public"}><Upload size={15} />导入文档</Button><Button variant="primary" onClick={() => setCreateOpen(true)} disabled={libraryTab === "public"}><Plus size={16} />新建知识库</Button></div><div ref={dropRegion} className={"suna-knowledge-dropzone" + (libraryTab === "public" ? " is-disabled" : "")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDropFiles(event)} role="region" aria-label="拖拽导入文档"><Upload size={18} /><span>拖拽文档到这里，或使用“导入文档”选择文件</span><small>支持 PDF、DOCX、XLSX、XLS、CSV、TXT、Markdown、JSON、HTML</small></div>{importQueue.length > 0 && <ImportQueuePanel items={importQueue} busy={busy} onClear={() => setImportQueue([])} />}{loading ? <div className="suna-knowledge-loading" aria-label="正在加载知识库"><span /><span /><span /></div> : visibleBases.length ? <div className="suna-knowledge-library-grid">{visibleBases.map(({ base, title, description, tint, accent }) => { const metric = baseMetrics[base.id]; const state = embeddingState(metric); return <Button variant="none" key={base.id} className={base.id === selectedId ? "suna-knowledge-library-card is-active" : "suna-knowledge-library-card"} onClick={() => setSelectedId(base.id)}><span className="suna-knowledge-library-icon" style={{ background: tint, color: accent }}><BookOpen size={28} /></span><span className="suna-knowledge-library-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} className="suna-knowledge-library-arrow" /><span className="suna-knowledge-library-meta"><span><FileText size={15} />文档 {metric?.document_count ?? 0}</span><span><Database size={15} />片段 {metric?.chunk_count ?? 0}</span><span><span className={"suna-knowledge-embedding-dot is-" + state.tone} />Embedding {state.label}</span><span><Clock3 size={15} />更新于 {new Date(base.updated_at).toLocaleDateString("zh-CN")}</span></span></Button>; })}</div> : <KnowledgeBaseEmpty publicTab={libraryTab === "public"} onCreate={() => setCreateOpen(true)} />}{!loading && libraryTab !== "public" && <section className="suna-knowledge-recent"><div className="suna-knowledge-recent-head"><div className="suna-knowledge-recent-title"><h2><Clock3 size={18} />最近文档</h2><span className="suna-knowledge-recent-badge">{documents.length} 篇</span></div>{documents.length > 0 && <button type="button" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>查看更多 <ArrowRight size={14} /></button>}</div>{documents.length === 0 ? <Empty onImport={() => void importFiles()} /> : filtered.length ? <DataTable columns={documentColumns} rows={filtered} rowKey={(item) => item.id} searchable={false} pageSizeOptions={[10, 20, 50]} exportName="knowledge-documents" emptyText="该知识库没有可展示的文档" onRowClick={(item) => void openDocument(item)} /> : <div className="suna-knowledge-document-empty is-filtered"><div className="suna-knowledge-empty-icon"><Search size={22} strokeWidth={1.8} /></div><h3>未找到匹配的文档</h3><p>没有找到符合当前筛选条件的文档，您可以尝试清空搜索关键词或重置筛选。</p><div className="suna-knowledge-empty-actions"><Button variant="ghost" onClick={() => { setQuery(""); setTypeFilter("全部类型"); setSortMode("最近更新"); }}>重置筛选条件</Button></div></div>}</section>}{!loading && libraryTab !== "public" && <IngestionJobs jobs={jobs} documents={documents} busy={busy} onRetry={(job) => void retryJob(job)} onCancel={(job) => void cancelJob(job)} />}</>}
       {tab === "search" && <KnowledgeSearchPanel query={searchQuery} filters={searchFilters} documentTypes={Array.from(new Set([...documents.map((item) => item.source_kind), ...DOCUMENT_CATEGORIES]))} results={searchResults} favoriteChunkIds={favoriteChunkIds} busy={searchBusy} hasKnowledgeBase={Boolean(selectedId)} embeddingDegradation={searchEmbeddingDegradation} rerankDegradation={searchRerankDegradation} onQueryChange={setSearchQuery} onFiltersChange={setSearchFilters} onSearch={() => void runSearch()} onOpen={openSearchHit} onCopy={copySearchHit} onAddToChat={addSearchHitToChat} onToggleFavorite={toggleSearchFavorite} onCite={citeSearchHit} />}
       {tab === "chunks" && <ChunkPanel chunks={chunks} />}
       {tab === "wiki" && <WikiPanel pages={pages} page={page} revisions={revisions} documents={documents} tags={wikiTags} availableTags={availableWikiTags} sourceDocumentId={wikiSourceDocumentId} onTagsChange={setWikiTags} onSourceDocumentChange={setWikiSourceDocumentId} onCreate={() => void createPage()} onSelect={(item) => void selectPage(item)} onChange={setPage} onSave={() => void savePage()} onRestore={(revision) => void restore(revision)} />}
@@ -647,13 +647,52 @@ function DocumentMetadataPanel({ sourcePath, metadata, readOnly, onSave }: { sou
   </SelectContent>
 </Select></label><Textarea aria-label="文档元数据 JSON" value={value} onChange={(event) => setValue(event.target.value)} readOnly={readOnly} rows={5} /><Button variant="ghost" onClick={save} disabled={readOnly}>保存元数据</Button></section>;
 }
-function Empty({ onImport }: { onImport: () => void }) { return <div className="suna-knowledge-document-empty"><FileText size={27} /><h3>这个知识库还没有文档</h3><p>导入文档后，Suna 会解析、切块并建立检索索引。</p><Button variant="primary" onClick={onImport}><Upload size={15} />导入文档</Button></div>; }
+function Empty({ onImport }: { onImport: () => void }) {
+  return (
+    <div className="suna-knowledge-document-empty">
+      <div className="suna-knowledge-empty-icon">
+        <FileText size={26} strokeWidth={1.8} />
+      </div>
+      <h3>这个知识库还没有文档</h3>
+      <p>导入文献后，Suna 会自动解析、切块并构建检索向量索引。</p>
+      <div className="suna-knowledge-empty-actions">
+        <Button variant="primary" onClick={onImport}>
+          <Upload size={15} />导入文档
+        </Button>
+      </div>
+      <div className="suna-knowledge-empty-formats">
+        <span>支持格式：</span>
+        <span className="suna-format-pill">PDF</span>
+        <span className="suna-format-pill">DOCX</span>
+        <span className="suna-format-pill">XLSX</span>
+        <span className="suna-format-pill">CSV</span>
+        <span className="suna-format-pill">Markdown</span>
+        <span className="suna-format-pill">TXT</span>
+      </div>
+    </div>
+  );
+}
 function ImportQueuePanel({ items, busy, onClear }: { items: ImportQueueItem[]; busy: boolean; onClear: () => void }) {
   const completed = items.filter((item) => item.state === "submitted").length;
   const failed = items.filter((item) => item.state === "failed").length;
   return <section className="suna-knowledge-import-queue" aria-label="导入队列"><header><div><strong>导入队列</strong><span>{completed}/{items.length} 个文件已提交{failed ? `，${failed} 个失败` : ""}</span></div><Button variant="ghost" onClick={onClear} disabled={busy}>清空</Button></header><div className="suna-knowledge-import-list">{items.map((item) => <div key={item.path}><FileText size={15} /><span title={item.path}>{item.name}</span><small className={`is-${item.state}`}>{item.state === "pending" ? "等待中" : item.state === "submitting" ? "提交中" : item.state === "submitted" ? "已提交" : item.error || "失败"}</small></div>)}</div></section>;
 }
-function KnowledgeBaseEmpty({ publicTab, onCreate }: { publicTab: boolean; onCreate: () => void }) { return <div className="suna-knowledge-base-empty"><Database size={30} /><h3>{publicTab ? "还没有公共知识库" : "还没有知识库"}</h3><p>{publicTab ? "单用户客户端不提供共享知识库。" : "创建第一个知识库，开始管理钢铁材料研发资料。"}</p>{!publicTab && <Button variant="primary" onClick={onCreate}><Plus size={15} />创建第一个知识库</Button>}</div>; }
+function KnowledgeBaseEmpty({ publicTab, onCreate }: { publicTab: boolean; onCreate: () => void }) {
+  return (
+    <div className="suna-knowledge-base-empty">
+      <div className="suna-knowledge-empty-icon">
+        <Database size={26} strokeWidth={1.8} />
+      </div>
+      <h3>{publicTab ? "还没有公共知识库" : "还没有知识库"}</h3>
+      <p>{publicTab ? "单用户客户端不提供共享知识库。" : "创建第一个知识库，开始管理钢铁材料研发资料。"}</p>
+      {!publicTab && (
+        <Button variant="primary" onClick={onCreate}>
+          <Plus size={15} />创建第一个知识库
+        </Button>
+      )}
+    </div>
+  );
+}
 function WikiPanel({ pages, page, revisions, documents, tags, availableTags, sourceDocumentId, onTagsChange, onSourceDocumentChange, onCreate, onSelect, onChange, onSave, onRestore }: { pages: PostgresWikiPage[]; page: PostgresWikiPage | null; revisions: PostgresWikiRevision[]; documents: SourceDocumentRecord[]; tags: string[]; availableTags: string[]; sourceDocumentId: string | null; onTagsChange: (tags: string[]) => void; onSourceDocumentChange: (id: string | null) => void; onCreate: () => void; onSelect: (page: PostgresWikiPage) => void; onChange: (page: PostgresWikiPage) => void; onSave: () => void; onRestore: (revision: number) => void }) {
   const [tagInput, setTagInput] = useState("");
   const addTag = () => {
@@ -780,13 +819,80 @@ function KnowledgeSearchPanel({ query, filters, documentTypes, results, favorite
 </Select><Input aria-label="材料筛选" value={filters.material} onChange={(event) => setFilter("material", event.target.value)} placeholder="材料" /><Input aria-label="工艺筛选" value={filters.process} onChange={(event) => setFilter("process", event.target.value)} placeholder="工艺" /><Input aria-label="性能筛选" value={filters.property} onChange={(event) => setFilter("property", event.target.value)} placeholder="性能" /><Input aria-label="年份筛选" inputMode="numeric" value={filters.year} onChange={(event) => setFilter("year", event.target.value.replace(/[^0-9]/g, ""))} placeholder="年份" /><Input aria-label="标签筛选" value={filters.tag} onChange={(event) => setFilter("tag", event.target.value)} placeholder="标签" /><Input aria-label="来源筛选" value={filters.source ?? ""} onChange={(event) => setFilter("source", event.target.value)} placeholder="来源" /><Button variant="ghost" onClick={() => onFiltersChange({ document_type: "", material: "", process: "", property: "", year: "", tag: "", source: "" })}>清除筛选</Button></div>{results.length ? <div className="suna-knowledge-search-results">{results.map((hit) => <article key={hit.chunk_id} className="suna-knowledge-result"><div><strong>{hit.document_name}</strong><span>相关度 {hit.rank.toFixed(3)}</span></div><p>{hit.text}</p><small>来源位置：{formatSourceLocation(hit.source_location)}</small><footer><Button variant="ghost" onClick={() => onOpen(hit)}><ExternalLink size={14} />打开原文</Button><Button variant="ghost" onClick={() => onCopy(hit)}><Copy size={14} />复制片段</Button><Button variant="ghost" onClick={() => onAddToChat(hit)}><MessageSquarePlus size={14} />加入对话</Button><Button variant="ghost" aria-pressed={favoriteChunkIds.includes(hit.chunk_id)} onClick={() => onToggleFavorite(hit)}>{favoriteChunkIds.includes(hit.chunk_id) ? "已收藏" : "收藏"}</Button><Button variant="ghost" onClick={() => onCite(hit)}>引用</Button></footer></article>)}</div> : <div className="suna-knowledge-search-empty"><Search size={28} /><strong>{query ? "未找到匹配的知识库或文档" : "输入问题开始检索"}</strong><span>结果将显示文档名称、片段、来源位置和相关度。</span></div>}</section>;
 }
 function ChunkPanel({ chunks }: { chunks: PostgresKnowledgeChunk[] }) {
-  return <section className="suna-knowledge-chunks"><div className="suna-knowledge-recent-head"><div><h2>知识片段</h2><span>{chunks.length} 个已索引片段</span></div></div>{chunks.length ? <div className="suna-knowledge-chunk-list">{chunks.map((chunk) => <article key={chunk.id}><header><strong>{chunk.document_name}</strong><span>#{chunk.ordinal + 1}</span></header>{chunk.title_path && <small>{chunk.title_path}</small>}<p>{chunk.text}</p><footer>来源位置：{JSON.stringify(chunk.source_location)}</footer></article>)}</div> : <div className="suna-knowledge-document-empty"><Database size={25} /><h3>当前知识库还没有知识片段</h3><p>导入并完成文档处理后，片段会显示在这里。</p></div>}</section>;
+  return (
+    <section className="suna-knowledge-chunks">
+      <div className="suna-knowledge-recent-head">
+        <div className="suna-knowledge-recent-title">
+          <h2>知识片段</h2>
+          <span className="suna-knowledge-recent-badge">{chunks.length} 个已索引片段</span>
+        </div>
+      </div>
+      {chunks.length ? (
+        <div className="suna-knowledge-chunk-list">
+          {chunks.map((chunk) => (
+            <article key={chunk.id}>
+              <header>
+                <strong>{chunk.document_name}</strong>
+                <span>#{chunk.ordinal + 1}</span>
+              </header>
+              {chunk.title_path && <small>{chunk.title_path}</small>}
+              <p>{chunk.text}</p>
+              <footer>来源位置：{JSON.stringify(chunk.source_location)}</footer>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="suna-knowledge-document-empty">
+          <div className="suna-knowledge-empty-icon">
+            <Database size={24} strokeWidth={1.8} />
+          </div>
+          <h3>当前知识库还没有知识片段</h3>
+          <p>导入并完成文档处理后，片段会显示在这里。</p>
+        </div>
+      )}
+    </section>
+  );
 }
 function KnowledgeActionModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) { return <div className="suna-knowledge-modal-overlay" onClick={onClose}><div className="suna-knowledge-modal" onClick={(event) => event.stopPropagation()}><header><strong>{title}</strong><button onClick={onClose} aria-label="关闭"><X size={17} /></button></header>{children}</div></div>; }
 
 function IngestionJobs({ jobs, documents, busy, onRetry, onCancel }: { jobs: PostgresIngestionJob[]; documents: SourceDocumentRecord[]; busy: boolean; onRetry: (job: PostgresIngestionJob) => void; onCancel: (job: PostgresIngestionJob) => void }) {
   const labels: Record<string, string> = { queued: "排队中", pending: "等待处理", uploading: "上传中", parsing: "解析中", chunking: "切分中", embedding: "Embedding 中", indexing: "索引中", running: "处理中", retrying: "重试中", completed: "处理完成", failed: "处理失败", quarantined: "已隔离", cancelled: "已取消" };
-  return <section className="suna-knowledge-jobs"><div className="suna-knowledge-recent-head"><h2><Clock3 size={19} />处理任务</h2><span>{jobs.length} 条</span></div>{jobs.length ? <div className="suna-knowledge-jobs-list">{jobs.slice(0, 8).map((job) => { const progress = Math.max(0, Math.min(100, job.progress ?? 0)); return <article key={job.id} className="suna-knowledge-job"><div><strong>{job.source_document_id ? (documents.find((item) => item.id === job.source_document_id)?.display_name || "文档任务") : "文档任务"}</strong><span className={"suna-job-state is-" + job.state}>{labels[job.state] || job.state}</span></div><div className="suna-knowledge-job-progress" aria-label={`${labels[job.state] || job.state} ${progress}%`}><span style={{ width: `${progress}%` }} /></div><small>{progress}% · 尝试 {job.attempts} 次 · {job.updated_at}</small>{job.error_message && <p>{job.error_message}</p>}<div className="suna-knowledge-job-actions">{["failed", "quarantined"].includes(job.state) && <Button variant="ghost" onClick={() => onRetry(job)} disabled={busy}>重试任务</Button>}{["pending", "queued", "uploading", "parsing", "chunking", "embedding", "indexing", "running", "retrying"].includes(job.state) && <Button variant="ghost" onClick={() => onCancel(job)} disabled={busy}>取消任务</Button>}</div></article>; })}</div> : <div className="suna-knowledge-jobs-empty">暂无导入任务。导入文档后，解析、切块、Embedding 和索引状态会显示在这里。</div>}</section>;
+  return (
+    <section className="suna-knowledge-jobs">
+      <div className="suna-knowledge-recent-head">
+        <div className="suna-knowledge-recent-title">
+          <h2><Clock3 size={18} />处理任务</h2>
+          <span className="suna-knowledge-recent-badge">{jobs.length} 条</span>
+        </div>
+      </div>
+      {jobs.length ? (
+        <div className="suna-knowledge-jobs-list">
+          {jobs.slice(0, 8).map((job) => {
+            const progress = Math.max(0, Math.min(100, job.progress ?? 0));
+            return (
+              <article key={job.id} className="suna-knowledge-job">
+                <div>
+                  <strong>{job.source_document_id ? (documents.find((item) => item.id === job.source_document_id)?.display_name || "文档任务") : "文档任务"}</strong>
+                  <span className={"suna-job-state is-" + job.state}>{labels[job.state] || job.state}</span>
+                </div>
+                <div className="suna-knowledge-job-progress" aria-label={`${labels[job.state] || job.state} ${progress}%`}>
+                  <span style={{ width: `${progress}%` }} />
+                </div>
+                <small>{progress}% · 尝试 {job.attempts} 次 · {job.updated_at}</small>
+                {job.error_message && <p>{job.error_message}</p>}
+                <div className="suna-knowledge-job-actions">
+                  {["failed", "quarantined"].includes(job.state) && <Button variant="ghost" onClick={() => onRetry(job)} disabled={busy}>重试任务</Button>}
+                  {["pending", "queued", "uploading", "parsing", "chunking", "embedding", "indexing", "running", "retrying"].includes(job.state) && <Button variant="ghost" onClick={() => onCancel(job)} disabled={busy}>取消任务</Button>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="suna-knowledge-jobs-empty">暂无导入任务。导入文档后，解析、切块、Embedding 和索引状态会显示在这里。</div>
+      )}
+    </section>
+  );
 }
 
 

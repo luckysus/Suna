@@ -200,9 +200,7 @@ describe("ChatPage", () => {
     vi.mocked(desktop.listMessages).mockResolvedValue([userMessage]);
     render(<ChatPage />);
 
-    expect(await screen.findByRole("button", { name: "Q355B 标准" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "新建对话" })).toBeInTheDocument();
-    expect(screen.getByRole("searchbox", { name: "搜索聊天" })).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     expect(screen.getByRole("region", { name: "本地智能体对话" })).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(await screen.findByText("Q355B 的屈服强度是多少？")).toBeInTheDocument();
@@ -211,11 +209,9 @@ describe("ChatPage", () => {
   it("renders the desktop agent conversation controls", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     expect(screen.getByRole("region", { name: "本地智能体对话" })).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "新建对话" })).toBeInTheDocument();
-    expect(screen.getByRole("searchbox", { name: "搜索聊天" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "智能搜索" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "添加图片" })).toBeInTheDocument();
     expect(screen.getByTitle("切换当前对话模型")).toBeInTheDocument();
@@ -226,7 +222,7 @@ describe("ChatPage", () => {
   it("renders the local Rust desktop chat panel", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     expect(screen.getByTestId("desktop-agent-composer")).toBeInTheDocument();
     expect(screen.getByText("STEEL AGENT / LOCAL RUNTIME")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Q355B 标准" })).toBeInTheDocument();
@@ -235,7 +231,7 @@ describe("ChatPage", () => {
   it("adds files dropped onto the composer", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     const composer = screen.getByTestId("desktop-agent-composer");
     const dropped = new File(["temperature,carbon\n900,0.2"], "material.csv", { type: "text/csv" });
     fireEvent.dragOver(composer, { dataTransfer: { files: [dropped] } });
@@ -249,7 +245,7 @@ describe("ChatPage", () => {
   it("exposes model parameters beside the composer", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "模型参数" }));
 
     expect(await screen.findByLabelText("Temperature")).toBeInTheDocument();
@@ -273,7 +269,7 @@ describe("ChatPage", () => {
     });
 
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "本地测试" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
@@ -284,24 +280,13 @@ describe("ChatPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("connects desktop local controls to the Rust bridge", async () => {
+  it("switches the default chat provider through the Rust bridge", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByTitle("切换当前对话模型"));
     fireEvent.click(screen.getByRole("menuitem", { name: "steel-model" }));
     await waitFor(() => expect(desktop.setDefaultProvider).toHaveBeenCalledWith("chat", "chat-profile-1"));
-
-    fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "重命名" }));
-    const renameInput = screen.getByDisplayValue("Q355B 标准");
-    fireEvent.change(renameInput, { target: { value: "Q355B 新标题" } });
-    fireEvent.keyDown(renameInput, { key: "Enter" });
-    await waitFor(() => expect(desktop.updateConversationTitle).toHaveBeenCalledWith(conversation.id, "Q355B 新标题"));
-
-    fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "置顶聊天" }));
-    await waitFor(() => expect(desktop.updateConversationPinned).toHaveBeenCalledWith(conversation.id, true));
   });
 
   it("exposes every configured chat provider in the model picker", async () => {
@@ -319,7 +304,7 @@ describe("ChatPage", () => {
       })),
     ]);
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByTitle("切换当前对话模型"));
     for (const kind of ["open_ai_compatible", "anthropic", "qwen", "deepseek", "ollama", "siliconflow"]) {
       expect(screen.getByRole("menuitem", { name: `${kind}-model` })).toBeInTheDocument();
@@ -335,7 +320,7 @@ describe("ChatPage", () => {
       ...profiles,
     ]);
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByTitle("切换当前对话模型"));
     expect(screen.queryByRole("menuitem", { name: /qwen3.7-text|bge-m3/ })).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "steel-model" })).toBeInTheDocument();
@@ -344,7 +329,7 @@ describe("ChatPage", () => {
   it("sends the explicitly selected expert Agent with the question", async () => {
     vi.mocked(desktop.listAgentProfiles).mockResolvedValue([expertAgent]);
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "选择 Agent" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Knowledge Agent" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "给出 Q355B 标准来源" } });
@@ -361,7 +346,7 @@ describe("ChatPage", () => {
     ]);
     vi.mocked(desktop.queryLocalKnowledge).mockResolvedValue(evidencePack);
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "选择知识库" }));
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Research papers" }));
     fireEvent.change(screen.getByRole("textbox", { name: "材料" }), { target: { value: "Q355B" } });
@@ -377,7 +362,7 @@ describe("ChatPage", () => {
   it("passes native document attachment paths to the Agent runtime", async () => {
     vi.mocked(desktop.openFileDialog).mockResolvedValue("C:/research/standard.pdf");
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "添加附件" }));
     expect(await screen.findByText("standard.pdf")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "读取这个标准" } });
@@ -390,7 +375,7 @@ describe("ChatPage", () => {
   it("can disable local smart search without changing the agent request", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "智能搜索" }));
     fireEvent.click(screen.getByRole("button", { name: "智能搜索" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "只使用当前对话回答" } });
@@ -406,7 +391,7 @@ describe("ChatPage", () => {
   it("does not run local smart search for short greetings", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "你好" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
@@ -420,7 +405,7 @@ describe("ChatPage", () => {
   it("keeps ordinary long questions on the direct chat path by default", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "介绍一下东北大学" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
@@ -448,7 +433,7 @@ describe("ChatPage", () => {
       };
     });
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     await screen.findByText("从一个具体问题开始");
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "比较 Q345B 和 Q355B" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
@@ -463,7 +448,7 @@ describe("ChatPage", () => {
   it("keeps the empty conversation state focused on the input", async () => {
     render(<ChatPage />);
 
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     expect(screen.getByText("从一个具体问题开始")).toBeInTheDocument();
     expect(screen.getByText("例如：比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。")).toBeInTheDocument();
   });
@@ -471,7 +456,7 @@ describe("ChatPage", () => {
   it("retrieves selected local evidence before sending the agent request", async () => {
     vi.mocked(desktop.queryLocalKnowledge).mockResolvedValue(evidencePack);
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.click(screen.getByRole("button", { name: "智能搜索" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Q355B strength" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
@@ -488,7 +473,7 @@ describe("ChatPage", () => {
 
   it("supports Web-style pasted image attachments and forwards them to the local bridge", async () => {
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
 
     const image = new File(["fake-image"], "炉况.png", { type: "image/png" });
     fireEvent.paste(screen.getByRole("textbox"), {
@@ -627,7 +612,7 @@ describe("ChatPage", () => {
       });
     });
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "What is CE?" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
@@ -715,7 +700,7 @@ describe("ChatPage", () => {
     });
 
     render(<ChatPage />);
-    await screen.findByRole("button", { name: "Q355B 标准" });
+    await screen.findByRole("heading", { name: "Q355B 标准" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "先检查钢级" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
     await waitFor(() => expect(desktop.desktopAgentChat).toHaveBeenCalled());

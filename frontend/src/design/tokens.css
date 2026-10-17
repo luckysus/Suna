@@ -54,10 +54,10 @@
   --suna-sidebar-width: 236px;
   --suna-sidebar-collapsed-width: 64px;
   --suna-settings-nav-width: 216px;
-  --suna-content-max-width: 1040px;
-  --suna-content-reading-max: 880px;
+  --suna-content-max-width: 1200px;
+  --suna-content-reading-max: 1080px;
   --suna-content-document-max: 1040px;
-  --suna-content-workspace-max: 1280px;
+  --suna-content-workspace-max: 1600px;
   --suna-control-width: 280px;
   --suna-topbar-height: 48px;
   --suna-chat-session-width: 236px;
@@ -94,31 +94,32 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
 
 [data-theme="dark"] {
   color-scheme: dark;
-  /* 主流工业级高质感深色模式 (Linear / GitHub / Raycast Charcoal Dark)
-     画布深灰黑 #0E0E10 (Zinc-950) / 表面微升 #151518 / 柔和底色 #1B1B1F / 悬停 #24242A
-     边线 #26262C / 强边线 #36363F
-     主文字 Zinc-100 #F4F4F5 (92% 柔光白) / 次文字 Zinc-400 #A1A1AA / 弱文字 Zinc-500 #71717A
+  /* 高质感工业级柔和深色模式 (Linear / VS Code Charcoal / GitHub Dimmed)
+     以用户指定的 #222226 (RGB 34, 34, 38) 为基准底色，彻底告别刺眼死黑
+     画布柔和深灰 #222226 (RGB 34, 34, 38) / 侧边栏微沉 #1c1c20 / 表面微升 #2a2a30 / 悬停 #383842
+     边线 #34343d / 强边线 #484856
+     主文字 #F4F4F5 (92% 柔光白) / 次文字 #A1A1AA / 弱文字 #71717A
      主操作 #F4F4F5 / 悬停 #E4E4E7 */
-  --suna-bg: #0e0e10;
-  --suna-bg-raised: #151518;
-  --suna-bg-soft: #1b1b1f;
-  --suna-bg-hover: #24242a;
-  --suna-sidebar: #09090b;
-  --suna-line: #26262c;
-  --suna-line-strong: #36363f;
+  --suna-bg: #222226;
+  --suna-bg-raised: #2a2a30;
+  --suna-bg-soft: #303036;
+  --suna-bg-hover: #383842;
+  --suna-sidebar: #222226;
+  --suna-line: #34343d;
+  --suna-line-strong: #484856;
   --suna-text: #f4f4f5;
   --suna-text-soft: #a1a1aa;
   --suna-text-muted: #71717a;
   --suna-text-rgb: 244, 244, 245;
-  --suna-bg-rgb: 14, 14, 16;
-  --suna-steel: #f4f4f5;
-  --suna-primary: #f4f4f5;
-  --suna-primary-contrast: #0e0e10;
-  --suna-primary-contrast-muted: rgba(14, 14, 16, 0.65);
-  --suna-primary-fill: #f4f4f5;
-  --suna-primary-fill-hover: #e4e4e7;
-  --suna-amber: #f4f4f5;
-  --suna-amber-soft: #1b1b1f;
+  --suna-bg-rgb: 34, 34, 38;
+  --suna-steel: #3b82f6;
+  --suna-primary: #3b82f6;
+  --suna-primary-contrast: #ffffff;
+  --suna-primary-contrast-muted: rgba(255, 255, 255, 0.75);
+  --suna-primary-fill: #3b82f6;
+  --suna-primary-fill-hover: #2563eb;
+  --suna-amber: #3b82f6;
+  --suna-amber-soft: rgba(59, 130, 246, 0.12);
   --suna-green: #4ade80;
   --suna-success-text: #4ade80;
   --suna-green-soft: #052e16;
@@ -128,11 +129,11 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
   --suna-warning: #fbbf24;
   --suna-warning-text: #fbbf24;
   --suna-warning-soft: #451a03;
-  --suna-accent: #f4f4f5;
-  --suna-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
-  --suna-shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.35);
-  --suna-focus: rgba(244, 244, 245, 0.2);
+  --suna-accent: #3b82f6;
+  --suna-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --suna-shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.25);
+  --suna-focus: rgba(59, 130, 246, 0.35);
   --suna-scrollbar: rgba(255, 255, 255, 0.16);
   --suna-scrollbar-hover: rgba(255, 255, 255, 0.3);
-  --suna-range-track: #26262c;
+  --suna-range-track: #2e2e36;
 }

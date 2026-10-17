@@ -279,8 +279,8 @@ export function useChatController(): ChatControllerProps {
     if (!appearanceLoaded) return;
     let mounted = true;
     void Promise.all([
-      desktop.listKnowledgeBases(),
-      desktop.listProviderProfiles(),
+      desktop.listKnowledgeBases().catch(() => [] as KnowledgeBaseRecord[]),
+      desktop.listProviderProfiles().catch(() => [] as ProviderProfileResponse[]),
       typeof desktop.listAgentProfiles === "function" ? desktop.listAgentProfiles().catch(() => [] as AgentProfileSummary[]) : Promise.resolve([] as AgentProfileSummary[]),
       desktop.recoverAgentRuns().catch(() => [] as RecoveredRun[]),
     ])

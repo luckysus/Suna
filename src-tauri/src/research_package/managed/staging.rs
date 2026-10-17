@@ -26,6 +26,7 @@ pub(super) fn ordinary_directory(path: &Path) -> bool {
     true
 }
 fn create_private(path: &Path) -> std::io::Result<()> {
+    #[allow(unused_mut)]
     let mut builder = std::fs::DirBuilder::new();
     #[cfg(unix)]
     {

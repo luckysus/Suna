@@ -4,13 +4,13 @@ use crate::providers::capabilities::{
     ParsedDocumentArtifact, ProviderCapabilities, RemoteTaskId,
 };
 use crate::providers::http::{
-    build_client, build_no_redirect_client, HttpClientConfig, ProviderError, ProviderErrorCode,
+    build_client, build_no_redirect_client, parse_retry_after_duration, provider_response,
+    read_bounded, retry_delay, HttpClientConfig, ProviderError, ProviderErrorCode,
 };
 use crate::providers::profiles::{
     validate_bearer_transport, ProviderCapability, ProviderKind, ProviderProfile,
 };
 use crate::storage::secrets::SecretValue;
-use futures_util::StreamExt;
 use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, RETRY_AFTER};
 use reqwest::{Client, Response, StatusCode};
 use serde::Serialize;
@@ -327,7 +327,13 @@ impl MinerUProvider {
                     return Err(provider_response("MinerU artifact checksums disagree"));
                 }
             }
-            let bytes = match read_bounded(response, MAX_ARCHIVE_BYTES).await {
+            let bytes = match read_bounded(
+                response,
+                MAX_ARCHIVE_BYTES,
+                "MinerU response exceeded size limit",
+            )
+            .await
+            {
                 Ok(bytes) => bytes,
                 Err(error) if attempt < MAX_ATTEMPTS && retryable_network_error(&error) => {
                     sleep(retry_delay(attempt)).await;
@@ -613,7 +619,13 @@ async fn parse_json_response(
     redactor: &Redactor,
 ) -> Result<Value, ProviderError> {
     let status = response.status();
-    let bytes = match read_bounded(response, MAX_JSON_BYTES).await {
+    let bytes = match read_bounded(
+        response,
+        MAX_JSON_BYTES,
+        "MinerU response exceeded size limit",
+    )
+    .await
+    {
         Ok(bytes) => bytes,
         Err(_) if !status.is_success() => {
             return Err(ProviderError::from_status(status, "", redactor));
@@ -642,26 +654,6 @@ async fn parse_json_response(
     Ok(value)
 }
 
-async fn read_bounded(response: Response, limit: usize) -> Result<Vec<u8>, ProviderError> {
-    if response
-        .content_length()
-        .and_then(|length| usize::try_from(length).ok())
-        .is_some_and(|length| length > limit)
-    {
-        return Err(provider_response("MinerU response exceeded size limit"));
-    }
-    let mut bytes = Vec::new();
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|error| ProviderError::from_reqwest(&error))?;
-        if chunk.len() > limit.saturating_sub(bytes.len()) {
-            return Err(provider_response("MinerU response exceeded size limit"));
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    Ok(bytes)
-}
-
 fn retryable_status(status: StatusCode) -> bool {
     status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
@@ -674,7 +666,7 @@ fn response_retry_delay(response: &Response, attempt: usize) -> Option<Duration>
         .headers()
         .get(RETRY_AFTER)
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| parse_retry_after(value, chrono::Utc::now()));
+        .and_then(|value| parse_retry_after_duration(value, chrono::Utc::now()));
     match retry_after {
         Some(delay) if delay <= MAX_RETRY_AFTER => Some(delay),
         Some(_) => None,
@@ -682,36 +674,9 @@ fn response_retry_delay(response: &Response, attempt: usize) -> Option<Duration>
     }
 }
 
-fn parse_retry_after(value: &str, now: chrono::DateTime<chrono::Utc>) -> Option<Duration> {
-    let value = value.trim();
-    value
-        .parse::<u64>()
-        .ok()
-        .map(Duration::from_secs)
-        .or_else(|| {
-            chrono::DateTime::parse_from_rfc2822(value)
-                .ok()
-                .map(|deadline| {
-                    deadline
-                        .with_timezone(&chrono::Utc)
-                        .signed_duration_since(now)
-                        .to_std()
-                        .unwrap_or(Duration::ZERO)
-                })
-        })
-}
-
 fn retryable_network_error(error: &ProviderError) -> bool {
     matches!(
         error.code(),
         ProviderErrorCode::Network | ProviderErrorCode::Timeout
     )
-}
-
-fn retry_delay(attempt: usize) -> Duration {
-    Duration::from_millis(100 * (1u64 << attempt.saturating_sub(1)))
-}
-
-fn provider_response(message: impl Into<String>) -> ProviderError {
-    ProviderError::new(ProviderErrorCode::ProviderResponse, None, message)
 }

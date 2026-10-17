@@ -58,6 +58,7 @@ async function ready(page: import("@playwright/test").Page, section: string, the
   await expect(page.locator(".suna-new-content")).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator(".suna-spin:visible")).toHaveCount(0);
+  await expect(page.getByText("正在加载页面")).toHaveCount(0, { timeout: 15_000 });
 }
 
 for (const theme of ["light", "dark"]) {

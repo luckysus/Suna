@@ -40,19 +40,21 @@ pub(crate) mod update_commands;
 
 use crate::{db, tasks::scheduler::SchedulerState};
 use std::time::Duration;
+use tauri::webview::{Color, PageLoadEvent};
 use tauri::{Manager, RunEvent};
 
 pub(crate) const SUNA_TOKIO_WORKER_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 pub fn run() {
+    let boot = std::time::Instant::now();
     // 先安装统一日志出口：之后所有 log 宏记录都会经 Redactor 脱敏再写 stderr。
     crate::diagnostics::logging::install();
+    log::info!("启动计时: 进程启动");
     // 再安装脱敏 panic hook，确保任何崩溃报告在写入 stderr 前都经过 Redactor。
     crate::diagnostics::observability::install_panic_hook();
     install_async_runtime();
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -60,6 +62,29 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .on_page_load(move |webview, payload| {
+            // 主窗口以 visible=false 启动：页面一开始加载就显示，首帧即已渲染的启动画面。
+            if webview.label() != "main" {
+                return;
+            }
+            match payload.event() {
+                PageLoadEvent::Started => {
+                    let _ = webview.set_background_color(Some(Color(34, 34, 38, 255)));
+                    let _ = webview
+                        .window()
+                        .set_background_color(Some(Color(34, 34, 38, 255)));
+                    let _ = webview.window().show();
+                    let _ = webview.window().set_focus();
+                    log::info!(
+                        "启动计时: 页面开始加载并显示窗口 (+{}ms)",
+                        boot.elapsed().as_millis()
+                    );
+                }
+                PageLoadEvent::Finished => {
+                    log::info!("启动计时: 页面加载完成 (+{}ms)", boot.elapsed().as_millis());
+                }
+            }
+        })
         .manage(identity::LocalIdentity)
         .manage(db::DbState::default())
         .manage(mcp_runtime::McpRuntimeState::default())
@@ -78,6 +103,10 @@ pub fn run() {
         .invoke_handler(commands::handler!())
         .build(tauri::generate_context!())
         .expect("failed to build Suna");
+    log::info!(
+        "启动计时: Tauri 初始化完成 (+{}ms)",
+        boot.elapsed().as_millis()
+    );
 
     // 本地知识 API 仅绑定 loopback，供桌面端集成和本地自动化使用。
     knowledge_api::start(app.handle().clone());

@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .suna-mcp-page {
-  max-width: 1380px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 24px 32px 56px;
   color: var(--suna-text);
@@ -349,24 +349,6 @@
 .suna-mcp-credential-actions input,
 .suna-mcp-enabled-field input {
   accent-color: var(--suna-primary);
-}
-
-.suna-mcp-diagnostic {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-left: 3px solid var(--suna-line-strong);
-  border-radius: 6px;
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-  font-size: calc(11px * var(--suna-ui-font-scale));
-}
-
-.suna-mcp-diagnostic span {
-  color: var(--suna-text-muted);
-  line-height: 1.5;
 }
 
 /* Resources / Prompts 列表与日志分区 */

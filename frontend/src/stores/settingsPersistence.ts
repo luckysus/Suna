@@ -23,7 +23,7 @@ const APPEARANCE_DEBOUNCE_MS = 650;
 /** 模块级可变状态：迁移前由 Provider 的 ref 持有，现在集中在这里。 */
 export const persistenceState = {
   pendingPreferences: defaultAppearancePreferences as AppearancePreferences,
-  pendingTheme: "light" as ThemePreference,
+  pendingTheme: readStoredTheme() as ThemePreference,
   appearanceTimer: null as number | null,
   appearanceRequest: 0,
   themeRequest: 0,
@@ -34,7 +34,7 @@ export const persistenceState = {
 
 export function resetPersistence(): void {
   persistenceState.pendingPreferences = defaultAppearancePreferences;
-  persistenceState.pendingTheme = "light";
+  persistenceState.pendingTheme = readStoredTheme();
   persistenceState.appearanceRequest += 1;
   persistenceState.themeRequest += 1;
   persistenceState.themeUserChanged = false;
@@ -57,7 +57,14 @@ export function readSystemTheme(): ResolvedTheme {
 export function readStoredTheme(): ThemePreference {
   if (typeof window === "undefined") return "light";
   try {
-    return parseThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
+    const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) {
+      const docTheme = document.documentElement.getAttribute("data-theme");
+      if (docTheme === "dark" || docTheme === "light") {
+        return docTheme;
+      }
+    }
+    return parseThemePreference(raw);
   } catch {
     return "light";
   }

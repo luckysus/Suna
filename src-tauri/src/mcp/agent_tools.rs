@@ -34,12 +34,6 @@ pub struct McpToolExecutor {
 }
 
 impl McpToolExecutor {
-    pub async fn from_supervisors(
-        supervisors: Vec<Arc<Mutex<McpSupervisor>>>,
-    ) -> Result<Self, String> {
-        Self::from_supervisors_for_query(supervisors, "").await
-    }
-
     pub async fn from_supervisors_for_query(
         supervisors: Vec<Arc<Mutex<McpSupervisor>>>,
         query: &str,

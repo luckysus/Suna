@@ -9,6 +9,7 @@ macro_rules! handler {
             research_commands::workflow::list_research_workflows,
             research_commands::workflow::get_research_workflow,
             crate::db::db_init,
+            crate::diagnostics::boot_timing,
             crate::app::research_commands::feedback::create_research_design_candidate_plan,
             research_commands::feedback::recommend_next_research_experiments,
             research_commands::feedback::get_experiment_replicate_statistics,

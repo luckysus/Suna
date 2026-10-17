@@ -5,12 +5,12 @@ Thanks for helping Suna. 感谢帮助 Suna。
 ## Development setup / 开发环境
 
 - Windows 10/11, Node 20/22/24 (pinned 24.14.0), stable Rust, Python 3.12+ with `uv`.
-- The repository root contains the nested `suna` Git repository for the desktop client; run Git commands inside the intended repository and never stage Suna files from the root repository.
-  仓库根目录包含桌面客户端的嵌套 `suna` Git 仓库；Git 命令必须在目标仓库内执行，切勿从根仓库暂存 Suna 文件。
+- Run Git commands inside this repository and keep the worktree clean of build artifacts, secrets, and generated directories.
+  在本仓库内执行 Git 命令；工作区不保留构建产物、密钥与生成目录。
 
-From `suna/frontend`: `npm install`, `npm run dev`, `npm run test`, `npm run build`.
-From `suna/src-tauri`: `cargo check`, `cargo test`, `cargo fmt --check`.
-From `suna/compute-worker`: `uv sync --frozen --extra packaging`, `python -m pytest -q`, `powershell -File build.ps1`.
+From `frontend`: `npm install`, `npm run dev`, `npm run test`, `npm run build`.
+From `src-tauri`: `cargo check`, `cargo test`, `cargo fmt --check`.
+From `compute-worker`: `uv sync --frozen --extra packaging`, `python -m pytest -q`, `powershell -File build.ps1`.
 
 ## Quality bar / 质量门槛
 

@@ -1,7 +1,7 @@
 use super::{
     http::McpHttpConfig,
     sse::McpLegacySseConfig,
-    stdio::{self, McpStderrCapture, McpStderrSnapshot, McpStdioConfig},
+    stdio::{self, McpStdioConfig},
     McpClient, McpClientConfig, McpError,
 };
 use std::{future::Future, time::Duration};
@@ -19,7 +19,6 @@ pub struct McpSupervisor {
     client: Option<McpClient>,
     transport: McpTransportConfig,
     client_config: McpClientConfig,
-    stderr: Option<McpStderrCapture>,
 }
 
 impl McpSupervisor {
@@ -27,12 +26,11 @@ impl McpSupervisor {
         transport: McpTransportConfig,
         client_config: McpClientConfig,
     ) -> Result<Self, McpError> {
-        let (client, stderr) = connect_transport(transport.clone(), client_config.clone()).await?;
+        let client = connect_transport(transport.clone(), client_config.clone()).await?;
         Ok(Self {
             client: Some(client),
             transport,
             client_config,
-            stderr,
         })
     }
 
@@ -42,20 +40,12 @@ impl McpSupervisor {
             .ok_or_else(|| McpError::Transport("MCP supervisor is not connected".to_string()))
     }
 
-    pub async fn stderr_snapshot(&self) -> Option<McpStderrSnapshot> {
-        let stderr = self.stderr.as_ref()?;
-        stderr.wait().await;
-        Some(stderr.snapshot().await)
-    }
-
     pub async fn restart(&mut self) -> Result<(), McpError> {
         if let Some(client) = self.client.take() {
             shutdown_with_timeout(client.shutdown(), MCP_SHUTDOWN_TIMEOUT).await?;
         }
-        let (client, stderr) =
-            connect_transport(self.transport.clone(), self.client_config.clone()).await?;
+        let client = connect_transport(self.transport.clone(), self.client_config.clone()).await?;
         self.client = Some(client);
-        self.stderr = stderr;
         Ok(())
     }
 
@@ -79,22 +69,16 @@ where
 async fn connect_transport(
     transport: McpTransportConfig,
     client_config: McpClientConfig,
-) -> Result<(McpClient, Option<McpStderrCapture>), McpError> {
+) -> Result<McpClient, McpError> {
     match transport {
         McpTransportConfig::Stdio(config) => {
             let spawned = stdio::spawn(config)?;
-            let stderr = spawned.stderr.clone();
-            let client = McpClient::connect(spawned.into_transport(), client_config).await?;
-            Ok((client, Some(stderr)))
+            McpClient::connect(spawned.into_transport(), client_config).await
         }
         McpTransportConfig::Http(config) => {
-            let client = super::http::McpHttpConfig::connect(config, client_config).await?;
-            Ok((client, None))
+            super::http::McpHttpConfig::connect(config, client_config).await
         }
-        McpTransportConfig::LegacySse(config) => {
-            let client = config.connect(client_config).await?;
-            Ok((client, None))
-        }
+        McpTransportConfig::LegacySse(config) => config.connect(client_config).await,
     }
 }
 

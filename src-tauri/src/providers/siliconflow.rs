@@ -3,12 +3,14 @@ use crate::providers::capabilities::{
     EmbeddingProvider, EmbeddingResponse, ProviderCapabilities, RerankDocument, RerankProvider,
     RerankResult,
 };
-use crate::providers::http::{build_client, HttpClientConfig, ProviderError, ProviderErrorCode};
+use crate::providers::http::{
+    build_client, parse_retry_after_duration, provider_response, read_bounded, retry_delay,
+    HttpClientConfig, ProviderError, ProviderErrorCode,
+};
 use crate::providers::profiles::{
     validate_bearer_transport, ProviderCapability, ProviderKind, ProviderProfile,
 };
 use crate::storage::secrets::SecretValue;
-use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -154,14 +156,20 @@ impl RetrievalProvider {
             {
                 Ok(response) => response,
                 Err(_) if attempt < MAX_ATTEMPTS => {
-                    sleep(jittered_delay(exponential_backoff(attempt))).await;
+                    sleep(jittered_delay(retry_delay(attempt))).await;
                     continue;
                 }
                 Err(error) => return Err(ProviderError::from_reqwest(&error)),
             };
             let status = response.status();
             let retry_decision = retry_decision(status, response.headers(), attempt);
-            let bytes = match read_bounded(response).await {
+            let bytes = match read_bounded(
+                response,
+                MAX_RESPONSE_BYTES,
+                "Retrieval provider response exceeded size limit",
+            )
+            .await
+            {
                 Ok(bytes) => bytes,
                 Err(_) if !status.is_success() => {
                     if let RetryDecision::Wait(delay) = retry_decision {
@@ -171,7 +179,7 @@ impl RetrievalProvider {
                     return Err(ProviderError::from_status(status, "", &redactor));
                 }
                 Err(_) if attempt < MAX_ATTEMPTS => {
-                    sleep(jittered_delay(exponential_backoff(attempt))).await;
+                    sleep(jittered_delay(retry_delay(attempt))).await;
                     continue;
                 }
                 Err(error) => return Err(error),
@@ -399,11 +407,7 @@ fn retry_decision(
     {
         return parse_retry_after(Some(value), chrono::Utc::now());
     }
-    RetryDecision::Wait(exponential_backoff(attempt))
-}
-
-fn exponential_backoff(attempt: usize) -> Duration {
-    Duration::from_millis(100 * (1u64 << attempt.saturating_sub(1)))
+    RetryDecision::Wait(retry_delay(attempt))
 }
 
 fn jittered_delay(base: Duration) -> Duration {
@@ -421,46 +425,16 @@ fn jittered_delay_with_seed(base: Duration, seed: u64) -> Duration {
 }
 
 fn parse_retry_after(value: Option<&str>, now: chrono::DateTime<chrono::Utc>) -> RetryDecision {
-    let value = value.map(str::trim).filter(|value| !value.is_empty());
     let delay = value
-        .and_then(|value| value.parse::<u64>().ok().map(Duration::from_secs))
-        .or_else(|| {
-            value
-                .and_then(|value| chrono::DateTime::parse_from_rfc2822(value).ok())
-                .map(|deadline| {
-                    let deadline = deadline.with_timezone(&chrono::Utc);
-                    deadline
-                        .signed_duration_since(now)
-                        .to_std()
-                        .unwrap_or(Duration::ZERO)
-                })
-        })
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| parse_retry_after_duration(value, now))
         .unwrap_or(Duration::from_secs(1));
     if delay <= MAX_RETRY_AFTER {
         RetryDecision::Wait(delay)
     } else {
         RetryDecision::DoNotRetry
     }
-}
-
-async fn read_bounded(response: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
-    let mut bytes = Vec::new();
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|error| ProviderError::from_reqwest(&error))?;
-        append_bounded(&mut bytes, &chunk, MAX_RESPONSE_BYTES)?;
-    }
-    Ok(bytes)
-}
-
-fn append_bounded(buffer: &mut Vec<u8>, bytes: &[u8], limit: usize) -> Result<(), ProviderError> {
-    if bytes.len() > limit.saturating_sub(buffer.len()) {
-        return Err(provider_response(
-            "Retrieval provider response exceeded size limit",
-        ));
-    }
-    buffer.extend_from_slice(bytes);
-    Ok(())
 }
 
 fn parse_index(value: &Value, length: usize) -> Result<usize, ProviderError> {
@@ -493,10 +467,6 @@ fn finite_f32(value: f64) -> Option<f32> {
     (converted.is_finite() && (value == 0.0 || converted != 0.0)).then_some(converted)
 }
 
-fn provider_response(message: impl Into<String>) -> ProviderError {
-    ProviderError::new(ProviderErrorCode::ProviderResponse, None, message)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,8 +492,8 @@ mod tests {
     fn bounded_response_buffer_rejects_overflow_before_append() {
         let mut buffer = vec![1, 2];
 
-        append_bounded(&mut buffer, &[3, 4], 4).unwrap();
-        let error = append_bounded(&mut buffer, &[5], 4).unwrap_err();
+        crate::providers::http::append_bounded(&mut buffer, &[3, 4], 4).unwrap();
+        let error = crate::providers::http::append_bounded(&mut buffer, &[5], 4).unwrap_err();
 
         assert_eq!(error.code(), ProviderErrorCode::ProviderResponse);
         assert_eq!(buffer, vec![1, 2, 3, 4]);

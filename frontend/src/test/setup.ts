@@ -49,6 +49,7 @@ if (typeof Element !== "undefined") {
   if (!proto.setPointerCapture) proto.setPointerCapture = () => undefined;
   if (!proto.releasePointerCapture) proto.releasePointerCapture = () => undefined;
   if (!proto.scrollIntoView) proto.scrollIntoView = () => undefined;
+  if (!proto.scrollTo) proto.scrollTo = () => undefined;
 }
 
 afterEach(() => cleanup());

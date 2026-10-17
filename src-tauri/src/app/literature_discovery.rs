@@ -1,9 +1,13 @@
 //! Opt-in bibliographic adapters reuse the existing cancellable task scheduler.
 use crate::literature_metadata::provider;
-pub use crate::literature_metadata::{parse_crossref, ProviderId, Search};
+pub use crate::literature_metadata::Search;
+#[cfg(test)]
+pub use crate::literature_metadata::{parse_crossref, ProviderId};
+#[cfg(test)]
+use crate::storage::repositories::research_artifacts as artifacts;
 use crate::{
     db::{current_workspace_id, with_conn, with_conn_mut, DbState},
-    storage::repositories::{literature_discovery as repo, research_artifacts as artifacts},
+    storage::repositories::literature_discovery as repo,
     tasks::{
         repository,
         scheduler::{HandlerContext, HandlerError, HandlerFuture, HandlerOutcome, TaskHandler},

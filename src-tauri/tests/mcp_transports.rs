@@ -34,15 +34,10 @@ async fn stdio_process_starts_and_shuts_down_cleanly() {
 
 #[cfg(windows)]
 #[tokio::test]
-async fn stdio_stderr_is_bounded_but_fully_drained() {
-    let mut config = powershell_config("[Console]::Error.Write(('x' * 4096))");
-    config.max_stderr_bytes = 64;
+async fn stdio_stderr_is_fully_drained_so_large_output_cannot_deadlock_shutdown() {
+    let config = powershell_config("[Console]::Error.Write(('x' * 262144))");
     let mut spawned = StdioTransport::spawn(config).expect("PowerShell fixture should start");
-
-    spawned.stderr.wait().await;
-    let snapshot = spawned.stderr.snapshot().await;
-    assert_eq!(snapshot.bytes.len(), 64);
-    assert!(snapshot.truncated);
+    assert!(spawned.id().is_some());
 
     spawned
         .graceful_shutdown()
@@ -53,18 +48,39 @@ async fn stdio_stderr_is_bounded_but_fully_drained() {
 #[cfg(windows)]
 #[tokio::test]
 async fn stdio_environment_contains_only_explicit_values() {
-    let script =
-        "[Console]::Error.Write(\"allowed=$env:SUNA_ALLOWED;inherited=$env:SUNA_NOT_ALLOWED\")";
-    let mut config = powershell_config(script);
+    let marker = std::env::temp_dir().join(format!(
+        "suna-mcp-env-{}-{:x}.txt",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _ = std::fs::remove_file(&marker);
+    let script = format!(
+        "$bad = \"allowed=$env:SUNA_ALLOWED;inherited=$env:SUNA_NOT_ALLOWED;path=$env:PATH\"\n\
+         if ($env:SUNA_ALLOWED -eq 'yes' -and -not $env:SUNA_NOT_ALLOWED -and -not $env:PATH) {{ $bad = 'ok' }}\n\
+         [IO.File]::WriteAllText('{}', $bad)",
+        marker.display()
+    );
+    let mut config = powershell_config(&script);
     config.inherited_env = vec!["SystemRoot".to_string(), "windir".to_string()];
     config.env = McpStdioEnv::from([("SUNA_ALLOWED".to_string(), "yes".to_string())]);
     let mut spawned = StdioTransport::spawn(config).expect("PowerShell fixture should start");
 
-    spawned.stderr.wait().await;
-    let output = String::from_utf8_lossy(&spawned.stderr.snapshot().await.bytes).to_string();
-    assert!(output.contains("allowed=yes"));
-    assert!(output.contains("inherited="));
-    assert!(!output.contains("inherited=secret"));
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let content = loop {
+        if let Ok(value) = std::fs::read_to_string(&marker) {
+            break value;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "environment marker file was not written"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    };
+    let _ = std::fs::remove_file(&marker);
+    assert_eq!(content.trim(), "ok", "environment leaked: {content}");
 
     spawned
         .graceful_shutdown()
@@ -467,7 +483,6 @@ fn powershell_config(script: &str) -> McpStdioConfig {
         working_directory: None,
         inherited_env: Vec::new(),
         env: BTreeMap::new(),
-        max_stderr_bytes: 1024,
     }
 }
 
@@ -479,6 +494,5 @@ fn powershell_config(_script: &str) -> McpStdioConfig {
         working_directory: None,
         inherited_env: Vec::new(),
         env: BTreeMap::new(),
-        max_stderr_bytes: 1024,
     }
 }

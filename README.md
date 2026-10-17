@@ -57,25 +57,78 @@ SiliconFlow 的免费版和 Pro 版由用户自行选择。API Key 通过设置�
 
 ## 快速开始
 
-开发环境需要 Windows 10、Node.js 20/22/24、Rust stable、Visual Studio Build Tools（`Desktop development with C++`）、WebView2 Runtime、Git 与 Tauri 2 的 Windows 前置依赖。
+开发环境需要 Windows 10、Node.js 20 / 22 / 24（`.nvmrc` 固定为 24）、Rust stable、Visual Studio Build Tools（`Desktop development with C++`）、WebView2 Runtime、Git 与 Tauri 2 的 Windows 前置依赖。
 
 ```powershell
 git clone https://github.com/luckysus/Suna.git
-Set-Location suna/frontend
+Set-Location Suna
+
+Set-Location frontend
 npm install
-npm run build
 
 Set-Location ../src-tauri
 cargo tauri dev
 ```
 
-如果尚未安装 Tauri CLI：
+`cargo tauri dev` 会通过 Tauri 的 `beforeDevCommand` 自动启动 Vite 开发服务器。如果尚未安装 Tauri CLI：
 
 ```powershell
 cargo install tauri-cli --version "^2"
 ```
 
-也可以从仓库根目录运行 `./start-desktop.bat` 启动开发环境。
+也可以从仓库根目录运行 `./start-desktop.bat`：它会检查 Node、Rust 与 Tauri CLI，安装前端依赖并直接启动开发环境。
+
+### 可选：构建 Python 计算 worker
+
+训练、预测与约束优化由独立的 Python 计算 worker 提供，它以受限子进程运行（stdio JSON-RPC），不开放网络端口。开发时如需这些能力，先构建并放入资源目录（需要 Python 3.12+ 与 [uv](https://docs.astral.sh/uv/)）：
+
+```powershell
+Set-Location compute-worker
+powershell -File build.ps1 -OutputDirectory ..\src-tauri\resources\compute-worker
+```
+
+脚本会在锁定环境（`uv sync --frozen`）中运行 worker 测试，用 PyInstaller 打包单文件 `suna-compute-worker.exe`，并生成 SHA-256 与组件清单。
+
+## 仓库结构
+
+| 目录 | 内容 |
+| --- | --- |
+| `frontend/` | React 19 + TypeScript + Vite 桌面前端 |
+| `src-tauri/` | Rust 桌面主进程：Agent 运行时、工具与 MCP、存储与迁移 |
+| `compute-worker/` | Python 计算 worker：训练、预测、约束优化与实验设计 |
+| `domain-packs/` | 随安装包分发的领域包（钢铁场景提示词、技能与评估定义） |
+| `fixtures/` | 测试与验收使用的数据夹具 |
+| `docs/` | 架构、协议、开发与验证文档；总入口见 [docs/INDEX.md](docs/INDEX.md) |
+| `scripts/` | 构建、发布、质量与生命周期脚本 |
+| `tools/windows-acceptance/` | Windows 端到端验收工具 |
+| `case-studies/` | 钢铁案例研究材料与演示数据 |
+
+## 开发与测试
+
+**前端**（`frontend/`）
+
+```powershell
+npm test                # Vitest 单元与集成测试
+npm run test:boundaries # 运行时边界检查
+npm run build           # 类型检查 + 生产构建
+npm run test:e2e        # Playwright 端到端测试
+```
+
+**Rust**（`src-tauri/`）
+
+```powershell
+cargo fmt --all -- --check
+cargo test
+```
+
+**计算 worker**（`compute-worker/`）
+
+```powershell
+uv sync --frozen --extra test
+.venv\Scripts\python -m pytest -q
+```
+
+**完整质量门**：从仓库根目录运行 `scripts/test.ps1`，依次执行脚本契约、前端与 Rust 三个阶段（可用 `-Stage contracts|frontend|rust` 单选）。CI 定义见 [.github/workflows/quality.yml](.github/workflows/quality.yml)。
 
 ## 本地数据、隐私与网络
 
@@ -85,13 +138,12 @@ Suna 将 `suna.sqlite3` 存放在操作系统应用数据目录，而不是仓�
 
 ## 扩展与文档
 
+- [文档索引](docs/INDEX.md)
 - [贡献指南](CONTRIBUTING.md)
-- [事件协议](docs/PROTOCOL.md)
-- [记忆机制](docs/memory.md)
-- [MCP 扩展](docs/extensions/mcp.md)
-- [Skills 扩展](docs/extensions/skills.md)
-- [领域包](docs/extensions/domain-packages.md)
-- [钢铁案例研究](docs/releases/case-study.md)
+- [事件协议](docs/AGENT_RUNTIME.md)
+- [MCP 与 Skills 扩展](docs/TOOLS_MCP_SKILLS.md)
+- [架构与领域包](docs/ARCHITECTURE.md)
+- [钢铁案例研究](case-studies/steel-release/README.md)
 - [安全策略](SECURITY.md)
 
 ## 贡献

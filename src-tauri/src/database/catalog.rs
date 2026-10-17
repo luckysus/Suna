@@ -46,10 +46,6 @@ pub struct QueryRows {
     pub rows: Vec<Vec<Option<String>>>,
 }
 
-pub async fn execute_read(client: &mut SqlClient, sql: &str) -> Result<QueryRows, String> {
-    execute_read_with_parameters(client, sql, &[]).await
-}
-
 pub async fn execute_read_with_parameters(
     client: &mut SqlClient,
     sql: &str,

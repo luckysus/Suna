@@ -10,38 +10,40 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 42px;
-  padding: 0 24px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--suna-line);
-  background: var(--suna-bg-raised);
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  background: var(--suna-bg);
+  font-size: calc(12px * var(--suna-ui-font-scale));
   user-select: none;
 }
 
 .suna-project-context-inner {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .suna-project-context-indicator {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--suna-text-muted);
   transition: all 160ms ease;
 }
 
 .suna-project-context-indicator.is-active {
-  background: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  background: var(--suna-text);
+  box-shadow: 0 0 0 2px var(--suna-bg-soft);
 }
 
 .suna-project-context label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--suna-text-soft);
+  gap: 6px;
+  color: var(--suna-text-muted);
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   font-weight: 500;
   cursor: pointer;
 }
@@ -51,13 +53,13 @@
 }
 
 .suna-project-context select {
-  height: 28px;
-  padding: 0 8px;
+  height: 24px;
+  padding: 0 6px;
   border: 1px solid var(--suna-line);
-  border-radius: 6px;
-  background: var(--suna-bg);
+  border-radius: 5px;
+  background: var(--suna-bg-soft);
   color: var(--suna-text);
-  font-size: calc(12px * var(--suna-ui-font-scale));
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
   font-weight: 500;
   cursor: pointer;
   outline: none;
@@ -70,8 +72,8 @@
 }
 
 .suna-project-context select:focus {
-  border-color: var(--suna-primary);
-  box-shadow: 0 0 0 2px rgba(52, 104, 190, 0.15);
+  border-color: var(--suna-text);
+  box-shadow: 0 0 0 2px var(--suna-focus);
 }
 
 .suna-project-context-tag {
@@ -96,7 +98,7 @@
    2. Main Projects Page Layout
    -------------------------------------------------------------------------- */
 .suna-projects-page {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 28px 32px 56px;
   color: var(--suna-text);
