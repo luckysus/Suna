@@ -471,20 +471,17 @@ fn save_profile_for(
     secret_ref: Option<&str>,
 ) -> Uuid {
     let id = Uuid::new_v4();
-    provider_profiles::save_record(
-        connection,
-        workspace_id,
-        ProviderProfile {
-            id,
-            kind,
-            display_name: format!("{kind:?}"),
-            base_url: "http://127.0.0.1:9/v1".to_string(),
-            model_id: model_id.map(str::to_string),
-            secret_ref: secret_ref.map(str::to_string),
-            enabled,
-        },
-    )
-    .unwrap();
+    let profile = ProviderProfile {
+        id,
+        kind,
+        display_name: format!("{kind:?}"),
+        base_url: "http://127.0.0.1:9/v1".to_string(),
+        model_id: model_id.map(str::to_string),
+        secret_ref: secret_ref.map(str::to_string),
+        enabled,
+    };
+    let model_type = provider_profiles::infer_model_type(&profile);
+    provider_profiles::save_record_simple(connection, workspace_id, profile, &model_type).unwrap();
     id
 }
 

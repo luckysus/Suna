@@ -190,6 +190,14 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 44,
         sql: include_str!("migrations/0044_research_workflow_templates.sql"),
     },
+    Migration {
+        version: 45,
+        sql: include_str!("migrations/0045_provider_model_type.sql"),
+    },
+    Migration {
+        version: 46,
+        sql: include_str!("migrations/0046_provider_profile_metadata.sql"),
+    },
 ];
 
 pub fn latest_version() -> u32 {

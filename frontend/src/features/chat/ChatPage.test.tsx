@@ -167,6 +167,11 @@ describe("ChatPage", () => {
       revision: 1,
       secret_generation: 1,
       secret_configured: true,
+      model_type: "chat",
+      source: "remote",
+      status: "active",
+      metadata_json: "{}",
+      default_for: ["chat"],
     }]);
     vi.mocked(desktop.setDefaultProvider).mockResolvedValue(undefined);
     vi.mocked(desktop.listAgentProfiles).mockResolvedValue([]);
@@ -218,7 +223,7 @@ describe("ChatPage", () => {
     expect(screen.getByRole("region", { name: "本地智能体对话" })).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "智能搜索" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "添加图片" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "图片" })).toBeInTheDocument();
     expect(screen.getByTitle("切换当前对话模型")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "导出 Markdown" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "导出 JSON" })).toBeInTheDocument();
@@ -306,6 +311,11 @@ describe("ChatPage", () => {
         revision: 1,
         secret_generation: 1,
         secret_configured: kind === "ollama",
+        model_type: "chat" as const,
+        source: "remote" as const,
+        status: "active" as const,
+        metadata_json: "{}",
+        default_for: ["chat"],
       })),
     ]);
     render(<ChatPage />);
@@ -320,7 +330,12 @@ describe("ChatPage", () => {
     const profiles = await desktop.listProviderProfiles();
     vi.mocked(desktop.listProviderProfiles).mockResolvedValue([
       ...["qwen3.7-text-embedding", "qwen3.7-text-rerank", "BAAI/bge-m3"].map((model, i) => ({
-        ...profiles[0], id: `retrieval-${i}`, kind: "qwen" as const, model_id: model,
+        ...profiles[0],
+        id: `retrieval-${i}`,
+        kind: "qwen" as const,
+        model_id: model,
+        model_type: model.includes("rerank") ? "rerank" as const : "embedding" as const,
+        default_for: [],
       })),
       ...profiles,
     ]);
@@ -368,7 +383,7 @@ describe("ChatPage", () => {
     vi.mocked(desktop.openFileDialog).mockResolvedValue("C:/research/standard.pdf");
     render(<ChatPage />);
     await screen.findByRole("heading", { name: "Q355B 标准" });
-    fireEvent.click(screen.getByRole("button", { name: "添加附件" }));
+    fireEvent.click(screen.getByRole("button", { name: "附件" }));
     expect(await screen.findByText("standard.pdf")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "读取这个标准" } });
     fireEvent.click(screen.getByRole("button", { name: "发送" }));
@@ -722,11 +737,11 @@ describe("ChatPage", () => {
     await waitFor(() => expect(desktop.desktopAgentChat).toHaveBeenCalled());
 
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "改为检查板厚" } });
-    fireEvent.click(screen.getByRole("button", { name: "转向当前运行" }));
+    fireEvent.click(screen.getByRole("button", { name: "转向" }));
     await waitFor(() => expect(desktop.steerAgentRun).toHaveBeenCalledWith(runId, "改为检查板厚"));
 
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "回答时给出标准来源" } });
-    fireEvent.click(screen.getByRole("button", { name: "追加消息" }));
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
     await waitFor(() => expect(desktop.followUpAgentRun).toHaveBeenCalledWith(runId, "回答时给出标准来源"));
     finish?.({ run_id: runId, session_id: conversation.id, status: "completed", answer: "done" });
   });

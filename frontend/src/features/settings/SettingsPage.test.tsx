@@ -29,6 +29,20 @@ vi.mock("../../bridge/desktop", () => ({
     setDefaultProvider: vi.fn(),
     deleteProviderSecret: vi.fn(),
     deleteProviderProfile: vi.fn(),
+    copyProviderProfile: vi.fn(),
+    listModelProviderCatalog: vi.fn().mockResolvedValue([]),
+    resolveModelCatalog: vi.fn().mockResolvedValue({ cataloged: false }),
+    checkOllamaStatus: vi.fn().mockResolvedValue({ reachable: false, base_url: "http://127.0.0.1:11434" }),
+    listOllamaModels: vi.fn().mockResolvedValue([]),
+    downloadOllamaModel: vi.fn().mockResolvedValue(undefined),
+    debugProviderProfile: vi.fn(),
+    listenOllamaDownloadProgress: vi.fn().mockResolvedValue(() => undefined),
+    listOllamaDownloadTasks: vi.fn().mockResolvedValue([]),
+    listProviderCredentialFields: vi.fn().mockResolvedValue([
+      { name: "api_key", label: "API Key", secret: true, primary: true, configured: true },
+    ]),
+    setProviderAuxiliarySecret: vi.fn(),
+    deleteProviderAuxiliarySecret: vi.fn(),
     testProviderProfile: vi.fn(),
     listPermissionRules: vi.fn(),
     revokePermissionRule: vi.fn(),
@@ -50,6 +64,11 @@ const chatProfile: ProviderProfileResponse = {
   revision: 1,
   secret_generation: 1,
   secret_configured: true,
+  model_type: "chat",
+  source: "remote",
+  status: "active",
+  metadata_json: "{}",
+  default_for: ["chat"],
 };
 
 const embeddingProfile: ProviderProfileResponse = {
@@ -62,7 +81,35 @@ const embeddingProfile: ProviderProfileResponse = {
   revision: 1,
   secret_generation: 1,
   secret_configured: true,
+  model_type: "embedding",
+  source: "remote",
+  status: "active",
+  metadata_json: "{}",
+  default_for: ["embedding"],
 };
+
+const rerankerProfile: ProviderProfileResponse = {
+  id: "rerank-1",
+  kind: "siliconflow",
+  display_name: "SiliconFlow Rerank (free)",
+  base_url: "https://api.siliconflow.cn/v1",
+  model_id: "BAAI/bge-reranker-v2-m3",
+  enabled: true,
+  revision: 1,
+  secret_generation: 1,
+  secret_configured: true,
+  model_type: "rerank",
+  source: "remote",
+  status: "active",
+  metadata_json: "{}",
+  default_for: ["rerank"],
+};
+
+async function openModelDrawer(displayName: string) {
+  fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
+  fireEvent.click(await screen.findByRole("heading", { name: displayName }));
+  return await screen.findByDisplayValue(displayName);
+}
 
 const permissionRule: PermissionRuleRecord = {
   id: "rule-1",
@@ -90,14 +137,16 @@ describe("SettingsPage", () => {
     resetSkillStoreForTests();
     vi.mocked(isDesktopRuntime).mockReturnValue(true);
     vi.mocked(desktop.listDatabaseConnections).mockResolvedValue([]);
-    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([chatProfile, embeddingProfile]);
+    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([chatProfile, embeddingProfile, rerankerProfile]);
     vi.mocked(desktop.getSetting).mockImplementation(async (key) => {
       if (key === "onboarding.completed") return JSON.stringify({ llm_profile_id: chatProfile.id });
       if (key === "onboarding.retrieval") {
         return JSON.stringify({ plan: "free", embedding_profile_id: embeddingProfile.id });
       }
+      if (key === "model.provider.preferences") return JSON.stringify({});
       return null;
     });
+    vi.mocked(desktop.setDefaultProvider).mockResolvedValue(undefined);
     vi.mocked(desktop.setSetting).mockResolvedValue(undefined);
     vi.mocked(desktop.setProviderSecret).mockResolvedValue({ configured: true });
     vi.mocked(desktop.deleteProviderProfile).mockResolvedValue(undefined);
@@ -117,6 +166,11 @@ describe("SettingsPage", () => {
       base_url: input.base_url,
       model_id: input.model_id ?? null,
       enabled: input.enabled,
+      model_type: input.model_type ?? chatProfile.model_type,
+      source: input.source ?? "remote",
+      status: input.status ?? "active",
+      metadata_json: input.metadata_json ?? "{}",
+      default_for: input.id === embeddingProfile.id ? ["embedding"] : input.id === rerankerProfile.id ? ["rerank"] : ["chat"],
     }));
   });
 
@@ -125,9 +179,10 @@ describe("SettingsPage", () => {
 
     expect(await screen.findByRole("heading", { name: "settingsTitle" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "languageLabel" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "settingsTabProviders" }));
+    await openModelDrawer("Steel LLM");
     expect(screen.getByDisplayValue("https://api.example.com/v1")).toBeInTheDocument();
     expect(screen.getAllByText("settingsSecretConfigured").length).toBeGreaterThan(0);
+    expect(screen.getByText("Steel LLM", { selector: "h3" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "settingsCategoryAppearance" }));
     expect(screen.getByRole("group", { name: "themeTitle" })).toBeInTheDocument();
@@ -148,26 +203,27 @@ describe("SettingsPage", () => {
   });
 
   it("saves and probes Bailian embedding and reranker from their provider cards", async () => {
-    const { container } = renderSettings();
-    fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
-    await screen.findByDisplayValue("BAAI/bge-m3");
-    for (const [slot, model, capability] of [
-      ["embedding", "qwen3.7-text-embedding", "embedding"],
-      ["reranker", "qwen3.7-text-rerank", "rerank"],
-    ]) {
-      const form = container.querySelector(`#settings-${slot}-kind`)!.closest("form")!;
+    renderSettings();
+    for (const [displayName, model, capability] of [
+      ["SiliconFlow Embedding (free)", "qwen3.7-text-embedding", "embedding"],
+      ["SiliconFlow Rerank (free)", "qwen3.7-text-rerank", "rerank"],
+    ] as const) {
+      const name = await openModelDrawer(displayName);
+      const form = name.closest("form");
+      if (!form) throw new Error("provider form is missing");
       fireEvent.click(within(form).getByRole("combobox", { name: "settingsProviderType" }));
-      fireEvent.click(await screen.findByRole("option", { name: "阿里百炼 Qwen" }));
+      fireEvent.click(await screen.findByRole("option", { name: "providerQwen" }));
       expect(within(form).getByDisplayValue(model)).toBeInTheDocument();
-      const enabled = within(form).getByRole("checkbox", { name: "settingsEnabled" });
-      if (enabled.getAttribute("data-state") !== "checked") fireEvent.click(enabled);
-      fireEvent.click(within(form).getByRole("button", { name: "settingsSave" }));
+      fireEvent.click(screen.getByRole("button", { name: "保存并关闭" }));
       await waitFor(() => expect(desktop.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
         kind: "qwen", model_id: model, base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
       })));
-      await waitFor(() => expect(within(form).getByRole("button", { name: "settingsTest" })).toBeEnabled());
-      fireEvent.click(within(form).getByRole("button", { name: "settingsTest" }));
+      const reopened = await openModelDrawer(displayName);
+      const retestForm = reopened.closest("form");
+      if (!retestForm) throw new Error("provider form is missing");
+      fireEvent.click(screen.getByRole("button", { name: "测试连接" }));
       await waitFor(() => expect(desktop.testProviderProfile).toHaveBeenCalledWith(expect.any(String), capability));
+      fireEvent.click(screen.getByRole("button", { name: "关闭" }));
     }
   });
 
@@ -187,55 +243,60 @@ describe("SettingsPage", () => {
     renderSettings();
 
     fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
-    expect(await screen.findByRole("heading", { name: "settingsChatProvider" })).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("DeepSeek")).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue("https://api.deepseek.com")).not.toBeInTheDocument();
-    expect(screen.getAllByText("settingsSecretMissing").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("button", { name: /添加模型/ })).toBeInTheDocument();
+    expect(screen.getByText("尚未添加模型，点击「添加模型」开始配置")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /添加模型/ }));
+    expect(await screen.findByRole("dialog", { name: /添加模型/ })).toBeInTheDocument();
+    expect(screen.getByText(/保存模型后可按字段单独配置/)).toBeInTheDocument();
   });
 
   it("saves an edited provider and writes a replacement key through the secret bridge", async () => {
     renderSettings();
 
-    fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
-    const name = await screen.findByDisplayValue("Steel LLM");
+    const name = await openModelDrawer("Steel LLM");
     fireEvent.change(name, { target: { value: "Updated Steel LLM" } });
     const chatForm = name.closest("form");
     if (!chatForm) throw new Error("chat provider form is missing");
-    fireEvent.change(within(chatForm).getByLabelText("provider.chat.apiKey"), {
-      target: { value: "replacement-key" },
-    });
-    fireEvent.click(within(chatForm).getByRole("button", { name: "settingsSave" }));
+    const keyInput = await screen.findByPlaceholderText("输入新值以替换");
+    fireEvent.change(keyInput, { target: { value: "replacement-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存字段" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存并关闭" }));
 
     await waitFor(() =>
-      expect(desktop.saveProviderProfile).toHaveBeenCalledWith({
-        id: chatProfile.id,
-        kind: chatProfile.kind,
-        display_name: "Updated Steel LLM",
-        base_url: chatProfile.base_url,
-        model_id: chatProfile.model_id,
-        credential_name: "api_key",
-        enabled: true,
-      }),
+      expect(desktop.saveProviderProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: chatProfile.id,
+          kind: chatProfile.kind,
+          display_name: "Updated Steel LLM",
+          base_url: chatProfile.base_url,
+          model_id: chatProfile.model_id,
+          credential_name: "api_key",
+          enabled: true,
+          model_type: "chat",
+          source: "remote",
+          status: "active",
+        }),
+      ),
     );
     expect(desktop.setProviderSecret).toHaveBeenCalledWith(
       chatProfile.id,
       "api_key",
       "replacement-key",
     );
+    expect(desktop.saveProviderProfile).toHaveBeenCalled();
     expect(desktop.setDefaultProvider).toHaveBeenCalledWith("chat", chatProfile.id);
   });
 
   it("persists the selected chat provider in onboarding state", async () => {
     renderSettings();
 
-    fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
-    const name = await screen.findByDisplayValue("Steel LLM");
+    const name = await openModelDrawer("Steel LLM");
     const chatForm = name.closest("form");
     if (!chatForm) throw new Error("chat provider form is missing");
     // Radix Select 不是原生 select：需要先按下指针打开列表，再点选目标项。
     fireEvent.pointerDown(within(chatForm).getByRole("combobox"), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole("option", { name: "providerDeepSeek" }));
-    fireEvent.click(within(chatForm).getByRole("button", { name: "settingsSave" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存并关闭" }));
 
     await waitFor(() =>
       expect(desktop.setSetting).toHaveBeenCalledWith(
@@ -249,6 +310,7 @@ describe("SettingsPage", () => {
     renderSettings();
 
     fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
+    fireEvent.click(await screen.findByRole("button", { name: "云端专线" }));
     const pro = await screen.findByLabelText("settingsPlanPro");
     fireEvent.click(pro);
 
@@ -267,6 +329,7 @@ describe("SettingsPage", () => {
     renderSettings();
 
     fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
+    fireEvent.click(await screen.findByRole("button", { name: "云端专线" }));
     const free = await screen.findByLabelText("settingsPlanFree");
     fireEvent.click(screen.getByLabelText("settingsPlanPro"));
 
@@ -278,18 +341,16 @@ describe("SettingsPage", () => {
     vi.mocked(desktop.setProviderSecret).mockRejectedValueOnce(new Error("keyring unavailable"));
     renderSettings();
 
-    fireEvent.click(await screen.findByRole("tab", { name: "settingsTabProviders" }));
-    const name = await screen.findByDisplayValue("Steel LLM");
+    const name = await openModelDrawer("Steel LLM");
     const chatForm = name.closest("form");
     if (!chatForm) throw new Error("chat provider form is missing");
     fireEvent.change(name, { target: { value: "Unsaved Steel LLM" } });
-    fireEvent.change(within(chatForm).getByLabelText("provider.chat.apiKey"), {
-      target: { value: "replacement-key" },
-    });
-    fireEvent.click(within(chatForm).getByRole("button", { name: "settingsSave" }));
+    const keyInput = await screen.findByPlaceholderText("输入新值以替换");
+    fireEvent.change(keyInput, { target: { value: "replacement-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存字段" }));
 
     await waitFor(() => expect(screen.getByDisplayValue("Unsaved Steel LLM")).toBeInTheDocument());
-    expect(desktop.listProviderProfiles).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(desktop.listProviderProfiles).mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 

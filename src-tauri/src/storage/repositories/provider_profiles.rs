@@ -16,21 +16,71 @@ struct StoredProfile {
     enabled: bool,
     revision: i64,
     secret_generation: i64,
+    model_type: Option<String>,
+    source: Option<String>,
+    status: Option<String>,
+    metadata_json: Option<String>,
+}
+
+pub fn infer_model_type(profile: &ProviderProfile) -> String {
+    if profile.kind == ProviderKind::MinerU {
+        return "document_parser".to_string();
+    }
+    let model_id = profile
+        .model_id
+        .as_deref()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if model_id.contains("whisper") || model_id.contains("paraformer") || model_id.contains("asr") {
+        return "asr".to_string();
+    }
+    if model_id.contains("vl-")
+        || model_id.contains("-vl")
+        || model_id.contains("vision")
+        || model_id.contains("llava")
+    {
+        return "vllm".to_string();
+    }
+    if model_id.contains("rerank") {
+        return "rerank".to_string();
+    }
+    if model_id.contains("embedding") || model_id.contains("bge-m3") || model_id.contains("embed") {
+        return "embedding".to_string();
+    }
+    "chat".to_string()
 }
 
 impl StoredProfile {
     fn into_record(self) -> Result<ProviderProfileRecord, String> {
+        let profile = ProviderProfile {
+            id: Uuid::parse_str(&self.id)
+                .map_err(|error| format!("invalid stored provider profile ID: {error}"))?,
+            kind: ProviderKind::from_str(&self.kind)?,
+            display_name: self.display_name,
+            base_url: self.base_url,
+            model_id: self.model_id,
+            secret_ref: self.secret_ref,
+            enabled: self.enabled,
+        };
+        let model_type = self
+            .model_type
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| infer_model_type(&profile));
         Ok(ProviderProfileRecord {
-            profile: ProviderProfile {
-                id: Uuid::parse_str(&self.id)
-                    .map_err(|error| format!("invalid stored provider profile ID: {error}"))?,
-                kind: ProviderKind::from_str(&self.kind)?,
-                display_name: self.display_name,
-                base_url: self.base_url,
-                model_id: self.model_id,
-                secret_ref: self.secret_ref,
-                enabled: self.enabled,
-            },
+            profile,
+            model_type,
+            source: self
+                .source
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "remote".to_string()),
+            status: self
+                .status
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "active".to_string()),
+            metadata_json: self
+                .metadata_json
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "{}".to_string()),
             revision: u64::try_from(self.revision)
                 .map_err(|_| "invalid stored provider profile revision".to_string())?,
             secret_generation: u64::try_from(self.secret_generation)
@@ -50,6 +100,10 @@ fn stored(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredProfile> {
         enabled: row.get::<_, i64>(6)? != 0,
         revision: row.get(7)?,
         secret_generation: row.get(8)?,
+        model_type: row.get(9)?,
+        source: row.get(10)?,
+        status: row.get(11)?,
+        metadata_json: row.get(12)?,
     })
 }
 
@@ -60,7 +114,7 @@ pub fn list_records(
     let mut statement = conn
         .prepare(
             "SELECT id, kind, display_name, base_url, model_id, secret_ref, enabled,
-                    revision, secret_generation
+                    revision, secret_generation, model_type, source, status, metadata_json
              FROM provider_profiles
              WHERE workspace_id = ?1
              ORDER BY enabled DESC, display_name ASC, id ASC",
@@ -88,7 +142,7 @@ pub fn get_record(
 ) -> Result<Option<ProviderProfileRecord>, String> {
     conn.query_row(
         "SELECT id, kind, display_name, base_url, model_id, secret_ref, enabled,
-                revision, secret_generation
+                revision, secret_generation, model_type, source, status, metadata_json
          FROM provider_profiles
          WHERE workspace_id = ?1 AND id = ?2",
         params![workspace_id, id.to_string()],
@@ -100,6 +154,30 @@ pub fn get_record(
     .transpose()
 }
 
+pub fn update_status(
+    conn: &Connection,
+    workspace_id: &str,
+    id: Uuid,
+    status: &str,
+) -> Result<(), String> {
+    let updated = conn
+        .execute(
+            "UPDATE provider_profiles SET status = ?1, updated_at = ?2
+             WHERE workspace_id = ?3 AND id = ?4",
+            params![
+                status,
+                Utc::now().to_rfc3339(),
+                workspace_id,
+                id.to_string()
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    if updated != 1 {
+        return Err("provider profile not found".to_string());
+    }
+    Ok(())
+}
+
 pub fn get(
     conn: &Connection,
     workspace_id: &str,
@@ -108,10 +186,30 @@ pub fn get(
     get_record(conn, workspace_id, id).map(|record| record.map(|record| record.profile))
 }
 
+pub fn list_default_capabilities(
+    conn: &Connection,
+    workspace_id: &str,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let mut statement = conn
+        .prepare("SELECT capability, profile_id FROM provider_defaults WHERE workspace_id = ?1")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(params![workspace_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?;
+    rows.collect::<Result<std::collections::HashMap<_, _>, _>>()
+        .map_err(|error| error.to_string())
+}
+
 pub fn save_record(
     conn: &Connection,
     workspace_id: &str,
     profile: ProviderProfile,
+    model_type: &str,
+    source: &str,
+    status: &str,
+    metadata_json: &str,
 ) -> Result<ProviderProfileRecord, String> {
     let profile = profile.validate()?;
     let id = profile.id.to_string();
@@ -131,8 +229,8 @@ pub fn save_record(
     conn.execute(
         "INSERT INTO provider_profiles
          (id, workspace_id, kind, display_name, base_url, model_id, secret_ref,
-          enabled, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+          enabled, created_at, updated_at, model_type, source, status, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, ?10, ?11, ?12, ?13)
          ON CONFLICT(id) DO UPDATE SET
            kind = excluded.kind,
            display_name = excluded.display_name,
@@ -140,6 +238,10 @@ pub fn save_record(
            model_id = excluded.model_id,
            secret_ref = excluded.secret_ref,
            enabled = excluded.enabled,
+           model_type = excluded.model_type,
+           source = excluded.source,
+           status = excluded.status,
+           metadata_json = excluded.metadata_json,
            revision = provider_profiles.revision +
              CASE WHEN provider_profiles.kind IS NOT excluded.kind
                     OR provider_profiles.base_url IS NOT excluded.base_url
@@ -159,7 +261,11 @@ pub fn save_record(
             profile.model_id,
             profile.secret_ref,
             i64::from(profile.enabled),
-            timestamp
+            timestamp,
+            model_type,
+            source,
+            status,
+            metadata_json
         ],
     )
     .map_err(|error| error.to_string())?;
@@ -167,12 +273,30 @@ pub fn save_record(
         .ok_or_else(|| "provider profile not found after save".to_string())
 }
 
+pub fn save_record_simple(
+    conn: &Connection,
+    workspace_id: &str,
+    profile: ProviderProfile,
+    model_type: &str,
+) -> Result<ProviderProfileRecord, String> {
+    save_record(
+        conn,
+        workspace_id,
+        profile,
+        model_type,
+        "remote",
+        "active",
+        "{}",
+    )
+}
+
 pub fn save(
     conn: &Connection,
     workspace_id: &str,
     profile: ProviderProfile,
+    model_type: &str,
 ) -> Result<ProviderProfile, String> {
-    save_record(conn, workspace_id, profile).map(|record| record.profile)
+    save_record_simple(conn, workspace_id, profile, model_type).map(|record| record.profile)
 }
 
 pub fn activate_secret_generation(
@@ -289,7 +413,7 @@ pub fn get_default_record(
 ) -> Result<Option<ProviderProfileRecord>, String> {
     conn.query_row(
         "SELECT p.id, p.kind, p.display_name, p.base_url, p.model_id, p.secret_ref, p.enabled,
-                p.revision, p.secret_generation
+                p.revision, p.secret_generation, p.model_type, p.source, p.status, p.metadata_json
          FROM provider_defaults d
          JOIN provider_profiles p
            ON p.workspace_id = d.workspace_id AND p.id = d.profile_id

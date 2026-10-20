@@ -1,5 +1,4 @@
 import { Activity, AlertCircle, Check, MoreHorizontal, RefreshCw } from "lucide-react";
-import LanguageSelect from "../../components/common/LanguageSelect";
 import type { MessageKey } from "../../i18n/locale";
 import { Button } from "../../components/ui/button";
 
@@ -37,7 +36,6 @@ export default function SettingsPageChrome({
         <p>{t("settingsCenterLede")}</p>
       </div>
       {showUtilities && <div className="suna-settings-header-actions">
-        <LanguageSelect />
         {onOpenDiagnostics && <Button size="icon" type="button" onClick={onOpenDiagnostics} aria-label={t("settingsDiagnostics")} title={t("settingsDiagnostics")}><Activity size={17} aria-hidden="true" /></Button>}
         <Button size="icon" type="button" onClick={load} disabled={loading} aria-label={t("settingsRefresh")} title={t("settingsRefresh")}><RefreshCw size={17} aria-hidden="true" className={loading ? "suna-spin" : undefined} /></Button>
         <details className="suna-settings-more">

@@ -73,6 +73,11 @@ describe("DiagnosticsPage", () => {
       revision: 1,
       secret_generation: 1,
       secret_configured: true,
+      model_type: "embedding",
+      source: "remote",
+      status: "active",
+      metadata_json: "{}",
+      default_for: ["embedding"],
     }]);
     vi.mocked(desktop.getIndexHealth).mockResolvedValue({
       state: "healthy",

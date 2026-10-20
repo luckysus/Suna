@@ -8,7 +8,7 @@ import KnowledgeRetrievalSettings from "./KnowledgeRetrievalSettings";
 import SettingsSkillsPanel from "./SettingsSkillsPanel";
 import SettingsPreferencesPanel from "./SettingsPreferencesPanel";
 import SettingsAgentPanel from "./SettingsAgentPanel";
-import SettingsProvidersPanel from "./SettingsProvidersPanel";
+import ModelLibraryPanel from "./modelLibrary/ModelLibraryPanel";
 import McpManagementPage from "../mcp/McpManagementPage";
 import DatabaseConnectionsPanel from "./DatabaseConnectionsPanel";
 import StorageDataPanel from "./StorageDataPanel";
@@ -29,7 +29,7 @@ export default function SettingsPagePanel(props: Props) {
   if (activeTab === "account") return <SettingsAccountPanel onAccountNameSaved={props.setAccountName} />;
   if (activeTab === "general") return <><SettingsPreferencesPanel mode="general" /><div className="suna-settings-safety"><KeyRound size={18} aria-hidden="true" /><div><strong>{t("settingsSecretTitle")}</strong><span>{t("settingsSecretCopy")}</span></div></div></>;
   if (activeTab === "appearance") return <SettingsPreferencesPanel mode="appearance" />;
-  if (activeTab === "knowledge") return <section className="suna-settings-category"><div className="suna-settings-section-intro"><span>KNOWLEDGE DATABASE</span><h2>{t("settingsCategoryKnowledge")}</h2><p>{t("settingsKnowledgeCopy")}</p></div><KnowledgeDatabasePanel /><KnowledgeRetrievalSettings /><SettingsProvidersPanel {...providerProps(props)} editors={props.editors.filter((editor) => editor.slot !== "chat")} /></section>;
+  if (activeTab === "knowledge") return <section className="suna-settings-category"><div className="suna-settings-section-intro"><span>KNOWLEDGE DATABASE</span><h2>{t("settingsCategoryKnowledge")}</h2><p>{t("settingsKnowledgeCopy")}</p></div><KnowledgeDatabasePanel /><KnowledgeRetrievalSettings /><ModelLibraryPanel excludeTypes={["chat"]} /></section>;
   if (activeTab === "agent") return <><SettingsAgentPanel /><PermissionRulesPanel rules={props.permissionRules} busyId={props.permissionBusyId} onRevoke={props.revokePermission} /></>;
   if (activeTab === "mcp") return <McpManagementPage />;
   if (activeTab === "skill") return <SettingsSkillsPanel />;
@@ -44,18 +44,11 @@ export default function SettingsPagePanel(props: Props) {
           <h2>模型管理</h2>
           <p>为对话、向量嵌入、语义重排和文档解析分别绑定服务商。API Key 加密写入系统本地凭据库。</p>
         </div>
-        <div className="suna-model-mgmt-hero-stat">
-          <span className="suna-model-stat-pill">
-            <span className="suna-model-pulse-dot" />
-            {props.editors.filter((e) => e.id && e.enabled).length} / {props.editors.length} 项能力已配置
-          </span>
-        </div>
       </div>
-      <SettingsProvidersPanel {...providerProps(props)} editors={props.editors} showRuntimeTab />
+      <ModelLibraryPanel plan={props.plan} onPlanChange={props.changePlan} />
     </div>
   );
 }
-
 function AboutPanel({ onOpenDiagnostics }: { onOpenDiagnostics?: () => void }) {
   const [storage, setStorage] = useState<"checking" | "ready" | "error" | "unavailable">("checking");
   const [knowledge, setKnowledge] = useState<"checking" | "ready" | "error" | "unavailable">("checking");
@@ -97,5 +90,3 @@ function AboutPanel({ onOpenDiagnostics }: { onOpenDiagnostics?: () => void }) {
   const status = (value: string) => value === "ready" ? "正常" : value === "checking" ? "检查中" : value === "unavailable" ? "未连接" : "需要检查";
   return <section className="suna-settings-form-panel suna-about-panel" aria-labelledby="settings-about-heading"><header className="suna-settings-form-heading"><div><span className="suna-settings-kicker">ABOUT SUNA</span><h2 id="settings-about-heading">关于 Suna</h2><p>钢铁材料研发智能体平台的版本、运行时和本地环境状态。</p></div><CircleHelp size={22} aria-hidden="true" /></header>{healthError && <p className="suna-settings-inline-error" role="alert">{healthError}</p>}<div className="suna-about-brand"><SunaLogo size={48} title="Suna" /><div><strong>Suna</strong><span>钢铁材料研发智能体平台</span></div></div><div className="suna-settings-info-grid suna-about-health"><div><HardDrive size={16} /><span>SQLite 客户端</span><strong>{status(storage)}</strong></div><div><Database size={16} /><span>PostgreSQL 知识库</span><strong>{status(knowledge)}</strong></div><div><Bot size={16} /><span>Agent Runtime</span><strong>Rust</strong></div><div><Wrench size={16} /><span>桌面框架</span><strong>Tauri 2</strong></div></div><dl className="suna-settings-about"><div><dt>版本</dt><dd>{SUNA_VERSION}</dd></div><div><dt>前端</dt><dd>React 19 · Vite</dd></div><div><dt>许可</dt><dd>Apache-2.0</dd></div><div><dt>平台</dt><dd>Windows 10+</dd></div></dl>{updateLabel && <p className={`suna-about-update is-${updateState}`} role="status">{updateLabel}</p>}<p className="suna-about-copy">Suna 将对话、Agent Loop、知识库、文献研究和本地工具统一在桌面端运行。AI for Steel Research · 让钢铁材料研发更智能。</p><footer className="suna-settings-form-actions"><Button variant="secondary" type="button" onClick={() => void checkUpdates()} disabled={updateState === "checking"}>{updateState === "checking" ? "检查中…" : "检查更新"}</Button><Button variant="secondary" type="button" onClick={() => void openLogs()}><ExternalLink size={15} />日志目录</Button><Button variant="secondary" type="button" onClick={() => window.open("https://github.com/luckysus/Suna", "_blank")}><ExternalLink size={15} />项目仓库</Button>{onOpenDiagnostics && <Button variant="primary" type="button" onClick={onOpenDiagnostics}><Wrench size={15} />运行诊断</Button>}</footer></section>;
 }
-
-function providerProps(props: Props) { return { plan: props.plan, loading: props.loading, editors: props.editors, busySlot: props.busySlot, testingSlot: props.testingSlot, onChange: props.updateEditor, onSubmit: props.saveEditor, onTest: (editor: SettingsEditor) => props.testEditor(editor), onDelete: (editor: SettingsEditor) => props.deleteEditor(editor), onPlanChange: props.changePlan }; }

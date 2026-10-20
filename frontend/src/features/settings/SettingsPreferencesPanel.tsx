@@ -1,4 +1,4 @@
-import { Check, ExternalLink, LoaderCircle, Monitor, Moon, Sun } from "lucide-react";
+import { Check, ExternalLink, Languages, LoaderCircle, Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { desktop, isDesktopRuntime, type UpdateCheckResult } from "../../bridge/desktop";
 import { useLocale, type LanguagePreference } from "../../i18n/locale";
@@ -89,11 +89,30 @@ function AppearanceSettings() {
   return <section className="suna-appearance-panel" aria-labelledby="appearance-heading">
     <header className="suna-appearance-heading"><div><h2 id="appearance-heading">{t("settingsAppearanceHeading")}</h2><p>{t("settingsAppearanceLede")}</p></div><div className="suna-settings-state-stack"><LoadState error={loadMessage} onRetry={retryLoadHandler} /><SaveState state={combinedSaveState} onRetry={retrySaveHandler} /></div></header>
     <div className="suna-appearance-section"><h3>{t("settingsAppearanceMode")}</h3><div className="suna-theme-preview-grid" role="group" aria-label={t("themeTitle")}>{themeOptions.map(({ value, labelKey, descriptionKey, Icon }) => <button type="button" key={value} className={`suna-theme-preview-card ${theme === value ? "is-selected" : ""}`} aria-label={t(labelKey)} aria-pressed={theme === value} onClick={() => setTheme(value)}><ThemePreview value={value} /><span className="suna-theme-preview-copy"><strong>{t(labelKey)}</strong><small>{t(descriptionKey)}</small></span>{theme === value && <span className="suna-theme-check"><Check size={13} /></span>}{value === "system" && <Icon className="suna-theme-preview-icon" size={15} aria-hidden="true" />}</button>)}</div></div>
-    <div className="suna-appearance-section suna-appearance-controls"><label className="suna-settings-language-row"><span><strong>{t("languageLabel")}</strong></span><Select value={language} aria-label={t("languageLabel")} onValueChange={(value) => setLanguage(value as LanguagePreference)}>
-  <SelectTrigger aria-label={t("languageLabel")}><SelectValue /></SelectTrigger>
-  <SelectContent><SelectItem value="zh-CN">简体中文</SelectItem><SelectItem value="en-US">English</SelectItem><SelectItem value="system">{t("languageSystem")}</SelectItem>
-  </SelectContent>
-</Select></label><div className="suna-settings-control-row"><span><strong>{t("settingsFontSize")}</strong></span><SegmentedControl value={preferences.fontSize} options={fontOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsFontSize")} onChange={(fontSize) => update({ fontSize })} /></div><div className="suna-settings-control-row"><span><strong>{t("settingsDensity")}</strong></span><SegmentedControl value={preferences.density} options={densityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsDensity")} onChange={(density) => update({ density })} /></div><div className="suna-settings-control-row"><span><strong>{t("settingsSidebarWidth")}</strong></span><SegmentedControl value={preferences.sidebarWidth} options={sidebarWidthOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsSidebarWidth")} onChange={(sidebarWidth) => update({ sidebarWidth })} /></div></div>
+    <div className="suna-appearance-section suna-appearance-controls">
+      <div className="suna-settings-control-row">
+        <span>
+          <strong>{t("languageLabel")}</strong>
+          <small>{t("settingsLanguageCopy")}</small>
+        </span>
+        <Select value={language} onValueChange={(value) => setLanguage(value as LanguagePreference)}>
+          <SelectTrigger aria-label={t("languageLabel")} className="suna-settings-language-select">
+            <span className="suna-settings-language-trigger-content">
+              <Languages size={15} className="suna-settings-language-trigger-icon" aria-hidden="true" />
+              <SelectValue />
+            </span>
+          </SelectTrigger>
+          <SelectContent className="suna-settings-language-popover">
+            <SelectItem value="zh-CN">{t("languageChinese")}</SelectItem>
+            <SelectItem value="en-US">{t("languageEnglish")}</SelectItem>
+            <SelectItem value="system">{t("languageSystem")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="suna-settings-control-row"><span><strong>{t("settingsFontSize")}</strong></span><SegmentedControl value={preferences.fontSize} options={fontOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsFontSize")} onChange={(fontSize) => update({ fontSize })} /></div>
+      <div className="suna-settings-control-row"><span><strong>{t("settingsDensity")}</strong></span><SegmentedControl value={preferences.density} options={densityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsDensity")} onChange={(density) => update({ density })} /></div>
+      <div className="suna-settings-control-row"><span><strong>{t("settingsSidebarWidth")}</strong></span><SegmentedControl value={preferences.sidebarWidth} options={sidebarWidthOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsSidebarWidth")} onChange={(sidebarWidth) => update({ sidebarWidth })} /></div>
+    </div>
     <div className="suna-appearance-section suna-settings-toggle-list"><ToggleRow checked={preferences.enableAnimations} label={t("settingsAnimations")} description={t("settingsAnimationsCopy")} onChange={(enableAnimations) => update({ enableAnimations })} /><ToggleRow checked={preferences.showAgentPanel} label={t("settingsAgentPanel")} description={t("settingsAgentPanelCopy")} onChange={(showAgentPanel) => update({ showAgentPanel })} /></div>
   </section>;
 }

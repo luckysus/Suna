@@ -21,6 +21,11 @@ pub struct ProviderProfileInput {
     pub model_id: Option<String>,
     pub credential_name: Option<String>,
     pub enabled: bool,
+    pub model_type: Option<String>,
+    pub source: Option<String>,
+    pub status: Option<String>,
+    pub provider_id: Option<String>,
+    pub metadata_json: Option<String>,
 }
 
 impl ProviderProfileInput {
@@ -66,6 +71,12 @@ pub struct ProviderProfileResponse {
     pub revision: u64,
     pub secret_generation: u64,
     pub secret_configured: bool,
+    pub model_type: String,
+    pub source: String,
+    pub status: String,
+    pub metadata_json: String,
+    pub capabilities: Option<serde_json::Value>,
+    pub default_for: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,9 +108,49 @@ impl From<ProviderError> for ProbeFailure {
     }
 }
 
+fn build_metadata_json(
+    raw: Option<&str>,
+    provider_id: Option<&str>,
+    model_type: &str,
+    model_id: Option<&str>,
+) -> Result<String, String> {
+    let mut object = match raw {
+        Some(value) if !value.trim().is_empty() => serde_json::from_str::<serde_json::Value>(value)
+            .map_err(|error| format!("invalid provider metadata: {error}"))?,
+        _ => serde_json::json!({}),
+    };
+    if !object.is_object() {
+        return Err("provider metadata must be a JSON object".to_string());
+    }
+    if let Some(provider_id) = provider_id.filter(|value| !value.trim().is_empty()) {
+        object["provider_id"] = serde_json::Value::String(provider_id.to_string());
+    }
+    if object.get("capabilities").is_none() {
+        if let Ok(capabilities) =
+            super::catalog::resolve_capabilities(provider_id, model_id.unwrap_or(""), model_type)
+        {
+            object["capabilities"] = capabilities;
+        }
+    }
+    serde_json::to_string(&object).map_err(|error| error.to_string())
+}
+
+fn normalize_model_type(value: Option<String>, profile: &ProviderProfile) -> String {
+    let trimmed = value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    match trimmed.as_deref() {
+        Some("chat" | "embedding" | "rerank" | "document_parser" | "vllm" | "asr") => {
+            trimmed.unwrap()
+        }
+        _ => provider_profiles::infer_model_type(profile),
+    }
+}
+
 fn profile_response(
     record: ProviderProfileRecord,
     store: &dyn SecretStore,
+    default_for: &[String],
 ) -> Result<ProviderProfileResponse, String> {
     let profile = record.profile;
     let secret_configured = match profile.secret_ref.as_deref() {
@@ -114,6 +165,9 @@ fn profile_response(
         }
         None => false,
     };
+    let capabilities = serde_json::from_str::<serde_json::Value>(&record.metadata_json)
+        .ok()
+        .and_then(|value| value.get("capabilities").cloned());
     Ok(ProviderProfileResponse {
         id: profile.id,
         kind: profile.kind,
@@ -124,7 +178,24 @@ fn profile_response(
         revision: record.revision,
         secret_generation: record.secret_generation,
         secret_configured,
+        model_type: record.model_type,
+        source: record.source,
+        status: record.status,
+        metadata_json: record.metadata_json,
+        capabilities,
+        default_for: default_for.to_vec(),
     })
+}
+
+fn default_capabilities_for_profile(
+    defaults: &std::collections::HashMap<String, String>,
+    profile_id: Uuid,
+) -> Vec<String> {
+    let id = profile_id.to_string();
+    defaults
+        .iter()
+        .filter_map(|(capability, profile)| (profile == &id).then_some(capability.clone()))
+        .collect()
 }
 
 pub(crate) fn list_profile_responses(
@@ -132,9 +203,13 @@ pub(crate) fn list_profile_responses(
     workspace_id: &str,
     store: &dyn SecretStore,
 ) -> Result<Vec<ProviderProfileResponse>, String> {
+    let defaults = provider_profiles::list_default_capabilities(connection, workspace_id)?;
     provider_profiles::list_records(connection, workspace_id)?
         .into_iter()
-        .map(|record| profile_response(record, store))
+        .map(|record| {
+            let caps = default_capabilities_for_profile(&defaults, record.profile.id);
+            profile_response(record, store, &caps)
+        })
         .collect()
 }
 
@@ -144,6 +219,11 @@ pub(crate) fn save_profile(
     store: &dyn SecretStore,
     input: ProviderProfileInput,
 ) -> Result<ProviderProfileResponse, String> {
+    let model_type_hint = input.model_type.clone();
+    let source_hint = input.source.clone();
+    let status_hint = input.status.clone();
+    let provider_id_hint = input.provider_id.clone();
+    let metadata_hint = input.metadata_json.clone();
     let profile = input.into_profile()?;
     let previous = provider_profiles::get_record(connection, workspace_id, profile.id)?;
     let old_secret = previous.as_ref().and_then(|previous| {
@@ -156,7 +236,36 @@ pub(crate) fn save_profile(
     let transaction = connection
         .transaction()
         .map_err(|error| error.to_string())?;
-    let saved = provider_profiles::save_record(&transaction, workspace_id, profile)?;
+    let model_type = normalize_model_type(model_type_hint, &profile);
+    let source = source_hint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(if profile.kind == ProviderKind::Ollama {
+            "local"
+        } else {
+            "remote"
+        });
+    let status = status_hint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("active");
+    let metadata_json = build_metadata_json(
+        metadata_hint.as_deref(),
+        provider_id_hint.as_deref(),
+        &model_type,
+        profile.model_id.as_deref(),
+    )?;
+    let saved = provider_profiles::save_record(
+        &transaction,
+        workspace_id,
+        profile,
+        &model_type,
+        source,
+        status,
+        &metadata_json,
+    )?;
     let deleted = if let Some((profile_id, old_name, generation)) = old_secret {
         delete_secret_generations(store, profile_id, &old_name, generation)?
     } else {
@@ -180,7 +289,9 @@ pub(crate) fn save_profile(
             ],
         )
         .map_err(|error| error.to_string())?;
-    profile_response(saved, store)
+    let defaults = provider_profiles::list_default_capabilities(connection, workspace_id)?;
+    let caps = default_capabilities_for_profile(&defaults, saved.profile.id);
+    profile_response(saved, store, &caps)
 }
 
 pub(crate) fn set_default_profile(
@@ -217,12 +328,65 @@ pub(crate) fn profile_credential(
     }
 }
 
+pub(crate) fn copy_profile(
+    connection: &mut Connection,
+    workspace_id: &str,
+    store: &dyn SecretStore,
+    id: Uuid,
+    display_name: Option<String>,
+) -> Result<ProviderProfileResponse, String> {
+    let source = provider_profiles::get_record(connection, workspace_id, id)?
+        .ok_or_else(|| "provider profile not found".to_string())?;
+    let new_id = Uuid::new_v4();
+    let mut profile = source.profile.clone();
+    profile.id = new_id;
+    profile.display_name = display_name
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("{} (副本)", source.profile.display_name));
+    if profile.display_name.chars().count() > 80 {
+        profile.display_name = profile.display_name.chars().take(80).collect::<String>();
+    }
+    let saved = provider_profiles::save_record(
+        connection,
+        workspace_id,
+        profile,
+        &source.model_type,
+        &source.source,
+        &source.status,
+        &source.metadata_json,
+    )?;
+    if let Some(name) = source.profile.secret_ref.as_deref() {
+        if let Some(value) = profile_credential(&source.profile, source.secret_generation, store)? {
+            let reference =
+                SecretRef::at_generation(new_id, name, 0).map_err(|error| error.to_string())?;
+            store
+                .set(&reference, &value)
+                .map_err(|error| error.to_string())?;
+            let _ = provider_profiles::activate_secret_generation(
+                connection,
+                workspace_id,
+                new_id,
+                name,
+                0,
+            )?;
+        }
+    }
+    let defaults = provider_profiles::list_default_capabilities(connection, workspace_id)?;
+    let caps = default_capabilities_for_profile(&defaults, saved.profile.id);
+    profile_response(saved, store, &caps)
+}
+
 pub(crate) fn delete_profile(
     connection: &mut Connection,
     workspace_id: &str,
     store: &dyn SecretStore,
     id: Uuid,
 ) -> Result<(), String> {
+    let usage = super::profile_usage::collect_profile_usage(connection, workspace_id, id)?;
+    if usage.is_blocking() {
+        return Err(super::profile_usage::delete_blocked_error(&usage));
+    }
     let record = provider_profiles::get_record(connection, workspace_id, id)?
         .ok_or_else(|| "provider profile not found".to_string())?;
     let deleted = match record.profile.secret_ref.as_deref() {

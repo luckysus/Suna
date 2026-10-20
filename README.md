@@ -53,6 +53,13 @@ Suna 是面向钢铁、材料和工业研发场景的桌面智能体工作台。
 | Reranker | SiliconFlow `BAAI/bge-reranker-v2-m3` | 检索结果重排 |
 | 文档解析 | MinerU | PDF 与复杂版面解析 |
 
+设置页「模型」目录与 [WeKnora](https://github.com/Tencent/WeKnora) 上游内置厂商/模型清单对齐（`src-tauri/resources/model_provider_catalog.json`）。更新上游后可重新同步：
+
+```bash
+# 先把 upstream 文件拉到 .weknora-upstream/（见 scripts/sync-weknora-model-catalog.mjs）
+node scripts/sync-weknora-model-catalog.mjs
+```
+
 SiliconFlow 的免费版和 Pro 版由用户自行选择。API Key 通过设置页保存到 Windows Credential Manager；本地数据库只保存 Provider 配置与凭据引用，不保存明文密钥。
 
 ## 快速开始

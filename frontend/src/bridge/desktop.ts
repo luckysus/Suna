@@ -1340,7 +1340,115 @@ export interface KnowledgeDocumentRaw {
 }
 
 export type ProviderKind = "open_ai_compatible" | "anthropic" | "qwen" | "deepseek" | "ollama" | "siliconflow" | "mineru";
-export type ProviderCapability = "chat" | "embedding" | "rerank" | "document_parser";
+export type ProviderCapability = "chat" | "embedding" | "rerank" | "document_parser" | "vllm" | "asr";
+
+export type ProfileModelType = "chat" | "embedding" | "rerank" | "document_parser" | "vllm" | "asr";
+
+export interface CatalogModelEntry {
+  id: string;
+  name: string;
+  types?: string[];
+  context_window?: number;
+  max_output_tokens?: number;
+  dimension?: number;
+  input?: string[];
+  reasoning?: boolean;
+  source?: string;
+}
+
+export interface CatalogCredentialField {
+  id: string;
+  label: string;
+  secret?: boolean;
+}
+
+export interface CatalogExtraField {
+  id: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  secret?: boolean;
+}
+
+export interface CatalogProvider {
+  id: string;
+  label: string;
+  labels?: Record<string, string>;
+  description?: string;
+  default_urls?: Record<string, string>;
+  model_types?: string[];
+  kind: ProviderKind;
+  models?: CatalogModelEntry[];
+  icon_svg?: string | null;
+  credential_fields?: CatalogCredentialField[];
+  extra_fields?: CatalogExtraField[];
+}
+
+export interface CredentialFieldView {
+  name: string;
+  label: string;
+  secret: boolean;
+  primary: boolean;
+  configured: boolean;
+}
+
+export interface OllamaStatus {
+  reachable: boolean;
+  base_url: string;
+  message?: string | null;
+}
+
+export interface OllamaModelTag {
+  name: string;
+  size?: number | null;
+}
+
+export interface OllamaDownloadProgress {
+  task_id: string;
+  model_name: string;
+  status: string;
+  progress: number;
+  message: string;
+}
+
+export interface ProviderDebugOptions {
+  temperature?: number;
+  max_tokens?: number;
+  similarity?: boolean;
+}
+
+export interface ProviderDebugInput {
+  profile_id: string;
+  input?: string | null;
+  documents?: string[];
+  options?: ProviderDebugOptions | null;
+  file_name?: string | null;
+  file_base64?: string | null;
+  file_mime?: string | null;
+}
+
+export interface ProviderDebugResult {
+  ok: boolean;
+  elapsed_ms: number;
+  request: Record<string, unknown>;
+  raw_response: unknown;
+  observations: Record<string, unknown>;
+  error?: string | null;
+}
+
+export interface ModelUsageResource {
+  id: string;
+  name: string;
+  bindings: string[];
+}
+
+export interface ModelUsageDetails {
+  knowledge_bases: ModelUsageResource[];
+  agents: ModelUsageResource[];
+  long_term_memory: { bindings: string[] };
+  knowledge_base_total: number;
+  agent_total: number;
+}
 
 export interface ProviderProfileInput {
   id?: string;
@@ -1350,6 +1458,11 @@ export interface ProviderProfileInput {
   model_id?: string | null;
   credential_name?: string | null;
   enabled: boolean;
+  model_type?: ProfileModelType | null;
+  source?: "local" | "remote" | null;
+  status?: "active" | "downloading" | "download_failed" | null;
+  provider_id?: string | null;
+  metadata_json?: string | null;
 }
 
 export interface ProviderProfileResponse {
@@ -1362,6 +1475,12 @@ export interface ProviderProfileResponse {
   revision: number;
   secret_generation: number;
   secret_configured: boolean;
+  model_type: ProfileModelType;
+  source: "local" | "remote";
+  status: "active" | "downloading" | "download_failed";
+  metadata_json: string;
+  capabilities?: Record<string, unknown> | null;
+  default_for: string[];
 }
 
 export interface ProviderProbeResponse {
@@ -2023,6 +2142,38 @@ getComputeOptimizationResult: (id: string) =>
   deleteProviderSecret: (profileId: string, credentialName: string) =>
     call<SecretStatus>("secret_delete", { profileId, credentialName }),
   deleteProviderProfile: (id: string) => call<void>("delete_provider_profile", { id }),
+  copyProviderProfile: (id: string, displayName?: string | null) =>
+    call<ProviderProfileResponse>("copy_provider_profile", { id, displayName }),
+  listModelProviderCatalog: (modelType?: ProfileModelType | null) =>
+    call<CatalogProvider[]>("list_model_provider_catalog", { modelType: modelType ?? null }),
+  resolveModelCatalog: (providerId: string | null, modelId: string, modelType: ProfileModelType) =>
+    call<Record<string, unknown>>("resolve_model_catalog", {
+      providerId,
+      modelId,
+      modelType,
+    }),
+  listOllamaDownloadTasks: () =>
+    call<{ id: string; model_name: string; status: string; progress: number; message: string }[]>(
+      "list_ollama_download_tasks",
+    ),
+  checkOllamaStatus: (baseUrl?: string | null) =>
+    call<OllamaStatus>("check_ollama_status", { baseUrl: baseUrl ?? null }),
+  listOllamaModels: (baseUrl?: string | null) =>
+    call<OllamaModelTag[]>("list_ollama_models", { baseUrl: baseUrl ?? null }),
+  downloadOllamaModel: (modelName: string, baseUrl?: string | null) =>
+    call<void>("download_ollama_model", { modelName, baseUrl: baseUrl ?? null }),
+  debugProviderProfile: (payload: ProviderDebugInput) =>
+    call<ProviderDebugResult>("debug_provider_profile", { payload }),
+  listProviderCredentialFields: (profileId: string) =>
+    call<CredentialFieldView[]>("list_provider_credential_fields", { profileId }),
+  setProviderAuxiliarySecret: (profileId: string, credentialName: string, value: string) =>
+    call<SecretStatus>("set_provider_auxiliary_secret", { profileId, credentialName, value }),
+  deleteProviderAuxiliarySecret: (profileId: string, credentialName: string) =>
+    call<SecretStatus>("delete_provider_auxiliary_secret", { profileId, credentialName }),
+  listenOllamaDownloadProgress: (handler: (progress: OllamaDownloadProgress) => void) =>
+    listen<OllamaDownloadProgress>("ollama-download-progress", (event) => {
+      if (event?.payload) handler(event.payload);
+    }),
   listSkills: () => call<SkillCatalog>("list_skills"),
   createSkill: (draft: SkillDraft) =>
     call<SkillCatalog>("create_skill", { draft }),

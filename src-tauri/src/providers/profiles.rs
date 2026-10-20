@@ -37,15 +37,22 @@ impl ProviderKind {
             Self::OpenAiCompatible | Self::Anthropic | Self::Ollama => {
                 matches!(
                     capability,
-                    ProviderCapability::Chat | ProviderCapability::Embedding
+                    ProviderCapability::Chat
+                        | ProviderCapability::Embedding
+                        | ProviderCapability::Vllm
                 )
             }
-            Self::DeepSeek => capability == ProviderCapability::Chat,
+            Self::DeepSeek => matches!(
+                capability,
+                ProviderCapability::Chat | ProviderCapability::Vllm
+            ),
             Self::SiliconFlow | Self::Qwen => matches!(
                 capability,
                 ProviderCapability::Chat
                     | ProviderCapability::Embedding
                     | ProviderCapability::Rerank
+                    | ProviderCapability::Vllm
+                    | ProviderCapability::Asr
             ),
             Self::MinerU => capability == ProviderCapability::DocumentParser,
         }
@@ -76,6 +83,8 @@ pub enum ProviderCapability {
     Embedding,
     Rerank,
     DocumentParser,
+    Vllm,
+    Asr,
 }
 
 impl ProviderCapability {
@@ -85,6 +94,8 @@ impl ProviderCapability {
             Self::Embedding => "embedding",
             Self::Rerank => "rerank",
             Self::DocumentParser => "document_parser",
+            Self::Vllm => "vllm",
+            Self::Asr => "asr",
         }
     }
 }
@@ -98,6 +109,8 @@ impl FromStr for ProviderCapability {
             "embedding" => Ok(Self::Embedding),
             "rerank" => Ok(Self::Rerank),
             "document_parser" => Ok(Self::DocumentParser),
+            "vllm" => Ok(Self::Vllm),
+            "asr" => Ok(Self::Asr),
             _ => Err(format!("unsupported provider capability: {value}")),
         }
     }
@@ -117,6 +130,13 @@ pub struct ProviderProfile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderProfileRecord {
     pub profile: ProviderProfile,
+    /// UI role: chat | embedding | rerank | document_parser | vllm | asr
+    pub model_type: String,
+    /// local (Ollama) | remote
+    pub source: String,
+    /// active | downloading | download_failed
+    pub status: String,
+    pub metadata_json: String,
     pub revision: u64,
     pub secret_generation: u64,
 }

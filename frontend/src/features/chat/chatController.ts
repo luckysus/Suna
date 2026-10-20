@@ -23,6 +23,7 @@ import { useKnowledgeStore } from "../../stores/knowledgeStore";
 import { useModelStore } from "../../stores/modelStore";
 import { errorMessage } from "../../utils/errorMessage";
 import { isChatProfile } from "../../utils/providerModel";
+import { providerProfilesChangedEvent } from "../settings/settingsModel";
 import {
   CHAT_MESSAGE_PAGE_SIZE,
   mergeTailMessages,
@@ -411,9 +412,14 @@ export function useChatController(): ChatControllerProps {
         setAutoSearchEnabled(knowledgePreferences.autoRetrieve === true);
         const available = profiles.filter((profile) => profile.enabled && isChatProfile(profile));
         setChatProfiles(available);
-        setActiveChatProfileId((current) => current && available.some((profile) => profile.id === current)
-          ? current
-          : available[0]?.id ?? null);
+        const defaultChat = profiles.find((profile) => profile.default_for?.includes("chat"));
+        setActiveChatProfileId((current) => {
+          if (current && available.some((profile) => profile.id === current)) return current;
+          if (defaultChat && available.some((profile) => profile.id === defaultChat.id)) {
+            return defaultChat.id;
+          }
+          return available[0]?.id ?? null;
+        });
         setAgentProfiles(agentEntries.filter((profile) => profile.enabled));
         recoveredRunsRef.current = recoveries;
         setRecoveredRuns(recoveries);
@@ -434,6 +440,28 @@ export function useChatController(): ChatControllerProps {
       mounted = false;
     };
   }, [appearanceLoaded, preferences.restoreSession]);
+
+  useEffect(() => {
+    if (!appearanceLoaded || typeof window === "undefined") return;
+    const reloadProfiles = () => {
+      void desktop.listProviderProfiles()
+        .then((profiles) => {
+          const available = profiles.filter((profile) => profile.enabled && isChatProfile(profile));
+          setChatProfiles(available);
+          const defaultChat = profiles.find((profile) => profile.default_for?.includes("chat"));
+          setActiveChatProfileId((current) => {
+            if (current && available.some((profile) => profile.id === current)) return current;
+            if (defaultChat && available.some((profile) => profile.id === defaultChat.id)) {
+              return defaultChat.id;
+            }
+            return available[0]?.id ?? null;
+          });
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener(providerProfilesChangedEvent, reloadProfiles);
+    return () => window.removeEventListener(providerProfilesChangedEvent, reloadProfiles);
+  }, [appearanceLoaded]);
 
   useEffect(() => {
     let mounted = true;

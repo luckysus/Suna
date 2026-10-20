@@ -11,6 +11,12 @@ const localAliases: Record<string, string> = {
   "ui.preferences": "suna.ui.preferences",
 };
 export const settingChangedEvent = "suna:setting-changed";
+export const providerProfilesChangedEvent = "suna:provider-profiles-changed";
+
+export function emitProviderProfilesChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(providerProfilesChangedEvent));
+}
 
 export function readLocalSettingValue(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -152,7 +158,20 @@ export function profileForSlot(
   const byId = configuredId ? profiles.find((profile) => profile.id === configuredId) : undefined;
   if (byId) return byId;
 
+  const slotModelType = (profile: ProviderProfileResponse) => {
+    if (profile.model_type === "chat" || profile.model_type === "vllm" || profile.model_type === "asr") {
+      return "chat";
+    }
+    if (profile.model_type === "embedding") return "embedding";
+    if (profile.model_type === "rerank") return "reranker";
+    if (profile.model_type === "document_parser") return "mineru";
+    return null;
+  };
+
   return profiles.find((profile) => {
+    const typed = slotModelType(profile);
+    if (typed) return typed === slot;
+
     if (slot === "chat") {
       return profile.kind === "deepseek"
         || profile.kind === "anthropic"

@@ -6,14 +6,14 @@ import ChatPage from "../features/chat/ChatPage";
 import { ChatControllerProvider } from "../features/chat/chatController";
 import { useChatControllerContext } from "../features/chat/chatController";
 import ResearchProjectContext from "../features/research/ResearchProjectContext";
-import { getNavigationSection, navigationSections, primaryNavigationSections, sidebarManageSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
+import { getNavigationSection, getLocalizedSection, navigationSections, primaryNavigationSections, sidebarManageSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
 import { isRootPath, useSectionRoute } from "./sectionRoute";
 import SunaTitleBar from "./SunaTitleBar";
 import { defaultShortcuts, normalizeShortcuts, parseShortcut, type ShortcutSettings } from "./shortcuts";
 import { filterGlobalEntities, loadGlobalEntities, searchLiteratureItems, type GlobalEntity } from "./globalSearch";
 import { CommandMenu, type CommandMenuGroup, type CommandMenuItem } from "../components/ui/command-menu";
 import { ToastProvider, useToast } from "../components/ui/toast";
-import { LocaleProvider } from "../i18n/locale";
+import { LocaleProvider, useLocale } from "../i18n/locale";
 import { ThemeProvider, useTheme } from "../theme/theme";
 import { AppearanceProvider, useAppearanceSettings } from "../settings/appearance";
 import SunaLogo from "../components/SunaLogo";
@@ -39,8 +39,9 @@ const SettingsPage = deferredPage(() => import("../features/settings/SettingsPag
 export default function SunaApp() { return <ToastProvider><LocaleProvider><ThemeProvider><AppearanceProvider><ChatControllerProvider><SunaAppShell /></ChatControllerProvider></AppearanceProvider></ThemeProvider></LocaleProvider></ToastProvider>; }
 function SunaMark() { return <SunaLogo size={37} title="Suna" aria-hidden="true" />; }
 function ModuleView({ section, onOpenSettings }: { section: SectionId; onOpenSettings: () => void }) { return section === "projects" ? <ResearchProjectsPage /> : section === "literature" ? <LiteratureResearchPage /> : section === "prediction" ? <PerformancePredictionPage /> : section === "optimization" ? <ProcessOptimizationPage /> : section === "mcp" ? <McpManagementPage /> : section === "experiment" ? <ExperimentAssistantPage /> : section === "reports" ? <ResearchReportPage /> : section === "data" ? <DataLabPage /> : section === "agents" || section === "tools" || section === "skills" ? <CapabilityManagementPage section={section} /> : section === "models" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="providers" /> : section === "account" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="account" /> : section === "about" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="about" /> : <ResearchModulePage section={section} />; }
-function NavButton({ item, active, onClick }: { item: NavigationSection; active: SectionId; onClick: (id: SectionId) => void }) { const Icon = item.icon; return <button className={`suna-new-nav-item ${active === item.id ? "is-active" : ""}`} onClick={() => onClick(item.id)}><Icon size={17} /><span>{item.label}</span></button>; }
+function NavButton({ item, active, onClick, onPrefetch }: { item: NavigationSection; active: SectionId; onClick: (id: SectionId) => void; onPrefetch?: (id: SectionId) => void }) { const Icon = item.icon; return <button className={`suna-new-nav-item ${active === item.id ? "is-active" : ""}`} onClick={() => onClick(item.id)} onMouseEnter={() => onPrefetch?.(item.id)} onFocus={() => onPrefetch?.(item.id)} onPointerDown={() => onPrefetch?.(item.id)}><Icon size={17} /><span>{item.label}</span></button>; }
 function SunaAppShell() {
+  const { t } = useLocale();
   const chat = useChatControllerContext();
   const toast = useToast();
   const { preferences, loaded: appearanceLoaded, updatePreferences } = useAppearanceSettings();
@@ -158,10 +159,49 @@ function SunaAppShell() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [chat.onCancel, chat.onNewConversation, chat.onResume, preferences.showAgentPanel, shortcuts, updatePreferences]);
   useEffect(()=>{const restore=()=>{if(window.location.pathname==='/chat'){const id=new URLSearchParams(window.location.search).get('conversation');if(id)void chat.onSelectConversation(id);}};restore();window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);},[activeSection,chat.onSelectConversation]);
-  const active = getNavigationSection(activeSection);
+  const localizedPrimarySections = useMemo(
+    () => primaryNavigationSections.map((item) => getLocalizedSection(item, t)),
+    [t],
+  );
+  const localizedSidebarManageSections = useMemo(
+    () => sidebarManageSections.map((item) => getLocalizedSection(item, t)),
+    [t],
+  );
+  const localizedAllSections = useMemo(
+    () => navigationSections.map((item) => getLocalizedSection(item, t)),
+    [t],
+  );
+  const active = useMemo(
+    () => getLocalizedSection(getNavigationSection(activeSection), t),
+    [activeSection, t],
+  );
   const activeProfile = chat.chatProfiles.find((profile) => profile.id === chat.activeChatProfileId);
-  const modelLabel = activeProfile?.model_id || activeProfile?.display_name || "未配置模型";
   const go = (id: SectionId) => { setActiveSection(id); setSearchOpen(false); setModelOpen(false); };
+  const prefetchSection = (id: SectionId) => {
+    switch (id) {
+      case "diagnostics": void DiagnosticsPage.preload(); break;
+      case "knowledge": void KnowledgeCenterPage.preload(); break;
+      case "projects": void ResearchProjectsPage.preload(); break;
+      case "literature": void LiteratureResearchPage.preload(); break;
+      case "prediction": void PerformancePredictionPage.preload(); break;
+      case "optimization": void ProcessOptimizationPage.preload(); break;
+      case "mcp": void McpManagementPage.preload(); break;
+      case "experiment": void ExperimentAssistantPage.preload(); break;
+      case "reports": void ResearchReportPage.preload(); break;
+      case "data": void DataLabPage.preload(); break;
+      case "agents":
+      case "tools":
+      case "skills":
+        void CapabilityManagementPage.preload();
+        break;
+      case "settings":
+      case "models":
+      case "account":
+      case "about":
+        void SettingsPage.preload();
+        break;
+    }
+  };
   useEffect(() => {
     const onKnowledgeContext = (event: Event) => {
       const content = (event as CustomEvent<{ content?: unknown }>).detail?.content;
@@ -174,6 +214,37 @@ function SunaAppShell() {
     window.addEventListener("suna:knowledge-context", onKnowledgeContext);
     return () => window.removeEventListener("suna:knowledge-context", onKnowledgeContext);
   }, [chat.onNewConversation, chat.onDraftChange]);
+  useEffect(() => {
+    const onOpenModelLibrary = (event: Event) => {
+      const detail = (event as CustomEvent<{ modelId?: string }>).detail ?? {};
+      go("models");
+      if (detail.modelId) {
+        window.setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("suna:model-library-focus", { detail: { modelId: detail.modelId } }));
+        }, 0);
+      }
+    };
+    const onNavigateSection = (event: Event) => {
+      const section = (event as CustomEvent<{ section?: string }>).detail?.section;
+      if (section) go(section as SectionId);
+    };
+    window.addEventListener("suna:open-model-library", onOpenModelLibrary);
+    window.addEventListener("suna:navigate-section", onNavigateSection);
+    const params = new URLSearchParams(window.location.search);
+    const deepLinkModelId = params.get("model_id")?.trim();
+    if (deepLinkModelId) {
+      go("models");
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("suna:model-library-focus", { detail: { modelId: deepLinkModelId } }),
+        );
+      }, 0);
+    }
+    return () => {
+      window.removeEventListener("suna:open-model-library", onOpenModelLibrary);
+      window.removeEventListener("suna:navigate-section", onNavigateSection);
+    };
+  }, [go]);
   const openConversation = (id: string) => { chat.onSelectConversation(id); go("chat"); };
   const handleSearchSelect = (item: CommandMenuItem) => {
     const conversation = item.payload as { conversation_id?: string } | undefined;
@@ -182,15 +253,15 @@ function SunaAppShell() {
   };
   const content = activeSection === "chat" ? <ChatPage onOpenSection={go} /> : activeSection === "knowledge" ? <KnowledgeCenterPage /> : activeSection === "settings" ? <SettingsPage onOpenDiagnostics={() => go("diagnostics")} /> : activeSection === "diagnostics" ? <DiagnosticsPage /> : <ModuleView section={activeSection} onOpenSettings={() => go("settings")} />;
   const recent = chat.conversations.filter((conversation) => !conversation.archived);
-  const matchingSections = navigationSections.filter((item) => !searchQuery.trim() || `${item.label}${item.description}`.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase()));
-  // 第 72 章：命令面板分组 = 页面与设置 / 对话 / 知识库 / Agent / Skill / MCP / 模型 / 文献。
+  const matchingSections = localizedAllSections.filter((item) => !searchQuery.trim() || `${item.label}${item.description}`.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase()));
+  // 命令面板分组 = 页面与设置 / 对话 / 知识库 / Agent / Skill / MCP / 模型 / 文献。
   const searchGroups: CommandMenuGroup[] = (() => {
     if (!searchQuery.trim()) return [];
     const groups: CommandMenuGroup[] = [];
     if (matchingSections.length > 0) {
       groups.push({
         id: "sections",
-        label: "页面与设置",
+        label: t("searchGroupSections"),
         items: matchingSections.slice(0, 5).map((item) => ({
           id: `section:${item.id}`,
           title: item.label,
@@ -203,7 +274,7 @@ function SunaAppShell() {
     if (searchResults.length > 0) {
       groups.push({
         id: "conversations",
-        label: "对话",
+        label: t("chatTitle"),
         items: searchResults.slice(0, 6).map((hit) => ({
           id: `conversation:${hit.conversation_id}:${hit.message_id}`,
           title: hit.conversation_title,
@@ -215,7 +286,7 @@ function SunaAppShell() {
     }
     groups.push(...filterGlobalEntities(entities, searchQuery));
     if (literatureItems.length > 0) {
-      groups.push({ id: "literature", label: "文献", items: literatureItems });
+      groups.push({ id: "literature", label: t("literatureReference"), items: literatureItems });
     }
     return groups;
   })();
@@ -232,36 +303,36 @@ function SunaAppShell() {
             <span>Steel Research Agent</span>
           </div>
         </div>
-        <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }} title="新建对话" aria-label="新建对话">
+        <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }} title={t("newConversation")} aria-label={t("newConversation")}>
           <div className="suna-new-create-left">
             <Plus size={16} />
-            <span>新对话</span>
+            <span>{t("newConversation")}</span>
           </div>
           <kbd>{shortcuts.newConversation.replace("+", " + ")}</kbd>
         </button>
         <div className="suna-new-nav-scroll">
-          <p className="suna-new-nav-label">研究工作区</p>
-          {primaryNavigationSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}
-          <p className="suna-new-nav-label suna-new-nav-label-more">更多</p>
-          {sidebarManageSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} />)}
+          <p className="suna-new-nav-label">{t("navGroupResearch")}</p>
+          {localizedPrimarySections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} onPrefetch={prefetchSection} />)}
+          <p className="suna-new-nav-label suna-new-nav-label-more">{t("navGroupMore")}</p>
+          {localizedSidebarManageSections.map((item) => <NavButton key={item.id} item={item} active={activeSection} onClick={go} onPrefetch={prefetchSection} />)}
           <div className="suna-new-history-header">
-            <p className="suna-new-nav-label suna-new-nav-label-more">最近对话</p>
+            <p className="suna-new-nav-label suna-new-nav-label-more">{t("navRecentConversations")}</p>
             <button
               type="button"
               className="suna-new-history-archived-toggle"
-              title="查看已归档对话"
-              aria-label="查看已归档对话"
+              title={t("navArchived")}
+              aria-label={t("navArchived")}
               onClick={() => setArchivedOpen(true)}
             >
               <Archive size={12} />
-              <span>已归档</span>
+              <span>{t("navArchived")}</span>
             </button>
           </div>
           <div className="suna-new-history-list">
             {chat.loading ? (
-              <span className="suna-new-history-empty">正在加载...</span>
+              <span className="suna-new-history-empty">{t("loading")}...</span>
             ) : recent.length === 0 ? (
-              <span className="suna-new-history-empty">还没有对话</span>
+              <span className="suna-new-history-empty">{t("navNoConversations")}</span>
             ) : (
               recent.map((conversation) => (
                 <div className="suna-new-history-item-wrap" key={conversation.id}>
@@ -272,14 +343,14 @@ function SunaAppShell() {
                     title={conversation.title}
                   >
                     {conversation.pinned && <Pin size={11} className="suna-new-history-pin-icon" />}
-                    <span className="suna-new-history-title">{conversation.title.trim() || "新建对话"}</span>
+                    <span className="suna-new-history-title">{conversation.title.trim() || t("newConversation")}</span>
                   </button>
                   <div className="suna-new-history-actions">
                     <button
                       type="button"
                       className={`suna-new-history-action ${conversation.pinned ? "is-pinned" : ""}`}
-                      title={conversation.pinned ? "取消置顶" : "置顶对话"}
-                      aria-label={conversation.pinned ? "取消置顶" : "置顶对话"}
+                      title={conversation.pinned ? t("navUnpinConversation") : t("navPinConversation")}
+                      aria-label={conversation.pinned ? t("navUnpinConversation") : t("navPinConversation")}
                       onClick={(e) => {
                         e.stopPropagation();
                         void chat.onToggleConversationPinned(conversation);
@@ -290,11 +361,11 @@ function SunaAppShell() {
                     <button
                       type="button"
                       className="suna-new-history-action"
-                      title="重命名"
-                      aria-label="重命名"
+                      title={t("navRenameConversation")}
+                      aria-label={t("navRenameConversation")}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const nextTitle = window.prompt("输入新的对话标题：", conversation.title);
+                        const nextTitle = window.prompt(t("navRenamePrompt"), conversation.title);
                         if (nextTitle && nextTitle.trim()) {
                           void chat.onRenameConversation(conversation.id, nextTitle.trim());
                         }
@@ -305,8 +376,8 @@ function SunaAppShell() {
                     <button
                       type="button"
                       className="suna-new-history-action"
-                      title="归档对话"
-                      aria-label="归档对话"
+                      title={t("navArchiveConversation")}
+                      aria-label={t("navArchiveConversation")}
                       onClick={(e) => {
                         e.stopPropagation();
                         void chat.onArchiveConversation(conversation.id);
@@ -317,8 +388,8 @@ function SunaAppShell() {
                     <button
                       type="button"
                       className="suna-new-history-action is-danger"
-                      title="删除对话"
-                      aria-label="删除对话"
+                      title={t("navDeleteConversation")}
+                      aria-label={t("navDeleteConversation")}
                       onClick={(e) => {
                         e.stopPropagation();
                         void chat.onDeleteConversation(conversation.id);
@@ -334,18 +405,30 @@ function SunaAppShell() {
         </div>
         <div className="suna-new-sidebar-bottom">
           <button className="suna-new-bottom-link" onClick={() => setSearchOpen(true)}>
-            <Search size={16} />全局搜索 <kbd>{shortcuts.openCommand.replace("+", " + ")}</kbd>
+            <Search size={16} />{t("navGlobalSearch")} <kbd>{shortcuts.openCommand.replace("+", " + ")}</kbd>
           </button>
-          <button className="suna-new-bottom-link" onClick={() => go("settings")}>
-            <Settings2 size={16} />设置中心
+          <button
+            className="suna-new-bottom-link"
+            onClick={() => go("settings")}
+            onMouseEnter={() => prefetchSection("settings")}
+            onFocus={() => prefetchSection("settings")}
+            onPointerDown={() => prefetchSection("settings")}
+          >
+            <Settings2 size={16} />{t("navSettings")}
           </button>
-          <button className="suna-new-user" onClick={() => go("settings")}>
+          <button
+            className="suna-new-user"
+            onClick={() => go("settings")}
+            onMouseEnter={() => prefetchSection("settings")}
+            onFocus={() => prefetchSection("settings")}
+            onPointerDown={() => prefetchSection("settings")}
+          >
             <Avatar className="h-7 w-7 text-xs">
               <AvatarFallback>{accountName.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
               <strong>{accountName}</strong>
-              <small>个人账户</small>
+              <small>{t("navAccount")}</small>
             </div>
             <ChevronRight size={15} />
           </button>

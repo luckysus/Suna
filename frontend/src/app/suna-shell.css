@@ -1972,3 +1972,157 @@
     white-space: nowrap;
   }
 }
+
+/* ==========================================================================
+   Page Loading Skeleton (Industrial Precision Shimmer & Smooth Transitions)
+   ========================================================================== */
+.suna-page-skeleton {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1200px;
+  animation: suna-fade-in 180ms ease-out;
+}
+
+.suna-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+}
+
+.suna-skeleton-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--suna-line-strong);
+  border-top-color: var(--suna-text);
+  animation: suna-spin 700ms linear infinite;
+}
+
+.suna-skeleton-badge {
+  font-size: var(--suna-font-caption);
+  color: var(--suna-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.suna-skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.suna-skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--suna-bg-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.suna-skeleton-line.is-title {
+  width: 240px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.suna-skeleton-line.is-sub {
+  width: 420px;
+  height: 14px;
+}
+
+.suna-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.suna-skeleton-card {
+  height: 160px;
+  border-radius: 8px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.suna-skeleton-line::after,
+.suna-skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: suna-shimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+[data-theme="light"] .suna-skeleton-line::after,
+[data-theme="light"] .suna-skeleton-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    transparent 100%
+  );
+}
+
+.suna-page-load-failed {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  color: var(--suna-text);
+  max-width: 600px;
+  border: 1px solid var(--suna-line);
+  border-radius: 8px;
+  background: var(--suna-bg-soft);
+  margin: 24px 32px;
+}
+
+.suna-page-load-failed button {
+  padding: 6px 16px;
+  border-radius: var(--suna-radius-small, 6px);
+  background: var(--suna-bg-raised);
+  border: 1px solid var(--suna-line);
+  color: var(--suna-text);
+  font-size: var(--suna-font-sub);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.suna-page-load-failed button:hover {
+  background: var(--suna-bg-hover);
+  border-color: var(--suna-line-strong);
+}
+
+@keyframes suna-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes suna-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes suna-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

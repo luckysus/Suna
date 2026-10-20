@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { FolderKanban } from "lucide-react";
 import { desktop, type ResearchProject } from "../../bridge/desktop";
 import { useResearchStore } from "../../stores/researchStore";
+import { useLocale } from "../../i18n/locale";
 
 export default function ResearchProjectContext() {
+    const { t } = useLocale();
     const { currentProject, setProject } = useResearchStore();
     const [projects, setProjects] = useState<ResearchProject[]>([]);
     const [error, setError] = useState("");
@@ -41,30 +43,30 @@ export default function ResearchProjectContext() {
                 <span className={`suna-project-context-indicator ${currentProject ? "is-active" : ""}`} />
                 <label>
                     <FolderKanban size={14} aria-hidden="true" />
-                    <span>当前科研项目</span>
+                    <span>{t("projectContextLabel")}</span>
                     <select
-                        aria-label="当前科研项目"
+                        aria-label={t("projectContextLabel")}
                         value={currentProject?.id ?? ""}
                         onChange={(e) => void select(e.target.value)}
                     >
-                        <option value="">未指定项目</option>
+                        <option value="">{t("projectContextUnspecified")}</option>
                         {projects.map((p) => (
                             <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                         {currentProject && !projects.some(p => p.id === currentProject.id) && (
                             <option value={currentProject.id}>
-                                {currentProject.name}{currentProject.status === "archived" ? "（已归档）" : ""}
+                                {currentProject.name}{currentProject.status === "archived" ? ` (${t("projectContextArchived")})` : ""}
                             </option>
                         )}
                     </select>
                 </label>
                 {currentProject && (
                     <span className="suna-project-context-tag">
-                        {currentProject.materialSystem || "课题上下文生效中"}
+                        {currentProject.materialSystem || t("projectContextActive")}
                     </span>
                 )}
             </div>
-            {error && <span role="status" className="suna-project-context-error">项目上下文暂不可用</span>}
+            {error && <span role="status" className="suna-project-context-error">{t("projectContextUnavailable")}</span>}
         </div>
     );
 }

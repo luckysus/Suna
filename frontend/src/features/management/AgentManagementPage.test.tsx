@@ -22,7 +22,7 @@ describe("AgentManagementPage", () => {
     vi.clearAllMocks();
     vi.mocked(desktop.listAgentProfiles).mockResolvedValue([profile]);
     vi.mocked(desktop.listAgentProfilePresets).mockResolvedValue([profile]);
-    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([{ id: "provider-1", display_name: "研究模型", model_id: "model-x", enabled: true, kind: "open_ai_compatible", base_url: "http://localhost", revision: 1, secret_generation: 0, secret_configured: false }]);
+    vi.mocked(desktop.listProviderProfiles).mockResolvedValue([{ id: "provider-1", display_name: "研究模型", model_id: "model-x", enabled: true, kind: "open_ai_compatible", base_url: "http://localhost", revision: 1, secret_generation: 0, secret_configured: false, model_type: "chat", source: "remote", status: "active", metadata_json: "{}", default_for: ["chat"] }]);
     vi.mocked(desktop.listToolCapabilities).mockResolvedValue([{ id: "steel.knowledge_search", name: "知识检索", description: "真实检索工具", source: "builtin", enabled: true }]);
     vi.mocked(desktop.listMcpServers).mockResolvedValue([]);
     vi.mocked(desktop.listAgentSchedules).mockResolvedValue([]);

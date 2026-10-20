@@ -26,6 +26,7 @@ import {
   profileForSlot,
   providerErrorMessage,
   setSettingValue,
+  emitProviderProfilesChanged,
   type ProviderSlot,
   type ProviderRuntimeMeta,
   type RetrievalIds,
@@ -33,6 +34,14 @@ import {
   type SettingsEditor,
 } from "./settingsModel";
 import { settingsErrorMessage } from "./settingsError";
+import type { ProfileModelType } from "../../bridge/desktop";
+
+function modelTypeForSlot(slot: ProviderSlot): ProfileModelType {
+  if (slot === "mineru") return "document_parser";
+  if (slot === "reranker") return "rerank";
+  if (slot === "embedding") return "embedding";
+  return "chat";
+}
 import { normalizeAgentPreferences } from "./SettingsAgentPanel";
 import "./settings.css";
 interface SettingsPageProps { onOpenDiagnostics?: () => void; initialTab?: SettingsTab; }
@@ -386,6 +395,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
         model_id: editor.modelId || null,
         credential_name: credentialName,
         enabled: editor.enabled,
+        model_type: modelTypeForSlot(editor.slot),
       };
       const saved = await desktop.saveProviderProfile(input);
       if (credentialName && editor.apiKey.trim()) {
@@ -424,6 +434,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
         secretConfigured: saved.secret_configured || Boolean(editor.apiKey.trim()),
       });
       setNotice(t("settingsSaved"));
+      emitProviderProfilesChanged();
     } catch (cause) {
       setError(settingsErrorMessage(cause, t("settingsSaveError")));
     } finally {
@@ -463,6 +474,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
       setRetrievalIds(nextIds);
       if (editor.slot !== "chat") await persistRetrieval(plan, nextIds);
       setNotice(t("settingsDeleted"));
+      emitProviderProfilesChanged();
     } catch (cause) {
       setError(settingsErrorMessage(cause, t("settingsDeleteError")));
     } finally {

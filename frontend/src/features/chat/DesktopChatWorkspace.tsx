@@ -32,6 +32,7 @@ import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
 import CitationPanel from "./CitationPanel";
 import ChatModelParameters from "./ChatModelParameters";
+import ModelSelector from "../settings/modelLibrary/ModelSelector";
 import type { AgentPermissionView, AgentRunView } from "./agentEvents";
 import type { ChatControllerProps } from "./chatController";
 import AgentRunInspector from "./AgentRunInspector";
@@ -369,7 +370,7 @@ export default function DesktopChatWorkspace({
   };
 
   return (
-    <section className={`suna-chat ${preferences.showAgentPanel ? "" : "has-agent-panel-hidden"}`} aria-label="本地智能体对话">
+    <section className={`suna-chat ${preferences.showAgentPanel ? "" : "has-agent-panel-hidden"}`} aria-label={t("chatAriaLabel")}>
       <main className="suna-chat-main">
         {controller.selectedConversation && (
           <header className="suna-chat-header" style={{ justifyContent: "space-between" }}>
@@ -398,39 +399,39 @@ export default function DesktopChatWorkspace({
             <div className="suna-chat-empty suna-chat-empty-large suna-new-welcome">
               <div className="suna-welcome-brand">
                 <span className="suna-welcome-mark"><SunaLogo size={52} title="Suna" /></span>
-                <div><strong>Suna</strong><small>钢铁材料研发智能助手</small></div>
+                <div><strong>Suna</strong><small>{t("welcomeSubtitle")}</small></div>
               </div>
-              <h1>你好，我是 <em>Suna</em></h1>
-              <p>我可以帮助你进行钢铁材料的专业分析与问答，覆盖材料、工艺、性能、文献和数据等多个领域。</p>
+              <h1>{t("welcomeHeading")} <em>Suna</em></h1>
+              <p>{t("welcomeDesc")}</p>
               <div
                 className="suna-welcome-suggestion-box"
                 role="button"
                 tabIndex={0}
-                onClick={() => controller.onDraftChange("比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。")}
+                onClick={() => controller.onDraftChange(t("welcomeExampleQuestion"))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
-                    controller.onDraftChange("比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。");
+                    controller.onDraftChange(t("welcomeExampleQuestion"));
                   }
                 }}
               >
-                <span className="suna-welcome-compat-copy">从一个具体问题开始</span>
-                <span className="suna-welcome-compat-copy">例如：比较 Q345B 与 Q355B 的屈服强度要求，并指出适用标准。</span>
+                <span className="suna-welcome-compat-copy">{t("welcomeStartQuestion")}</span>
+                <span className="suna-welcome-compat-copy">{t("welcomeExampleQuestion")}</span>
                 <b>→</b>
               </div>
               <div className="suna-welcome-cards">
                 {[
-                  { icon: "◈", title: "材料分析", text: "成分、组织与性能关联分析" },
-                  { icon: "▤", title: "文献研究", text: "文献检索、总结、对比" },
-                  { icon: "▥", title: "数据分析", text: "数据处理、分析、可视化" },
-                  { icon: "△", title: "性能预测", text: "多模型预测材料性能" },
-                  { icon: "✥", title: "工艺优化", text: "多目标优化算法" },
-                  { icon: "♜", title: "实验设计", text: "智能设计实验方案" },
+                  { icon: "◈", title: t("welcomeCardMaterial"), text: t("welcomeCardMaterialDesc") },
+                  { icon: "▤", title: t("welcomeCardLiterature"), text: t("welcomeCardLiteratureDesc") },
+                  { icon: "▥", title: t("welcomeCardData"), text: t("welcomeCardDataDesc") },
+                  { icon: "△", title: t("welcomeCardPrediction"), text: t("welcomeCardPredictionDesc") },
+                  { icon: "✥", title: t("welcomeCardOptimization"), text: t("welcomeCardOptimizationDesc") },
+                  { icon: "♜", title: t("welcomeCardExperiment"), text: t("welcomeCardExperimentDesc") },
                 ].map((item) => (
                   <button
                     type="button"
                     className="suna-welcome-card"
                     key={item.title}
-                    onClick={() => controller.onDraftChange(`${item.title}：`)}
+                    onClick={() => controller.onDraftChange(`${item.title}: `)}
                   >
                     <span>{item.icon}</span>
                     <strong>{item.title}</strong>
@@ -515,9 +516,9 @@ export default function DesktopChatWorkspace({
           />
           <div className="suna-chat-composer-footer">
             <div className="suna-chat-composer-tools">
-              <button type="button" className={`suna-chat-composer-tool ${controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled ? "is-active" : ""}`} aria-label="智能搜索" aria-pressed={controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled} title="使用本地知识库检索" onClick={controller.onToggleSmartSearch} disabled={controller.pendingQuestion !== null}><Globe size={15} /><span>智能搜索</span></button>
-              <button type="button" className="suna-chat-composer-tool" aria-label="添加图片" title="添加图片" onClick={() => imageInputRef.current?.click()} disabled={controller.pendingQuestion !== null}><MessageSquarePlus size={15} /><span>图片</span></button>
-              <button type="button" className="suna-chat-composer-tool" aria-label="添加附件" title="添加 PDF、Office、Markdown 或文本附件" onClick={() => void pickNativeAttachments()} disabled={controller.pendingQuestion !== null}><FileText size={15} /><span>附件</span></button>
+              <button type="button" className={`suna-chat-composer-tool ${controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled ? "is-active" : ""}`} aria-label={t("smartSearch")} aria-pressed={controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled} title={t("smartSearchTitle")} onClick={controller.onToggleSmartSearch} disabled={controller.pendingQuestion !== null}><Globe size={15} /><span>{t("smartSearch")}</span></button>
+              <button type="button" className="suna-chat-composer-tool" aria-label={t("imageButton")} title={t("imageButton")} onClick={() => imageInputRef.current?.click()} disabled={controller.pendingQuestion !== null}><MessageSquarePlus size={15} /><span>{t("imageButton")}</span></button>
+              <button type="button" className="suna-chat-composer-tool" aria-label={t("attachments")} title={t("attachments")} onClick={() => void pickNativeAttachments()} disabled={controller.pendingQuestion !== null}><FileText size={15} /><span>{t("attachments")}</span></button>
               <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={onFileInputChange} />
               <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown,.json,.html,.htm" multiple hidden onChange={onFileInputChange} />
             </div>
@@ -527,51 +528,52 @@ export default function DesktopChatWorkspace({
                   <button
                     type="button"
                     className="suna-chat-composer-tool"
-                    aria-label="追加消息"
-                    title="在本轮结束后追加消息"
+                    aria-label={t("followUp")}
+                    title={t("chatFollowUpAria")}
                     disabled={!controller.draft.trim()}
                     onClick={() => void controller.onFollowUp(controller.draft)}
                   >
-                    <CornerDownLeft size={15} aria-hidden="true" /><span>追加</span>
+                    <CornerDownLeft size={15} aria-hidden="true" /><span>{t("followUp")}</span>
                   </button>
                   <button
                     type="button"
                     className="suna-chat-composer-tool"
-                    aria-label="转向当前运行"
-                    title="转向当前运行"
+                    aria-label={t("steer")}
+                    title={t("chatSteerAria")}
                     disabled={!controller.draft.trim()}
                     onClick={() => void controller.onSteer(controller.draft)}
                   >
-                    <ArrowUp size={15} aria-hidden="true" /><span>转向</span>
+                    <ArrowUp size={15} aria-hidden="true" /><span>{t("steer")}</span>
                   </button>
                 </>
               )}
               <div className="suna-chat-model-picker">
                 {modelMenuOpen && (
-                  <div className="suna-chat-model-menu" role="menu">
-                    {controller.chatProfiles.length === 0 ? <span className="suna-chat-model-empty">请先在设置中配置聊天模型</span> : controller.chatProfiles.map((profile) => (
-                      <button type="button" role="menuitem" className={profile.id === controller.activeChatProfileId ? "is-active" : ""} key={profile.id} onClick={() => { setModelMenuOpen(false); controller.onSelectChatProfile(profile.id); }}>
-                        <span>{profile.model_id || profile.display_name}</span>
-                        {profile.id === controller.activeChatProfileId && <Check size={14} />}
-                      </button>
-                    ))}
-                  </div>
+                  <ModelSelector
+                    profiles={controller.chatProfiles}
+                    activeId={controller.activeChatProfileId}
+                    filterType="chat"
+                    onSelect={(profileId) => {
+                      setModelMenuOpen(false);
+                      controller.onSelectChatProfile(profileId);
+                    }}
+                  />
                 )}
-                <button type="button" className="suna-chat-model-button" aria-label="切换当前对话模型" title="切换当前对话模型" aria-expanded={modelMenuOpen} onClick={() => { setModelMenuOpen((open) => !open); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
+                <button type="button" className="suna-chat-model-button" aria-label={t("chatSwitchModel")} title={t("chatSwitchModel")} aria-expanded={modelMenuOpen} onClick={() => { setModelMenuOpen((open) => !open); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
                   <span>{selectedModel}</span><ChevronDown size={14} className={modelMenuOpen ? "is-open" : undefined} />
                 </button>
               </div>
               <div className="suna-chat-model-picker">
                 {paramsOpen && <ChatModelParameters providerLabel={providerLabel} modelLabel={selectedModel} />}
-                <button type="button" className="suna-chat-model-button" aria-label="模型参数" title="调整 Temperature、Context、Max Tokens" aria-expanded={paramsOpen} onClick={() => { setParamsOpen((open) => !open); setModelMenuOpen(false); setAgentMenuOpen(false); setKnowledgeMenuOpen(false); }} disabled={controller.pendingQuestion !== null}>
-                  <SlidersHorizontal size={14} /><span>参数</span>
+                <button type="button" className="suna-chat-model-button" aria-label={t("chatModelParams")} title={t("chatModelParamsDesc")} aria-expanded={paramsOpen} onClick={() => { setParamsOpen((open) => !open); setModelMenuOpen(false); setAgentMenuOpen(false); setKnowledgeMenuOpen(false); }} disabled={controller.pendingQuestion !== null}>
+                  <SlidersHorizontal size={14} /><span>{t("parameters")}</span>
                 </button>
               </div>
               <div className="suna-chat-model-picker">
                 {agentMenuOpen && (
                   <div className="suna-chat-model-menu" role="menu">
                     <button type="button" role="menuitem" className={controller.activeAgentId === null ? "is-active" : ""} onClick={() => { setAgentMenuOpen(false); controller.onSelectAgent(null); }}>
-                      <span>自动选择 Agent</span>{controller.activeAgentId === null && <Check size={14} />}
+                      <span>{t("autoAgentSelect")}</span>{controller.activeAgentId === null && <Check size={14} />}
                     </button>
                     {controller.agentProfiles.map((profile) => (
                       <button type="button" role="menuitem" className={profile.id === controller.activeAgentId ? "is-active" : ""} key={profile.id} onClick={() => { setAgentMenuOpen(false); controller.onSelectAgent(profile.id); }}>
@@ -580,26 +582,26 @@ export default function DesktopChatWorkspace({
                     ))}
                   </div>
                 )}
-                <button type="button" className="suna-chat-model-button" aria-label="选择 Agent" title="选择本轮使用的 Agent" aria-expanded={agentMenuOpen} onClick={() => { setAgentMenuOpen((open) => !open); setModelMenuOpen(false); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
-                  <span>{controller.activeAgentId ? controller.agentProfiles.find((profile) => profile.id === controller.activeAgentId)?.name ?? controller.activeAgentId : "自动 Agent"}</span><ChevronDown size={14} className={agentMenuOpen ? "is-open" : undefined} />
+                <button type="button" className="suna-chat-model-button" aria-label={t("chatSelectAgent")} title={t("chatSelectAgent")} aria-expanded={agentMenuOpen} onClick={() => { setAgentMenuOpen((open) => !open); setModelMenuOpen(false); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
+                  <span>{controller.activeAgentId ? controller.agentProfiles.find((profile) => profile.id === controller.activeAgentId)?.name ?? controller.activeAgentId : t("autoAgent")}</span><ChevronDown size={14} className={agentMenuOpen ? "is-open" : undefined} />
                 </button>
               </div>
               <div className="suna-chat-model-picker">
                 {knowledgeMenuOpen && (
-                  <div className="suna-chat-model-menu suna-chat-knowledge-menu" role="menu" aria-label="选择知识库和检索范围">
-                    {controller.knowledgeBases.length === 0 ? <span className="suna-chat-model-empty">暂无可用知识库</span> : controller.knowledgeBases.map((base) => {
+                  <div className="suna-chat-model-menu suna-chat-knowledge-menu" role="menu" aria-label={t("chatScopeFilters")}>
+                    {controller.knowledgeBases.length === 0 ? <span className="suna-chat-model-empty">{t("noKnowledgeBases")}</span> : controller.knowledgeBases.map((base) => {
                       const checked = controller.selectedKnowledgeBaseIds.includes(base.id);
                       return <button type="button" role="menuitemcheckbox" aria-checked={checked} className={checked ? "is-active" : ""} key={base.id} onClick={() => controller.onSelectKnowledgeBases(checked ? controller.selectedKnowledgeBaseIds.filter((id) => id !== base.id) : [...controller.selectedKnowledgeBaseIds, base.id])}><span>{base.name}</span>{checked && <Check size={14} />}</button>;
                     })}
-                    <div className="suna-chat-knowledge-filters" role="group" aria-label="检索范围筛选">
-                      <span className="suna-chat-knowledge-filters-title">检索范围</span>
+                    <div className="suna-chat-knowledge-filters" role="group" aria-label={t("chatScopeFilters")}>
+                      <span className="suna-chat-knowledge-filters-title">{t("searchScope")}</span>
                       {([
-                        ["document_type", "文档类型"],
-                        ["material", "材料"],
-                        ["process", "工艺"],
-                        ["property", "性能"],
-                        ["year", "年份"],
-                        ["tag", "标签"],
+                        ["document_type", t("filterDocType")],
+                        ["material", t("filterMaterial")],
+                        ["process", t("filterProcess")],
+                        ["property", t("filterProperty")],
+                        ["year", t("filterYear")],
+                        ["tag", t("filterTag")],
                       ] as const).map(([key, label]) => (
                         <Input
                           key={key}
@@ -615,12 +617,12 @@ export default function DesktopChatWorkspace({
                           }}
                         />
                       ))}
-                      <button type="button" className="suna-chat-knowledge-clear" onClick={() => controller.onSelectKnowledgeFilters({})}>清除筛选</button>
+                      <button type="button" className="suna-chat-knowledge-clear" onClick={() => controller.onSelectKnowledgeFilters({})}>{t("chatClearFilters")}</button>
                     </div>
                   </div>
                 )}
-                <button type="button" className="suna-chat-model-button" aria-label="选择知识库" title="选择本轮检索的知识库" aria-expanded={knowledgeMenuOpen} onClick={() => { setKnowledgeMenuOpen((open) => !open); setModelMenuOpen(false); setAgentMenuOpen(false); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
-                  <span>{controller.selectedKnowledgeBaseIds.length === 0 ? "无知识库" : controller.selectedKnowledgeBaseIds.length === controller.knowledgeBases.length ? "全部知识库" : `知识库 ${controller.selectedKnowledgeBaseIds.length}`}</span><ChevronDown size={14} className={knowledgeMenuOpen ? "is-open" : undefined} />
+                <button type="button" className="suna-chat-model-button" aria-label={t("chatSelectKnowledge")} title={t("chatSelectKnowledge")} aria-expanded={knowledgeMenuOpen} onClick={() => { setKnowledgeMenuOpen((open) => !open); setModelMenuOpen(false); setAgentMenuOpen(false); setParamsOpen(false); }} disabled={controller.pendingQuestion !== null}>
+                  <span>{controller.selectedKnowledgeBaseIds.length === 0 ? t("chatNoKnowledge") : controller.selectedKnowledgeBaseIds.length === controller.knowledgeBases.length ? t("chatAllKnowledge") : t("chatKnowledgeCount", { count: controller.selectedKnowledgeBaseIds.length })}</span><ChevronDown size={14} className={knowledgeMenuOpen ? "is-open" : undefined} />
                 </button>
               </div>
               <button type={controller.pendingQuestion ? "button" : "submit"} className={`suna-chat-send-button ${controller.pendingQuestion ? "is-stop" : ""}`} aria-label={controller.pendingQuestion ? t("stopGenerating") : t("send")} title={controller.pendingQuestion ? t("stopGenerating") : t("send")} disabled={!controller.pendingQuestion && !controller.draft.trim() && controller.attachments.length === 0} onClick={controller.pendingQuestion ? controller.onCancel : undefined}>

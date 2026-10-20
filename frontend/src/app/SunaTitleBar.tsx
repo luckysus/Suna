@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../bridge/desktop";
+import { useLocale } from "../i18n/locale";
 
 function Glyph({ d }: { d: string }) {
   return (
@@ -10,6 +11,7 @@ function Glyph({ d }: { d: string }) {
 }
 
 export default function SunaTitleBar() {
+  const { t } = useLocale();
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -33,19 +35,19 @@ export default function SunaTitleBar() {
 
   return (
     <div className="suna-titlebar" data-tauri-drag-region>
-      <button type="button" className="suna-titlebar-button" aria-label="最小化" title="最小化" onClick={() => void desktop.minimizeMainWindow()}>
+      <button type="button" className="suna-titlebar-button" aria-label={t("windowMinimize")} title={t("windowMinimize")} onClick={() => void desktop.minimizeMainWindow()}>
         <Glyph d="M0 5h10" />
       </button>
       <button
         type="button"
         className="suna-titlebar-button"
-        aria-label={maximized ? "向下还原" : "最大化"}
-        title={maximized ? "向下还原" : "最大化"}
+        aria-label={maximized ? t("windowRestore") : t("windowMaximize")}
+        title={maximized ? t("windowRestore") : t("windowMaximize")}
         onClick={() => void desktop.toggleMainWindowMaximize()}
       >
         <Glyph d={maximized ? "M2.5 0.5h7v7M0.5 2.5h7v7h-7z" : "M0.5 0.5h9v9h-9z"} />
       </button>
-      <button type="button" className="suna-titlebar-button is-close" aria-label="关闭" title="关闭" onClick={() => void desktop.closeMainWindow()}>
+      <button type="button" className="suna-titlebar-button is-close" aria-label={t("windowClose")} title={t("windowClose")} onClick={() => void desktop.closeMainWindow()}>
         <Glyph d="M0 0l10 10M10 0L0 10" />
       </button>
     </div>

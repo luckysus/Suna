@@ -3,6 +3,7 @@ import { Archive, Clock, ExternalLink, RotateCcw, Search, Trash2 } from "lucide-
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { desktop, type Conversation } from "../../bridge/desktop";
+import { useLocale } from "../../i18n/locale";
 
 interface ArchivedConversationsDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ export default function ArchivedConversationsDialog({
   onOpenChange,
   onSelectConversation,
 }: ArchivedConversationsDialogProps) {
+  const { t } = useLocale();
   const [archived, setArchived] = useState<Conversation[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,7 +62,7 @@ export default function ArchivedConversationsDialog({
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("确定永久删除此归档对话吗？删除后将无法恢复。")) return;
+    if (!window.confirm(t("archivedDeleteConfirm"))) return;
     try {
       await desktop.deleteConversationLocal(id);
       void fetchArchived();
@@ -85,13 +87,13 @@ export default function ArchivedConversationsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <Archive size={18} className="text-primary" />
-            <span>已归档对话</span>
+            <span>{t("archivedDialogTitle")}</span>
             <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
               {archived.length}
             </span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            归档对话不会在侧边栏最近列表中展示，历史记录完整保留，可随时恢复至最近列表或永久删除。
+            {t("archivedDialogDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -100,18 +102,18 @@ export default function ArchivedConversationsDialog({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索归档对话标题..."
+            placeholder={t("archivedSearchPlaceholder")}
             className="h-8 pl-8 text-xs"
           />
         </div>
 
         <div className="mt-2 max-h-[360px] min-h-[160px] overflow-y-auto space-y-1.5 pr-1">
           {loading ? (
-            <div className="flex h-36 items-center justify-center text-xs text-muted-foreground">正在加载归档对话...</div>
+            <div className="flex h-36 items-center justify-center text-xs text-muted-foreground">{t("archivedLoading")}</div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Archive size={28} className="opacity-30 mb-2" />
-              <p className="text-xs font-medium">{search ? "没有匹配的归档对话" : "暂无已归档对话"}</p>
+              <p className="text-xs font-medium">{search ? t("archivedNoMatch") : t("archivedEmpty")}</p>
             </div>
           ) : (
             filtered.map((item) => (
@@ -120,7 +122,7 @@ export default function ArchivedConversationsDialog({
                 className="group flex items-center justify-between rounded-md border border-border/60 bg-card/60 p-2.5 transition-colors hover:bg-accent/40"
               >
                 <div className="min-w-0 flex-1 pr-3">
-                  <p className="truncate text-xs font-medium text-foreground">{item.title || "未命名对话"}</p>
+                  <p className="truncate text-xs font-medium text-foreground">{item.title || t("archivedUntitle")}</p>
                   <p className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground mt-0.5">
                     <Clock size={11} />
                     <span>{formatDate(item.updated_at || item.created_at)}</span>
@@ -129,16 +131,16 @@ export default function ArchivedConversationsDialog({
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
-                    title="恢复并打开对话"
+                    title={t("archivedRestoreAndOpen")}
                     onClick={() => void handleRestoreAndOpen(item.id)}
                     className="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
                   >
                     <ExternalLink size={12} />
-                    <span>恢复并打开</span>
+                    <span>{t("archivedRestoreAndOpen")}</span>
                   </button>
                   <button
                     type="button"
-                    title="仅恢复到最近对话"
+                    title={t("archivedRestoreOnly")}
                     onClick={() => void handleRestore(item.id)}
                     className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
@@ -146,7 +148,7 @@ export default function ArchivedConversationsDialog({
                   </button>
                   <button
                     type="button"
-                    title="永久删除"
+                    title={t("archivedPermanentDelete")}
                     onClick={() => void handleDelete(item.id)}
                     className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
                   >

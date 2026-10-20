@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Bot, Check, CircleHelp, Cloud, Database, LoaderCircle, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Bot, Check, CircleHelp, Cloud, Database, LoaderCircle, Sparkles } from "lucide-react";
 import { useLocale } from "../../i18n/locale";
 import SettingsProviderCard from "./SettingsProviderCard";
-import ModelRuntimeSettings from "./ModelRuntimeSettings";
 import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import type { ProviderSlot, RetrievalPlan, SettingsEditor } from "./settingsModel";
 
@@ -17,7 +16,6 @@ export default function SettingsProvidersPanel({
   onTest,
   onDelete,
   onPlanChange,
-  showRuntimeTab,
 }: {
   plan: RetrievalPlan;
   loading: boolean;
@@ -29,7 +27,6 @@ export default function SettingsProvidersPanel({
   onTest: (editor: SettingsEditor) => void;
   onDelete: (editor: SettingsEditor) => void;
   onPlanChange: (plan: RetrievalPlan) => void;
-  showRuntimeTab?: boolean;
 }) {
   const { t } = useLocale();
   const defaultSlot = editors[0]?.slot ?? "chat";
@@ -92,24 +89,6 @@ export default function SettingsProvidersPanel({
           </div>
         </button>
 
-        {showRuntimeTab && (
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "runtime"}
-            className={`suna-model-segment-btn ${activeTab === "runtime" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("runtime")}
-          >
-            <span className="suna-model-segment-icon slot-runtime"><SlidersHorizontal size={15} /></span>
-            <div className="suna-model-segment-text">
-              <div className="suna-model-segment-title-row">
-                <span className="suna-model-segment-name">推理参数</span>
-                <span className="suna-model-segment-dot is-ready" />
-              </div>
-              <span className="suna-model-segment-sub">采样温 / 上下文</span>
-            </div>
-          </button>
-        )}
       </div>
 
       {loading ? (
@@ -170,11 +149,6 @@ export default function SettingsProvidersPanel({
             </section>
           </div>
 
-          {showRuntimeTab && (
-            <div className={`suna-model-tab-pane ${activeTab === "runtime" ? "is-active" : "is-inactive"}`}>
-              <ModelRuntimeSettings />
-            </div>
-          )}
         </div>
       )}
 

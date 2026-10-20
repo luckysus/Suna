@@ -50,6 +50,29 @@ const slotDescriptions: Record<ProviderSlot, string> = {
   mineru: "负责深度解析学术论文 PDF、公式、复杂表格及微观图谱",
 };
 
+const KIND_LABELS: Record<ProviderKind, string> = {
+  deepseek: "DeepSeek",
+  anthropic: "Anthropic",
+  qwen: "阿里百炼 Qwen",
+  open_ai_compatible: "OpenAI Compatible",
+  ollama: "Ollama",
+  siliconflow: "SiliconFlow",
+  mineru: "MinerU",
+};
+
+/** Select must always contain the current kind — catalog can set kinds outside the old short lists. */
+function kindOptionsForSlot(slot: ProviderSlot, current: ProviderKind): ProviderKind[] {
+  const base: ProviderKind[] =
+    slot === "chat"
+      ? ["deepseek", "anthropic", "qwen", "open_ai_compatible", "ollama", "siliconflow"]
+      : slot === "embedding"
+        ? ["siliconflow", "qwen", "open_ai_compatible", "ollama"]
+        : slot === "reranker"
+          ? ["siliconflow", "qwen", "open_ai_compatible"]
+          : ["mineru"];
+  return base.includes(current) ? base : [...base, current];
+}
+
 interface SettingsProviderCardProps {
   editor: SettingsEditor;
   busy: boolean;
@@ -58,6 +81,10 @@ interface SettingsProviderCardProps {
   onSubmit: (event: FormEvent<HTMLFormElement>, editor: SettingsEditor) => void;
   onTest: (editor: SettingsEditor) => void;
   onDelete: (editor: SettingsEditor) => void;
+  hideEnabledToggle?: boolean;
+  hideDelete?: boolean;
+  hideApiKey?: boolean;
+  hideCardActions?: boolean;
 }
 
 export default function SettingsProviderCard({
@@ -68,6 +95,10 @@ export default function SettingsProviderCard({
   onSubmit,
   onTest,
   onDelete,
+  hideEnabledToggle = false,
+  hideDelete = false,
+  hideApiKey = false,
+  hideCardActions = false,
 }: SettingsProviderCardProps) {
   const { t } = useLocale();
   const [showKey, setShowKey] = useState(false);
@@ -91,7 +122,11 @@ export default function SettingsProviderCard({
     const preset = retrieval
       ? kind === "qwen"
         ? { displayName: "阿里百炼", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", modelId: editor.slot === "embedding" ? "qwen3.7-text-embedding" : "qwen3.7-text-rerank" }
-        : { displayName: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", modelId: editor.slot === "embedding" ? "BAAI/bge-m3" : "BAAI/bge-reranker-v2-m3" }
+        : kind === "ollama"
+          ? { displayName: "Ollama", baseUrl: "http://127.0.0.1:11434", modelId: editor.slot === "embedding" ? "nomic-embed-text" : editor.modelId }
+          : kind === "open_ai_compatible"
+            ? { displayName: "OpenAI Compatible", baseUrl: "https://api.openai.com/v1", modelId: editor.slot === "embedding" ? "text-embedding-3-small" : "BAAI/bge-reranker-v2-m3" }
+            : { displayName: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", modelId: editor.slot === "embedding" ? "BAAI/bge-m3" : "BAAI/bge-reranker-v2-m3" }
       : kind === "deepseek"
       ? { displayName: "DeepSeek", baseUrl: "https://api.deepseek.com", modelId: "deepseek-v4-flash" }
       : kind === "anthropic"
@@ -100,9 +135,13 @@ export default function SettingsProviderCard({
           ? { displayName: "Qwen", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", modelId: "qwen-plus" }
           : kind === "ollama"
             ? { displayName: "Ollama", baseUrl: "http://127.0.0.1:11434", modelId: "qwen3" }
-            : { displayName: "OpenAI Compatible", baseUrl: "https://api.openai.com/v1", modelId: "gpt-4o-mini" };
+            : kind === "siliconflow"
+              ? { displayName: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", modelId: "deepseek-ai/DeepSeek-V3" }
+              : { displayName: "OpenAI Compatible", baseUrl: "https://api.openai.com/v1", modelId: "gpt-4o-mini" };
     onChange({ ...editor, kind, ...preset });
   };
+
+  const kindOptions = kindOptionsForSlot(editor.slot, editor.kind);
 
   const slotKickers: Record<ProviderSlot, string> = {
     chat: "LLM REASONING",
@@ -132,12 +171,14 @@ export default function SettingsProviderCard({
             <p className="suna-settings-card-role-desc">{slotDescriptions[editor.slot]}</p>
           </div>
         </div>
-        <div className="suna-settings-card-heading-right">
-          <label className="suna-settings-enabled">
-            <Checkbox aria-label={t("settingsEnabled")} checked={editor.enabled} onCheckedChange={(value) => update("enabled", value === true)} />
-            {t("settingsEnabled")}
-          </label>
-        </div>
+        {!hideEnabledToggle && (
+          <div className="suna-settings-card-heading-right">
+            <label className="suna-settings-enabled">
+              <Checkbox aria-label={t("settingsEnabled")} checked={editor.enabled} onCheckedChange={(value) => update("enabled", value === true)} />
+              {t("settingsEnabled")}
+            </label>
+          </div>
+        )}
       </div>
 
       {presets.length > 0 && (
@@ -167,20 +208,21 @@ export default function SettingsProviderCard({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {editor.slot === "chat" ? (
-                    <>
-                      <SelectItem value="deepseek">{t("providerDeepSeek")}</SelectItem>
-                      <SelectItem value="anthropic">{t("providerAnthropic")}</SelectItem>
-                      <SelectItem value="qwen">{t("providerQwen")}</SelectItem>
-                      <SelectItem value="open_ai_compatible">{t("providerOpenAiCompatible")}</SelectItem>
-                      <SelectItem value="ollama">{t("providerOllama")}</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="siliconflow">SiliconFlow</SelectItem>
-                      <SelectItem value="qwen">阿里百炼 Qwen</SelectItem>
-                    </>
-                  )}
+                  {kindOptions.map((kind) => (
+                    <SelectItem key={kind} value={kind}>
+                      {kind === "deepseek"
+                        ? t("providerDeepSeek")
+                        : kind === "anthropic"
+                          ? t("providerAnthropic")
+                          : kind === "qwen"
+                            ? t("providerQwen")
+                            : kind === "open_ai_compatible"
+                              ? t("providerOpenAiCompatible")
+                              : kind === "ollama"
+                                ? t("providerOllama")
+                                : KIND_LABELS[kind]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -216,6 +258,7 @@ export default function SettingsProviderCard({
           )}
         </div>
 
+        {!hideApiKey && (
         <div className="suna-settings-field-full">
           <div className="suna-settings-field-header-row">
             <label htmlFor={`settings-${editor.slot}-key`}>{t("settingsApiKey")}</label>
@@ -241,6 +284,7 @@ export default function SettingsProviderCard({
           />
           <span className="suna-settings-field-security-note">API Key 将加密写入操作系统凭据管理器，不会以明文暴露，确保科研环境安全合规。</span>
         </div>
+        )}
 
         {editor.slot === "chat" && (
           <div className="suna-settings-fields-row-2">
@@ -256,11 +300,13 @@ export default function SettingsProviderCard({
         )}
       </div>
 
+      {!hideCardActions && (
       <div className="suna-settings-card-actions">
         <Button variant="action" type="submit" disabled={busy}><Save size={16} aria-hidden="true" />{busy ? t("saving") : t("settingsSave")}</Button>
         <Button variant="actionSecondary" type="button" onClick={() => void onTest(editor)} disabled={testing || busy}><PlugZap size={16} aria-hidden="true" />{testing ? t("testing") : t("settingsTest")}</Button>
-        {editor.id && <Button size="icon" className="suna-settings-delete" type="button" onClick={() => void onDelete(editor)} disabled={busy} aria-label={`${t("settingsDelete")} ${editor.displayName}`} title={t("settingsDelete")}><Trash2 size={16} aria-hidden="true" /></Button>}
+        {editor.id && !hideDelete && <Button size="icon" className="suna-settings-delete" type="button" onClick={() => void onDelete(editor)} disabled={busy} aria-label={`${t("settingsDelete")} ${editor.displayName}`} title={t("settingsDelete")}><Trash2 size={16} aria-hidden="true" /></Button>}
       </div>
+      )}
     </form>
   );
 }

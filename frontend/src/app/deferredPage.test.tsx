@@ -30,3 +30,9 @@ it('does not let a late previous module replace the current page',async()=>{
   const node=render(<Old/>);await waitFor(()=>expect(release).toBeDefined());node.rerender(<Current/>);await screen.findByText('当前科研页面');
   await act(async()=>release({default:()=> <p>过期页面</p>}));expect(screen.getByText('当前科研页面')).toBeInTheDocument();expect(screen.queryByText('过期页面')).not.toBeInTheDocument();
 });
+it('supports preload to fetch component in advance without mounting',async()=>{
+  const importer=vi.fn().mockResolvedValue({default:()=><p>预热组件</p>});
+  const Page=deferredPage(importer);expect(importer).not.toHaveBeenCalled();
+  await Page.preload();expect(importer).toHaveBeenCalledTimes(1);
+  render(<Page/>);expect(screen.getByText('预热组件')).toBeInTheDocument();expect(screen.queryByRole('status')).not.toBeInTheDocument();
+});

@@ -125,8 +125,8 @@ fn profile_repository_is_workspace_scoped() {
         Some("BAAI/bge-reranker-v2-m3"),
     );
 
-    let saved =
-        provider_profiles::save(&mut connection, WORKSPACE, input).expect("save provider profile");
+    let saved = provider_profiles::save(&mut connection, WORKSPACE, input, "embedding")
+        .expect("save provider profile");
 
     assert_eq!(saved.base_url, "https://api.siliconflow.cn/v1");
     assert_eq!(
@@ -156,7 +156,7 @@ fn profile_repository_is_workspace_scoped() {
 #[test]
 fn profile_revision_tracks_only_execution_configuration_changes() {
     let mut connection = database();
-    let saved = provider_profiles::save_record(
+    let saved = provider_profiles::save_record_simple(
         &mut connection,
         WORKSPACE,
         profile(
@@ -164,6 +164,7 @@ fn profile_revision_tracks_only_execution_configuration_changes() {
             "https://api.siliconflow.cn/v1",
             Some("BAAI/bge-m3"),
         ),
+        "embedding",
     )
     .expect("create profile");
     assert_eq!((saved.revision, saved.secret_generation), (1, 0));
@@ -171,31 +172,45 @@ fn profile_revision_tracks_only_execution_configuration_changes() {
     let mut changed = saved.profile.clone();
     changed.display_name = "Renamed provider".to_string();
     changed.enabled = false;
-    let unchanged = provider_profiles::save_record(&mut connection, WORKSPACE, changed)
-        .expect("save presentation changes");
+    let unchanged =
+        provider_profiles::save_record_simple(&mut connection, WORKSPACE, changed, "embedding")
+            .expect("save presentation changes");
     assert_eq!(unchanged.revision, 1);
     assert_eq!(
-        provider_profiles::save_record(&mut connection, WORKSPACE, unchanged.profile.clone())
-            .expect("no-op save")
-            .revision,
+        provider_profiles::save_record_simple(
+            &mut connection,
+            WORKSPACE,
+            unchanged.profile.clone(),
+            "embedding"
+        )
+        .expect("no-op save")
+        .revision,
         1
     );
 
     let mut changed = unchanged.profile;
     changed.kind = ProviderKind::OpenAiCompatible;
-    let changed = provider_profiles::save_record(&mut connection, WORKSPACE, changed).unwrap();
+    let changed =
+        provider_profiles::save_record_simple(&mut connection, WORKSPACE, changed, "embedding")
+            .unwrap();
     assert_eq!(changed.revision, 2);
     let mut changed = changed.profile;
     changed.base_url = "https://models.example/v1".to_string();
-    let changed = provider_profiles::save_record(&mut connection, WORKSPACE, changed).unwrap();
+    let changed =
+        provider_profiles::save_record_simple(&mut connection, WORKSPACE, changed, "embedding")
+            .unwrap();
     assert_eq!(changed.revision, 3);
     let mut changed = changed.profile;
     changed.model_id = Some("model-b".to_string());
-    let changed = provider_profiles::save_record(&mut connection, WORKSPACE, changed).unwrap();
+    let changed =
+        provider_profiles::save_record_simple(&mut connection, WORKSPACE, changed, "embedding")
+            .unwrap();
     assert_eq!(changed.revision, 4);
     let mut changed = changed.profile;
     changed.secret_ref = Some("replacement_key".to_string());
-    let changed = provider_profiles::save_record(&mut connection, WORKSPACE, changed).unwrap();
+    let changed =
+        provider_profiles::save_record_simple(&mut connection, WORKSPACE, changed, "embedding")
+            .unwrap();
     assert_eq!(changed.revision, 5);
     assert_eq!(changed.secret_generation, 0);
 }
@@ -203,7 +218,7 @@ fn profile_revision_tracks_only_execution_configuration_changes() {
 #[test]
 fn secret_generation_activation_is_workspace_scoped_compare_and_set() {
     let mut connection = database();
-    let saved = provider_profiles::save_record(
+    let saved = provider_profiles::save_record_simple(
         &mut connection,
         WORKSPACE,
         profile(
@@ -211,6 +226,7 @@ fn secret_generation_activation_is_workspace_scoped_compare_and_set() {
             "https://api.siliconflow.cn/v1",
             Some("BAAI/bge-m3"),
         ),
+        "embedding",
     )
     .unwrap();
 
@@ -253,6 +269,7 @@ fn one_default_profile_is_enforced_per_capability() {
             "https://api.siliconflow.cn/v1",
             Some("BAAI/bge-m3"),
         ),
+        "embedding",
     )
     .unwrap();
     let second = provider_profiles::save(
@@ -263,6 +280,7 @@ fn one_default_profile_is_enforced_per_capability() {
             "https://api.siliconflow.cn/v1",
             Some("custom-embedding-model"),
         ),
+        "embedding",
     )
     .unwrap();
 

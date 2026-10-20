@@ -274,7 +274,7 @@ mod tests {
         let mut connection = Connection::open_in_memory().unwrap();
         migrate(&mut connection).unwrap();
         let id = Uuid::new_v4();
-        provider_profiles::save_record(
+        provider_profiles::save_record_simple(
             &mut connection,
             "workspace-a",
             ProviderProfile {
@@ -286,6 +286,7 @@ mod tests {
                 secret_ref: Some("api_key".to_string()),
                 enabled: true,
             },
+            "document_parser",
         )
         .unwrap();
         (connection, id)
