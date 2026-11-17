@@ -217,6 +217,7 @@ mod tests {
                 secret_ref: Some("api_key".to_string()),
                 enabled: true,
             },
+            "chat",
         )
         .expect("save profile");
         provider_profiles::set_default(

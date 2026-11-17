@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent,
 import type { Message } from "../../bridge/desktop";
 import { useNativeFileDrop } from "../../hooks/useNativeFileDrop";
 import {
+  ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
@@ -13,6 +14,8 @@ import {
   Globe,
   LoaderCircle,
   MessageSquarePlus,
+  Mic,
+  MicOff,
   Pencil,
   Play,
   RotateCcw,
@@ -26,22 +29,26 @@ import { useLocale } from "../../i18n/locale";
 import type { SectionId } from "../../app/navigation";
 import type { PostgresKnowledgeSearchFilters } from "../../bridge/desktop";
 import type { PermissionDecision } from "../../bridge/generated/protocol";
-import LazyAIAnswerRenderer from "../../components/answer/LazyAIAnswerRenderer";
 import ChatMessageList from "./ChatMessageList";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
 import CitationPanel from "./CitationPanel";
+import ChatAgentTimeline from "./ChatAgentTimeline";
+import { evidenceToLiteratureResults } from "./chatEvidence";
+import ChatQueuedMessages from "./ChatQueuedMessages";
+import ChatTurnTimer from "./ChatTurnTimer";
 import ChatModelParameters from "./ChatModelParameters";
 import ModelSelector from "../settings/modelLibrary/ModelSelector";
 import type { AgentPermissionView, AgentRunView } from "./agentEvents";
 import type { ChatControllerProps } from "./chatController";
-import AgentRunInspector from "./AgentRunInspector";
+import { useChatFollowScroll } from "./useChatFollowScroll";
+import { useVoiceDictation } from "./useVoiceDictation";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { toWebMessage } from "./web/webTypes";
 import WebTurnNavigator from "./web/WebTurnNavigator";
-import { useAppearanceSettings } from "../../settings/appearance";
 import { desktop } from "../../bridge/desktop";
+import { defaultShortcuts, normalizeShortcuts } from "../../app/shortcuts";
 import SunaLogo from "../../components/SunaLogo";
 import { Button } from "../../components/ui/button";
 
@@ -130,7 +137,8 @@ function NativeRunStatus({
   const settled = ["completed", "failed", "cancelled", "interrupted"].includes(run.state);
   const canRetry = settled && run.state !== "completed";
   const canResume = recovery?.action.kind === "resume_from_checkpoint";
-  if (settled && !hasPendingPermission && run.toolCalls.length === 0 && !canRetry && !canResume) return null;
+  // Tool call details stay in the Agent Workspace panel — not inline under the answer.
+  if (settled && !hasPendingPermission && !canRetry && !canResume) return null;
 
   return (
     <div className="suna-chat-inline-status" aria-live="polite">
@@ -139,7 +147,6 @@ function NativeRunStatus({
           <Wrench size={13} aria-hidden="true" />
           {stateLabel(run.state, t)}
         </span>
-        {run.toolCalls.length > 0 && <span>{t("agentToolCount", { count: run.toolCalls.length })}</span>}
         {run.taskProgress && <span>{run.taskProgress.kind} · {run.taskProgress.progress}%</span>}
         {canResume && (
           <Button variant="actionSecondary" type="button" onClick={onResume}>
@@ -152,11 +159,6 @@ function NativeRunStatus({
           </Button>
         )}
       </div>
-      {run.toolCalls.length > 0 && (
-        <div className="suna-chat-tool-trace" aria-label="Agent tools">
-          {run.toolCalls.map((tool) => <span key={tool.toolCallId}>{tool.name} · {tool.progress}%</span>)}
-        </div>
-      )}
       <NativePermissionPanel permissions={run.permissions} onResolve={onResolvePermission} />
     </div>
   );
@@ -179,10 +181,14 @@ const PROVIDER_KIND_LABELS: Record<string, string> = {
 };
 
 function ChatStreamingTurn({
+  pendingMeta,
+  turnStartedAt,
   onResolvePermission,
   onRetry,
   onResume,
 }: {
+  pendingMeta: { attachments: string[]; knowledge: string[] };
+  turnStartedAt: number | null;
   onResolvePermission: (permissionId: string, decision: PermissionDecision) => void;
   onRetry: () => void;
   onResume: () => void;
@@ -199,16 +205,37 @@ function ChatStreamingTurn({
 
   if (!pendingQuestion) return null;
 
+  const chips = [
+    ...pendingMeta.attachments,
+    ...pendingMeta.knowledge.map((name) => `知识库 · ${name}`),
+  ];
   return (
     <>
       <div className="suna-chat-user-turn" data-agent-user-turn="pending">
+        {chips.length > 0 ? (
+          <div className="suna-chat-user-context" aria-label="本轮上下文">
+            {chips.map((chip) => <span key={chip} className="suna-chat-user-context-chip">{chip}</span>)}
+          </div>
+        ) : null}
         <div className="suna-chat-user-bubble">{pendingQuestion}</div>
       </div>
       <article className="suna-chat-assistant-turn is-streaming" aria-label="Suna">
-        <div className="suna-chat-answer ai-markdown-body">
-          <LazyAIAnswerRenderer answer={agentRun?.assistantText || t("contextPreparing")} literatureResults={[]} />
-          {agentRun?.assistantText && <span className="ai-typing-cursor" aria-hidden="true" />}
-        </div>
+        {turnStartedAt ? (
+          <ChatTurnTimer active startedAt={turnStartedAt} endedAt={null} />
+        ) : null}
+        <ChatAgentTimeline
+          steps={agentRun?.timelineSteps ?? []}
+          // Keep the live answer in the timeline only — relocating it into the
+          // bottom answer box mid-stream caused a second typewriter + layout jump.
+          finalAnswer=""
+          finalAnswerVisible={false}
+          streaming
+          emptyFallback={t("contextPreparing")}
+          literatureResults={evidenceToLiteratureResults(streamingCitations)}
+          parentRunId={agentRun?.runId ?? null}
+          parentConversationId={agentRun?.conversationId ?? null}
+          onResolvePermission={onResolvePermission}
+        />
         {agentRun?.evidencePackId && streamingCitations.length > 0 && (
           <CitationPanel auditId={agentRun.evidencePackId} evidence={streamingCitations} />
         )}
@@ -229,19 +256,27 @@ export default function DesktopChatWorkspace({
   ...controller
 }: ChatControllerProps & { onOpenSection?: (section: SectionId) => void }) {
   const { t } = useLocale();
-  const { preferences } = useAppearanceSettings();
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [knowledgeMenuOpen, setKnowledgeMenuOpen] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [sendShortcut, setSendShortcut] = useState("Ctrl+Enter");
+  const [sendShortcut, setSendShortcut] = useState(defaultShortcuts.send);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
+  const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
   const messageCount = useChatStore((state) => state.messages.length);
+  const agentSequence = controller.agentRun?.sequence ?? 0;
+  const { isFollowingLatest, followLatest } = useChatFollowScroll(
+    messagesRef,
+    `${messageCount}:${agentSequence}:${controller.pendingQuestion ?? ""}:${controller.agentRun?.assistantText?.length ?? 0}`,
+  );
+  const voice = useVoiceDictation((text) => {
+    controller.onDraftChange(controller.draft ? `${controller.draft} ${text}` : text);
+  });
   const messageActions = useMemo(
     () => ({
       onEditMessage: (message: Message) => {
@@ -253,9 +288,26 @@ export default function DesktopChatWorkspace({
         inputRef.current?.focus();
       },
       onResolvePermission: controller.onResolvePermission,
+      onForkMessage: controller.onForkMessage,
+      onFeedback: controller.onFeedback,
     }),
-    [controller.onDraftChange, controller.onResolvePermission],
+    [controller.onDraftChange, controller.onFeedback, controller.onForkMessage, controller.onResolvePermission],
   );
+
+  useEffect(() => {
+    if (controller.pendingQuestion) {
+      setTurnStartedAt((current) => current ?? Date.now());
+      return;
+    }
+    // Settled turns keep timing on the persisted assistant message (workflow.*).
+    setTurnStartedAt(null);
+  }, [controller.pendingQuestion]);
+
+  useEffect(() => {
+    if (controller.pendingQuestion !== null) return;
+    if (controller.queuedMessages.length === 0) return;
+    controller.onSendQueuedHead();
+  }, [controller.pendingQuestion, controller.queuedMessages.length, controller.onSendQueuedHead]);
   const activeProfile = controller.chatProfiles.find((profile) => profile.id === controller.activeChatProfileId);
   const selectedModel = activeProfile?.model_id || activeProfile?.display_name || "本地模型";
   const providerLabel = activeProfile ? PROVIDER_KIND_LABELS[activeProfile.kind] ?? activeProfile.kind : "未配置";
@@ -264,18 +316,14 @@ export default function DesktopChatWorkspace({
     let active = true;
     if (typeof desktop.getSetting !== "function") return () => { active = false; };
     void desktop.getSetting("ui.shortcuts").then((raw) => {
-      if (!active || !raw) return;
-      try {
-        const value = JSON.parse(raw) as Record<string, unknown>;
-        if (typeof value.send === "string" && value.send) setSendShortcut(value.send);
-      } catch {
-        // Keep the safe default when settings are unavailable or malformed.
-      }
+      if (!active) return;
+      setSendShortcut(normalizeShortcuts(raw).send);
     }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
   const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     const parts = sendShortcut.toLowerCase().split("+");
     const key = parts[parts.length - 1] ?? "enter";
     const matches = event.key.toLowerCase() === key
@@ -362,15 +410,11 @@ export default function DesktopChatWorkspace({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (controller.pendingQuestion !== null) {
-      void controller.onSteer(controller.draft);
-      return;
-    }
     void controller.onSubmit(event);
   };
 
   return (
-    <section className={`suna-chat ${preferences.showAgentPanel ? "" : "has-agent-panel-hidden"}`} aria-label={t("chatAriaLabel")}>
+    <section className="suna-chat has-agent-panel-hidden" aria-label={t("chatAriaLabel")}>
       <main className="suna-chat-main">
         {controller.selectedConversation && (
           <header className="suna-chat-header" style={{ justifyContent: "space-between" }}>
@@ -392,81 +436,97 @@ export default function DesktopChatWorkspace({
           </div>
         )}
 
-        <div ref={messagesRef} className="suna-chat-messages" aria-live="polite">
-          {controller.loadingMessages ? (
-            <div className="suna-chat-empty"><LoaderCircle size={20} className="suna-spin" /><span>{t("loading")}</span></div>
-          ) : messageCount === 0 && controller.pendingQuestion === null ? (
-            <div className="suna-chat-empty suna-chat-empty-large suna-new-welcome">
-              <div className="suna-welcome-brand">
-                <span className="suna-welcome-mark"><SunaLogo size={52} title="Suna" /></span>
-                <div><strong>Suna</strong><small>{t("welcomeSubtitle")}</small></div>
+        <div className="suna-chat-messages-shell">
+          <div ref={messagesRef} className="suna-chat-messages" aria-live="polite">
+            {controller.loadingMessages ? (
+              <div className="suna-chat-empty"><LoaderCircle size={20} className="suna-spin" /><span>{t("loading")}</span></div>
+            ) : messageCount === 0 && controller.pendingQuestion === null ? (
+              <div className="suna-chat-empty suna-chat-empty-large suna-new-welcome">
+                <div className="suna-welcome-brand">
+                  <span className="suna-welcome-mark"><SunaLogo size={52} title="Suna" /></span>
+                  <div><strong>Suna</strong><small>{t("welcomeSubtitle")}</small></div>
+                </div>
+                <h1>{t("welcomeHeading")} <em>Suna</em></h1>
+                <p>{t("welcomeDesc")}</p>
+                <div
+                  className="suna-welcome-suggestion-box"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => controller.onDraftChange(t("welcomeExampleQuestion"))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      controller.onDraftChange(t("welcomeExampleQuestion"));
+                    }
+                  }}
+                >
+                  <span className="suna-welcome-compat-copy">{t("welcomeStartQuestion")}</span>
+                  <span className="suna-welcome-compat-copy">{t("welcomeExampleQuestion")}</span>
+                  <b>→</b>
+                </div>
+                <div className="suna-welcome-cards">
+                  {[
+                    { icon: "◈", title: t("welcomeCardMaterial"), text: t("welcomeCardMaterialDesc") },
+                    { icon: "▤", title: t("welcomeCardLiterature"), text: t("welcomeCardLiteratureDesc") },
+                    { icon: "▥", title: t("welcomeCardData"), text: t("welcomeCardDataDesc") },
+                    { icon: "△", title: t("welcomeCardPrediction"), text: t("welcomeCardPredictionDesc") },
+                    { icon: "✥", title: t("welcomeCardOptimization"), text: t("welcomeCardOptimizationDesc") },
+                    { icon: "♜", title: t("welcomeCardExperiment"), text: t("welcomeCardExperimentDesc") },
+                  ].map((item) => (
+                    <button
+                      type="button"
+                      className="suna-welcome-card"
+                      key={item.title}
+                      onClick={() => controller.onDraftChange(`${item.title}: `)}
+                    >
+                      <span>{item.icon}</span>
+                      <strong>{item.title}</strong>
+                      <small>{item.text}</small>
+                      <b>→</b>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <h1>{t("welcomeHeading")} <em>Suna</em></h1>
-              <p>{t("welcomeDesc")}</p>
-              <div
-                className="suna-welcome-suggestion-box"
-                role="button"
-                tabIndex={0}
-                onClick={() => controller.onDraftChange(t("welcomeExampleQuestion"))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    controller.onDraftChange(t("welcomeExampleQuestion"));
-                  }
-                }}
-              >
-                <span className="suna-welcome-compat-copy">{t("welcomeStartQuestion")}</span>
-                <span className="suna-welcome-compat-copy">{t("welcomeExampleQuestion")}</span>
-                <b>→</b>
-              </div>
-              <div className="suna-welcome-cards">
-                {[
-                  { icon: "◈", title: t("welcomeCardMaterial"), text: t("welcomeCardMaterialDesc") },
-                  { icon: "▤", title: t("welcomeCardLiterature"), text: t("welcomeCardLiteratureDesc") },
-                  { icon: "▥", title: t("welcomeCardData"), text: t("welcomeCardDataDesc") },
-                  { icon: "△", title: t("welcomeCardPrediction"), text: t("welcomeCardPredictionDesc") },
-                  { icon: "✥", title: t("welcomeCardOptimization"), text: t("welcomeCardOptimizationDesc") },
-                  { icon: "♜", title: t("welcomeCardExperiment"), text: t("welcomeCardExperimentDesc") },
-                ].map((item) => (
-                  <button
-                    type="button"
-                    className="suna-welcome-card"
-                    key={item.title}
-                    onClick={() => controller.onDraftChange(`${item.title}: `)}
-                  >
-                    <span>{item.icon}</span>
-                    <strong>{item.title}</strong>
-                    <small>{item.text}</small>
-                    <b>→</b>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <>
-              <ChatMessageList
-                loading={controller.pendingQuestion !== null}
-                messageActions={messageActions}
-                scrollContainerRef={messagesRef}
-                onLoadOlderMessages={controller.onLoadOlderMessages}
-                isOlderMessagesPaginationActive={controller.isOlderMessagesPaginationActive}
-              />
-              <ChatStreamingTurn
-                onResolvePermission={controller.onResolvePermission}
-                onRetry={controller.onRetry}
-                onResume={controller.onResume}
-              />
-              {!controller.pendingQuestion && (
-                <NativeRunStatus
-                  run={controller.agentRun}
-                  recovery={controller.recovery}
+            ) : (
+              <>
+                <ChatMessageList
+                  loading={controller.pendingQuestion !== null}
+                  messageActions={messageActions}
+                  scrollContainerRef={messagesRef}
+                  onLoadOlderMessages={controller.onLoadOlderMessages}
+                  isOlderMessagesPaginationActive={controller.isOlderMessagesPaginationActive}
+                />
+                <ChatStreamingTurn
+                  pendingMeta={controller.pendingMeta}
+                  turnStartedAt={turnStartedAt}
                   onResolvePermission={controller.onResolvePermission}
                   onRetry={controller.onRetry}
                   onResume={controller.onResume}
                 />
-              )}
-            </>
-          )}
-          <ChatTurnNavigator scrollContainerRef={messagesRef} />
+                {!controller.pendingQuestion && (
+                  <NativeRunStatus
+                    run={controller.agentRun}
+                    recovery={controller.recovery}
+                    onResolvePermission={controller.onResolvePermission}
+                    onRetry={controller.onRetry}
+                    onResume={controller.onResume}
+                  />
+                )}
+              </>
+            )}
+            <ChatTurnNavigator scrollContainerRef={messagesRef} />
+          </div>
+          {!isFollowingLatest && (controller.pendingQuestion !== null || messageCount > 0) ? (
+            <button
+              type="button"
+              className="suna-chat-jump-latest"
+              onClick={followLatest}
+              aria-label="回到底部"
+              title="回到底部"
+            >
+              <ArrowDown size={16} aria-hidden="true" />
+              <span>回到底部</span>
+            </button>
+          ) : null}
         </div>
 
         <form
@@ -487,6 +547,7 @@ export default function DesktopChatWorkspace({
           }}
         >
           {dragging && <div className="suna-chat-dropzone" role="region" aria-label="拖拽文件到输入框"><FileText size={18} /><span>松开即可添加 PDF、Excel、CSV、Word 或图片</span></div>}
+          <ChatQueuedMessages messages={controller.queuedMessages} onRemove={controller.onRemoveQueuedMessage} />
           {controller.attachments.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2" aria-label="已添加附件">
               {controller.attachments.map((attachment, index) => (
@@ -511,14 +572,26 @@ export default function DesktopChatWorkspace({
             }}
             aria-label={t("inputMessage")}
             placeholder={t("askPlaceholder")}
-            rows={3}
+            rows={2}
             disabled={false}
           />
           <div className="suna-chat-composer-footer">
             <div className="suna-chat-composer-tools">
-              <button type="button" className={`suna-chat-composer-tool ${controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled ? "is-active" : ""}`} aria-label={t("smartSearch")} aria-pressed={controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled} title={t("smartSearchTitle")} onClick={controller.onToggleSmartSearch} disabled={controller.pendingQuestion !== null}><Globe size={15} /><span>{t("smartSearch")}</span></button>
-              <button type="button" className="suna-chat-composer-tool" aria-label={t("imageButton")} title={t("imageButton")} onClick={() => imageInputRef.current?.click()} disabled={controller.pendingQuestion !== null}><MessageSquarePlus size={15} /><span>{t("imageButton")}</span></button>
-              <button type="button" className="suna-chat-composer-tool" aria-label={t("attachments")} title={t("attachments")} onClick={() => void pickNativeAttachments()} disabled={controller.pendingQuestion !== null}><FileText size={15} /><span>{t("attachments")}</span></button>
+              <button type="button" className={`suna-chat-composer-tool ${controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled ? "is-active" : ""}`} aria-label={t("smartSearch")} aria-pressed={controller.smartSearchEnabled || controller.autoKnowledgeSearchEnabled} title={t("smartSearchTitle")} onClick={controller.onToggleSmartSearch} disabled={controller.pendingQuestion !== null}><Globe size={16} /><span>{t("smartSearch")}</span></button>
+              <button type="button" className="suna-chat-composer-tool" aria-label={t("imageButton")} title={t("imageButton")} onClick={() => imageInputRef.current?.click()} disabled={controller.pendingQuestion !== null}><MessageSquarePlus size={16} /><span>{t("imageButton")}</span></button>
+              <button type="button" className="suna-chat-composer-tool" aria-label={t("attachments")} title={t("attachments")} onClick={() => void pickNativeAttachments()} disabled={controller.pendingQuestion !== null}><FileText size={16} /><span>{t("attachments")}</span></button>
+              {voice.supported ? (
+                <button
+                  type="button"
+                  className={`suna-chat-composer-tool ${voice.listening ? "is-active" : ""}`}
+                  aria-label={voice.listening ? "停止语音输入" : "语音输入"}
+                  title={voice.listening ? "停止语音输入" : "语音输入"}
+                  onClick={() => (voice.listening ? voice.stop() : voice.start())}
+                >
+                  {voice.listening ? <MicOff size={16} /> : <Mic size={16} />}
+                  <span>{voice.listening ? "听写中" : "语音"}</span>
+                </button>
+              ) : null}
               <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={onFileInputChange} />
               <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown,.json,.html,.htm" multiple hidden onChange={onFileInputChange} />
             </div>
@@ -632,15 +705,6 @@ export default function DesktopChatWorkspace({
           </div>
         </form>
       </main>
-
-      {preferences.showAgentPanel && <AgentRunInspector
-          run={controller.agentRun}
-          recovery={controller.recovery}
-          showToolDetails={preferences.showToolDetails}
-          onResolvePermission={controller.onResolvePermission}
-          onRetry={controller.onRetry}
-          onResume={controller.onResume}
-        />}
     </section>
   );
 }

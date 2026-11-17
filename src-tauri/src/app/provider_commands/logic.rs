@@ -1,5 +1,7 @@
 // Provider profile domain logic and probe implementation.
-use crate::providers::http::{build_client, HttpClientConfig, ProviderError, ProviderErrorCode};
+use crate::providers::http::{
+    build_client, read_bounded, HttpClientConfig, ProviderError, ProviderErrorCode,
+};
 use crate::providers::profiles::{
     validate_bearer_transport, ProviderCapability, ProviderKind, ProviderProfile,
     ProviderProfileRecord,
@@ -495,7 +497,15 @@ pub(crate) async fn probe_provider(
                     .map_err(ProbeFailure::from);
             }
         }
-        probe_base_url(&profile, credential).await
+        match profile.kind {
+            ProviderKind::MinerU => {
+                if credential.is_none() && profile.secret_ref.is_some() {
+                    return Err(ProbeFailure::new("missing_credential", None));
+                }
+                probe_base_url(&profile, credential).await
+            }
+            _ => probe_models_endpoint(&profile, credential).await,
+        }
     }
     .await;
     let elapsed_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
@@ -512,6 +522,106 @@ pub(crate) async fn probe_provider(
             error_code: Some(error.code),
             elapsed_ms,
         },
+    }
+}
+
+const MODEL_PROBE_BODY_LIMIT: usize = 256 * 1024;
+
+/// Chat/vision/voice probes hit the provider's model-list endpoint so an
+/// unauthenticated or malformed response cannot masquerade as a working setup.
+async fn probe_models_endpoint(
+    profile: &ProviderProfile,
+    credential: Option<SecretValue>,
+) -> Result<u16, ProbeFailure> {
+    validate_bearer_transport(&profile.base_url, credential.is_some())
+        .map_err(|_| ProbeFailure::new("insecure_transport", None))?;
+    let client = build_client(&HttpClientConfig {
+        connect_timeout: Duration::from_secs(5),
+        request_timeout: Duration::from_secs(5),
+        proxy_url: None,
+    })
+    .map_err(ProbeFailure::from)?;
+    let mut request = client.get(models_probe_url(profile));
+    if let Some(value) = credential.as_ref() {
+        if profile.kind == ProviderKind::Anthropic {
+            request = request
+                .header("x-api-key", value.expose())
+                .header("anthropic-version", "2023-06-01");
+        } else {
+            request = request.bearer_auth(value.expose());
+        }
+    }
+    let response = request.send().await.map_err(|error| {
+        if error.is_timeout() {
+            ProbeFailure::new(ProviderErrorCode::Timeout.as_str(), None)
+        } else {
+            ProbeFailure::new(ProviderErrorCode::Network.as_str(), None)
+        }
+    })?;
+    let status = response.status();
+    if matches!(
+        status,
+        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
+    ) {
+        let code = if credential.is_none() && profile.secret_ref.is_some() {
+            "missing_credential"
+        } else {
+            ProviderErrorCode::Authentication.as_str()
+        };
+        return Err(ProbeFailure::new(code, Some(status.as_u16())));
+    }
+    if !status.is_success() {
+        let code = if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            ProviderErrorCode::Quota.as_str()
+        } else {
+            ProviderErrorCode::ProviderResponse.as_str()
+        };
+        return Err(ProbeFailure::new(code, Some(status.as_u16())));
+    }
+    let body = read_bounded(
+        response,
+        MODEL_PROBE_BODY_LIMIT,
+        "provider model list exceeded size limit",
+    )
+    .await
+    .map_err(ProbeFailure::from)?;
+    let value: serde_json::Value = serde_json::from_slice(&body)
+        .map_err(|_| ProbeFailure::new("invalid_model_list", Some(status.as_u16())))?;
+    let is_model_list = value.as_array().is_some()
+        || value.get("data").is_some_and(serde_json::Value::is_array)
+        || value.get("models").is_some_and(serde_json::Value::is_array);
+    if !is_model_list {
+        return Err(ProbeFailure::new(
+            "invalid_model_list",
+            Some(status.as_u16()),
+        ));
+    }
+    Ok(status.as_u16())
+}
+
+fn models_probe_url(profile: &ProviderProfile) -> String {
+    match profile.kind {
+        ProviderKind::Ollama => {
+            let base = profile.base_url.trim().trim_end_matches('/');
+            let base = base
+                .strip_suffix("/v1/chat/completions")
+                .or_else(|| base.strip_suffix("/chat/completions"))
+                .or_else(|| base.strip_suffix("/v1"))
+                .unwrap_or(base);
+            format!("{base}/api/tags")
+        }
+        ProviderKind::Anthropic => {
+            let url =
+                crate::providers::anthropic::normalize_anthropic_messages_url(&profile.base_url);
+            format!("{}/models", url.strip_suffix("/messages").unwrap_or(&url))
+        }
+        _ => {
+            let url = crate::providers::openai::normalize_openai_chat_url(&profile.base_url);
+            format!(
+                "{}/models",
+                url.strip_suffix("/chat/completions").unwrap_or(&url)
+            )
+        }
     }
 }
 
@@ -646,6 +756,11 @@ mod tests {
             model_id: Some("test-model".to_string()),
             credential_name: Some("api_key".to_string()),
             enabled: true,
+            model_type: None,
+            source: None,
+            status: None,
+            provider_id: None,
+            metadata_json: None,
         }
     }
 
@@ -994,8 +1109,14 @@ mod tests {
                             .expect("set read timeout");
                         let mut request = [0u8; 4096];
                         let size = stream.read(&mut request).expect("read probe request");
+                        let body = r#"{"data":[]}"#;
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
+                            body.len(),
+                            body
+                        );
                         stream
-                            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                            .write_all(response.as_bytes())
                             .expect("write probe response");
                         return String::from_utf8_lossy(&request[..size]).to_string();
                     }
@@ -1015,9 +1136,10 @@ mod tests {
             None,
         ));
         assert!(result.ok);
-        assert_eq!(result.status_code, Some(204));
+        assert_eq!(result.status_code, Some(200));
         assert_eq!(result.error_code, None);
         let request = server.join().expect("join provider server");
+        assert!(request.starts_with("GET /models "));
         assert!(
             request.contains("authorization: Bearer sk-test-secret")
                 || request.contains("Authorization: Bearer sk-test-secret")
@@ -1028,7 +1150,7 @@ mod tests {
     }
 
     #[test]
-    fn provider_probe_reports_authentication_without_reading_a_body() {
+    fn provider_probe_reports_missing_credential_without_reading_a_body() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind provider probe");
         let address = listener.local_addr().expect("provider address");
         let server = thread::spawn(move || {
@@ -1048,7 +1170,116 @@ mod tests {
         server.join().expect("join provider server");
         assert!(!result.ok);
         assert_eq!(result.status_code, Some(401));
+        assert_eq!(result.error_code.as_deref(), Some("missing_credential"));
+    }
+
+    #[test]
+    fn provider_probe_reports_authentication_for_a_rejected_credential() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind provider probe");
+        let address = listener.local_addr().expect("provider address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept provider probe");
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request).expect("read probe request");
+            stream
+                .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n")
+                .expect("write probe response");
+        });
+        let profile = input(format!("http://{address}"));
+        let result = tauri::async_runtime::block_on(probe_provider(
+            profile.into_profile().expect("profile"),
+            Some(SecretValue::new("sk-rejected").expect("secret value")),
+            None,
+        ));
+        server.join().expect("join provider server");
+        assert!(!result.ok);
         assert_eq!(result.error_code.as_deref(), Some("authentication"));
+    }
+
+    #[test]
+    fn provider_probe_rejects_a_non_json_model_list() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind provider probe");
+        let address = listener.local_addr().expect("provider address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept provider probe");
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request).expect("read probe request");
+            let body = b"<!doctype html><html>login</html>";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: {}\r\n\r\n",
+                body.len()
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write probe headers");
+            stream.write_all(body).expect("write probe body");
+        });
+        let profile = input(format!("http://{address}"));
+        let result = tauri::async_runtime::block_on(probe_provider(
+            profile.into_profile().expect("profile"),
+            Some(SecretValue::new("sk-test-secret").expect("secret value")),
+            None,
+        ));
+        server.join().expect("join provider server");
+        assert!(!result.ok);
+        assert_eq!(result.status_code, Some(200));
+        assert_eq!(result.error_code.as_deref(), Some("invalid_model_list"));
+    }
+
+    #[test]
+    fn ollama_probe_uses_the_native_tags_endpoint_without_a_credential() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind Ollama probe");
+        let address = listener.local_addr().expect("provider address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept Ollama probe");
+            let mut request = [0_u8; 4096];
+            let size = stream.read(&mut request).expect("read Ollama probe");
+            let body = r#"{"models":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write Ollama response");
+            String::from_utf8_lossy(&request[..size]).to_string()
+        });
+        let profile = ProviderProfile {
+            id: Uuid::new_v4(),
+            kind: ProviderKind::Ollama,
+            display_name: "Ollama".to_string(),
+            base_url: format!("http://{address}/v1"),
+            model_id: Some("llama".to_string()),
+            secret_ref: None,
+            enabled: true,
+        };
+        let result = tauri::async_runtime::block_on(probe_provider(profile, None, None));
+        let request = server.join().expect("join Ollama probe");
+        assert!(result.ok);
+        assert_eq!(result.status_code, Some(200));
+        assert!(request.starts_with("GET /api/tags "));
+        assert!(!request.to_ascii_lowercase().contains("authorization"));
+    }
+
+    #[test]
+    fn mineru_probe_requires_a_credential() {
+        let profile = ProviderProfile {
+            id: Uuid::new_v4(),
+            kind: ProviderKind::MinerU,
+            display_name: "MinerU".to_string(),
+            base_url: "https://mineru.example/api/v4".to_string(),
+            model_id: None,
+            secret_ref: Some("api_key".to_string()),
+            enabled: true,
+        };
+        let result = tauri::async_runtime::block_on(probe_provider(
+            profile,
+            None,
+            Some(ProviderCapability::DocumentParser),
+        ));
+        assert!(!result.ok);
+        assert_eq!(result.error_code.as_deref(), Some("missing_credential"));
     }
 
     #[test]
@@ -1059,8 +1290,14 @@ mod tests {
             let (mut stream, _) = listener.accept().expect("accept Anthropic probe");
             let mut request = [0_u8; 4096];
             let size = stream.read(&mut request).expect("read Anthropic probe");
+            let body = r#"{"data":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
             stream
-                .write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
+                .write_all(response.as_bytes())
                 .expect("write Anthropic probe response");
             String::from_utf8_lossy(&request[..size]).to_string()
         });
@@ -1080,7 +1317,8 @@ mod tests {
         ));
         let request = server.join().expect("join Anthropic probe");
         assert!(result.ok);
-        assert_eq!(result.status_code, Some(404));
+        assert_eq!(result.status_code, Some(200));
+        assert!(request.starts_with("GET /v1/models "));
         assert!(request
             .to_ascii_lowercase()
             .contains("x-api-key: sk-anthropic-test"));
@@ -1143,7 +1381,7 @@ mod tests {
         assert_eq!(result.error_code.as_deref(), Some("insecure_transport"));
 
         for (status, expected_ok, expected_error) in [
-            ("404 Not Found", true, None),
+            ("404 Not Found", false, Some("provider_response")),
             ("429 Too Many Requests", false, Some("quota")),
         ] {
             let listener = TcpListener::bind("127.0.0.1:0").expect("bind provider probe");

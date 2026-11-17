@@ -15,6 +15,59 @@ use serde_json::Value;
 use std::time::Instant;
 use uuid::Uuid;
 
+struct ReasoningSpan {
+    started_at: Option<Instant>,
+    completed: bool,
+    total_ms: u64,
+}
+
+impl ReasoningSpan {
+    fn new() -> Self {
+        Self {
+            started_at: None,
+            completed: false,
+            total_ms: 0,
+        }
+    }
+
+    fn note_delta(&mut self) {
+        if self.completed {
+            self.completed = false;
+            self.started_at = Some(Instant::now());
+        } else if self.started_at.is_none() {
+            self.started_at = Some(Instant::now());
+        }
+    }
+
+    fn seal(
+        &mut self,
+        message_id: Uuid,
+        sink: &mut dyn AgentEventSink,
+        sink_error: &mut Option<String>,
+    ) {
+        if self.completed {
+            return;
+        }
+        if let Some(started_at) = self.started_at.take() {
+            let elapsed = started_at.elapsed().as_millis().min(u64::MAX as u128) as u64;
+            // Keep a non-zero span whenever reasoning existed (UI floors to 1s).
+            let duration = elapsed.max(1);
+            self.total_ms = self.total_ms.saturating_add(duration);
+            if sink_error.is_none() {
+                if let Err(error) = sink.record(AgentEventData::ReasoningCompleted(
+                    ReasoningCompleted {
+                        message_id,
+                        duration_ms: duration,
+                    },
+                )) {
+                    *sink_error = Some(error);
+                }
+            }
+        }
+        self.completed = true;
+    }
+}
+
 impl<'a, M: ?Sized, T: ?Sized, P: ?Sized> AgentLoop<'a, M, T, P>
 where
     M: ModelAdapter,
@@ -33,29 +86,15 @@ where
         partial_response: &mut ChatResponse,
     ) -> Result<(ChatResponse, String, u64), AgentLoopError> {
         *partial_response = ChatResponse::default();
-        let mut reasoning_started_at: Option<Instant> = None;
-        let mut reasoning_completed = false;
-        let mut reasoning_duration_ms = 0;
+        let mut reasoning = ReasoningSpan::new();
         let mut sink_error = None;
         let mut on_event = |event: ChatEvent| match event {
             ChatEvent::TextDelta(delta) => {
                 *emitted |= !delta.is_empty();
-                if !reasoning_completed {
-                    if let Some(started_at) = reasoning_started_at.take() {
-                        reasoning_duration_ms =
-                            started_at.elapsed().as_millis().min(u64::MAX as u128) as u64;
-                        if sink_error.is_none() {
-                            if let Err(error) = sink.record(AgentEventData::ReasoningCompleted(
-                                ReasoningCompleted {
-                                    message_id,
-                                    duration_ms: reasoning_duration_ms,
-                                },
-                            )) {
-                                sink_error = Some(error);
-                            }
-                        }
-                    }
-                    reasoning_completed = true;
+                // Empty text deltas must not seal thinking — that reopened the
+                // span on the next reasoning chunk and made the UI flicker.
+                if !delta.is_empty() {
+                    reasoning.seal(message_id, sink, &mut sink_error);
                 }
                 partial_response.text.push_str(&delta);
                 if stream_output && sink_error.is_none() {
@@ -75,10 +114,9 @@ where
                 if delta.is_empty() {
                     return;
                 }
+                // Interleaved reasoners may resume thinking after text/tool deltas.
+                reasoning.note_delta();
                 partial_response.reasoning.push_str(&delta);
-                if reasoning_started_at.is_none() {
-                    reasoning_started_at = Some(Instant::now());
-                }
                 if stream_output && sink_error.is_none() {
                     if let Err(error) =
                         sink.record(AgentEventData::ReasoningDelta(ReasoningDelta {
@@ -110,43 +148,51 @@ where
                 *emitted |= !delta.arguments.is_empty()
                     || delta.id.as_ref().is_some_and(|value| !value.is_empty())
                     || delta.name.as_ref().is_some_and(|value| !value.is_empty());
+                // Seal thinking before tools so Thought → tool rows stay interleaved.
+                reasoning.seal(message_id, sink, &mut sink_error);
             }
         };
         let response = {
+            let timed_out = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let cancel_flag = std::sync::Arc::clone(&timed_out);
+            let parent_cancel = cancellation.clone();
+            let request_cancel = CancellationToken::new(move || {
+                parent_cancel.is_cancelled()
+                    || cancel_flag.load(std::sync::atomic::Ordering::SeqCst)
+            });
             let generation = self
                 .model
-                .generate(request, &mut on_event, cancellation.callback());
+                .generate(request, &mut on_event, request_cancel.callback());
             tokio::pin!(generation);
             tokio::select! {
                 result = &mut generation => result,
-                _ = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => Err(ProviderError::new(crate::providers::http::ProviderErrorCode::Timeout, None, "single model request timed out")),
+                _ = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
+                    // Signal cancel so the provider stream can abort cooperatively,
+                    // then give a short grace period before dropping the future.
+                    timed_out.store(true, std::sync::atomic::Ordering::SeqCst);
+                    tokio::select! {
+                        result = &mut generation => result,
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(250)) => {
+                            Err(ProviderError::new(
+                                crate::providers::http::ProviderErrorCode::Timeout,
+                                None,
+                                "single model request timed out",
+                            ))
+                        }
+                    }
+                },
                 _ = async { while !cancellation.is_cancelled() { tokio::time::sleep(std::time::Duration::from_millis(50)).await; } } => Err(ProviderError::cancelled()),
             }
         };
         drop(on_event);
-        if !reasoning_completed {
-            if let Some(started_at) = reasoning_started_at.take() {
-                reasoning_duration_ms =
-                    started_at.elapsed().as_millis().min(u64::MAX as u128) as u64;
-                if sink_error.is_none() {
-                    if let Err(error) =
-                        sink.record(AgentEventData::ReasoningCompleted(ReasoningCompleted {
-                            message_id,
-                            duration_ms: reasoning_duration_ms,
-                        }))
-                    {
-                        sink_error = Some(error);
-                    }
-                }
-            }
-        }
+        reasoning.seal(message_id, sink, &mut sink_error);
         if let Some(error) = sink_error {
             return Err(AgentLoopError::EventSink(error));
         }
         Ok((
             response.map_err(AgentLoopError::Provider)?,
             partial_response.text.clone(),
-            reasoning_duration_ms,
+            reasoning.total_ms,
         ))
     }
 

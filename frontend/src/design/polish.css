@@ -194,7 +194,7 @@ textarea:focus-visible {
   border: 1px solid var(--suna-line);
   border-radius: 14px;
   box-shadow: var(--suna-shadow-soft);
-  margin: 0 clamp(14px, 4vw, 52px) 22px;
+  margin: 0 0 22px;
   padding: 12px;
 }
 
@@ -394,7 +394,7 @@ body {
   border: 1px solid var(--suna-line);
   border-radius: 14px;
   box-shadow: var(--suna-shadow-soft);
-  margin: 0 clamp(14px, 3vw, 34px) 18px;
+  margin: 0 0 18px;
   max-width: none;
   padding: 10px;
   width: auto;
@@ -847,8 +847,8 @@ body {
 }
 
 .suna-chat-answer {
-  color: var(--suna-text-soft);
-  font-size:calc(16px * var(--suna-ui-font-scale));
+  color: var(--suna-text);
+  font-size: 1.0625rem;
   line-height: 1.8;
 }
 
@@ -896,10 +896,10 @@ body {
   border: 1px solid var(--suna-line);
   border-radius: 20px;
   box-shadow: 0 12px 28px rgba(72, 52, 38, 0.08);
-  margin: 0 auto 18px;
-  max-width: 1080px;
+  margin: 0 0 18px;
+  max-width: none;
   padding: 10px;
-  width: calc(100% - 48px);
+  width: auto;
 }
 
 .suna-chat-composer textarea {
@@ -1133,7 +1133,9 @@ body {
   gap: 15px;
   min-height: 0;
   overflow: auto;
-  padding: 22px clamp(18px, 8vw, 130px) 18px;
+  /* Horizontal inset is owned by suna-shell (.suna-new-content .suna-chat-messages). */
+  padding: 22px 0 18px;
+  box-sizing: border-box;
 }
 
 .suna-chat-empty {
@@ -1162,27 +1164,28 @@ body {
   display: flex;
   flex-direction: column;
   margin-left: auto;
-  max-width: min(760px, 82%);
+  max-width: min(760px, 76%);
 }
 
 .suna-chat-user-bubble {
-  background: var(--suna-bg-soft);
-  border: 1px solid var(--suna-line);
+  background: var(--suna-primary-fill);
+  border: 0;
   border-radius: 16px 4px 16px 16px;
-  color: var(--suna-text);
+  color: var(--suna-primary-contrast);
   font-size: calc(14.5px * var(--suna-ui-font-scale));
   line-height: 1.65;
-  padding: 11px 16px;
+  padding: 12px 16px;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .suna-chat-assistant-turn {
   color: var(--suna-text-soft);
-  max-width: 900px;
+  max-width: 100%;
   min-width: 0;
   position: relative;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .suna-chat-assistant-turn .suna-chat-answer {
@@ -1346,7 +1349,8 @@ body {
   border-radius: 16px;
   box-shadow: 0 9px 24px rgba(72, 52, 38, 0.09);
   flex: 0 0 auto;
-  margin: 0 clamp(14px, 7vw, 120px) 18px;
+  /* Horizontal inset is owned by suna-shell (.suna-new-content .suna-chat-composer). */
+  margin: 0 0 18px;
   padding: 8px 10px 9px;
 }
 
@@ -1603,9 +1607,9 @@ body {
 }
 
 [data-theme="dark"] .suna-chat-user-bubble {
-  background: var(--suna-bg-hover);
-  border: 1px solid var(--suna-line);
-  color: var(--suna-text);
+  background: var(--suna-primary-fill);
+  border: 0;
+  color: var(--suna-primary-contrast);
 }
 
 [data-theme="dark"] .suna-chat-composer {

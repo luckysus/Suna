@@ -66,6 +66,9 @@ describe("agent event reducer", () => {
     expect(result.reasoningMs).toBe(1842);
     expect(result.reasoningStreaming).toBe(false);
     expect(result.assistantText).toBe("结论。");
+    expect(result.timelineSteps.map((step) => step.kind)).toEqual(["thought", "content"]);
+    expect(result.timelineSteps[0]).toMatchObject({ detail: "先检查 材料牌号。", status: "completed", durationMs: 1842 });
+    expect(result.timelineSteps[1]).toMatchObject({ detail: "结论。", status: "running" });
   });
 
   it("keeps reasoning events ordered when they arrive after the answer stream", () => {

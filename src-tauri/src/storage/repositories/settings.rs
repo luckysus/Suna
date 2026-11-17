@@ -181,7 +181,7 @@ mod tests {
             &mut connection,
             "local",
             "ui.preferences",
-            r#"{"showAgentPanel":true}"#,
+            r#"{"showToolDetails":true}"#,
         )
         .is_ok());
     }

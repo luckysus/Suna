@@ -15,23 +15,24 @@ export type ShortcutKey =
   | "openSettings"
   | "searchHistory"
   | "toggleSidebar"
-  | "toggleInspector"
   | "recoverTask";
 
 export type ShortcutSettings = Record<ShortcutKey, string>;
 
-/** 文档第 73 章要求：Ctrl+N / Ctrl+K / Ctrl+Shift+K / Ctrl+Enter / Esc，其余为产品增强项。 */
+/** Current persisted shortcuts schema; bump when defaults need a one-shot migrate. */
+export const shortcutsSchemaVersion = 2;
+
+/** 文档第 73 章：Ctrl+N / Ctrl+K / Ctrl+Shift+K / Esc；发送与网页一致为 Enter（Shift+Enter 换行）。 */
 export const defaultShortcuts: ShortcutSettings = {
   newConversation: "Ctrl+N",
   openCommand: "Ctrl+K",
   openKnowledge: "Ctrl+Shift+K",
   focusInput: "Ctrl+L",
-  send: "Ctrl+Enter",
+  send: "Enter",
   stopAgent: "Esc",
   openSettings: "Ctrl+,",
   searchHistory: "Ctrl+Shift+F",
   toggleSidebar: "Ctrl+\\",
-  toggleInspector: "Ctrl+J",
   recoverTask: "Ctrl+Shift+R",
 };
 
@@ -40,12 +41,11 @@ export const shortcutRows: Array<{ key: ShortcutKey; label: string; copy: string
   { key: "openCommand", label: "全局搜索", copy: "搜索对话、知识库、文献、Agent、Skill、MCP、模型与设置" },
   { key: "openKnowledge", label: "知识库", copy: "直接进入知识中心" },
   { key: "focusInput", label: "聚焦输入框", copy: "快速回到消息编辑区" },
-  { key: "send", label: "发送消息", copy: "提交当前消息或草稿" },
+  { key: "send", label: "发送消息", copy: "Enter 发送，Shift+Enter 换行" },
   { key: "stopAgent", label: "停止 Agent", copy: "中断正在运行的任务" },
   { key: "openSettings", label: "打开设置", copy: "直接进入设置中心" },
   { key: "searchHistory", label: "搜索对话", copy: "在历史会话中查找内容" },
   { key: "toggleSidebar", label: "切换侧栏", copy: "显示或隐藏主导航" },
-  { key: "toggleInspector", label: "切换运行检查器", copy: "显示或隐藏 Agent 运行面板" },
   { key: "recoverTask", label: "恢复最近任务", copy: "继续上次中断的 Agent 运行" },
 ];
 
@@ -54,13 +54,12 @@ export const shortcutChoices = [
   "Ctrl+K",
   "Ctrl+Shift+K",
   "Ctrl+L",
-  "Ctrl+Enter",
   "Enter",
+  "Ctrl+Enter",
   "Esc",
   "Ctrl+,",
   "Ctrl+Shift+F",
   "Ctrl+\\",
-  "Ctrl+J",
   "Ctrl+Shift+R",
   "未设置",
 ];
@@ -70,9 +69,15 @@ export function normalizeShortcuts(raw: string | null, fallback: ShortcutSetting
   if (!raw) return fallback;
   try {
     const value = JSON.parse(raw) as Record<string, unknown>;
-    return Object.fromEntries(
+    const version = typeof value.version === "number" ? value.version : 1;
+    const next = Object.fromEntries(
       shortcutRows.map(({ key }) => [key, typeof value[key] === "string" ? (value[key] as string) : fallback[key]]),
     ) as ShortcutSettings;
+    // v2: product default moved Ctrl+Enter → Enter (web parity).
+    if (version < 2 && next.send === "Ctrl+Enter") {
+      next.send = "Enter";
+    }
+    return next;
   } catch {
     return fallback;
   }

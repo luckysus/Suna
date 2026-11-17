@@ -1943,6 +1943,8 @@ export const desktop = {
   }),
   createConversation: (title: string) =>
     call<Conversation>("create_conversation", { title }),
+  forkConversationFromMessage: (messageId: string) =>
+    call<Conversation>("fork_conversation_from_message", { messageId }),
   updateConversationTitle: (conversationId: string, title: string) =>
     call<void>("update_conversation_title", { conversationId, title }),
   updateConversationPinned: (conversationId: string, pinned: boolean) =>
@@ -1957,6 +1959,24 @@ export const desktop = {
     call<void>("delete_conversation_local", { conversationId }),
   listMessages: (conversationId: string) =>
     call<Message[]>("list_messages", { conversationId }),
+  saveAgentFeedback: (input: {
+    conversationId: string;
+    messageId: string;
+    rating: "up" | "down";
+    reason?: string;
+    content: string;
+  }) =>
+    call<{ ok: boolean; id: number; createdAt: string }>("save_agent_feedback", { input }),
+  getAgentFeedback: (conversationId: string, messageId: string) =>
+    call<{
+      id: number;
+      conversationId: string;
+      messageId: string;
+      rating: "up" | "down";
+      reason: string | null;
+      content: string;
+      createdAt: string;
+    } | null>("get_agent_feedback", { conversationId, messageId }),
   listMessagesPage: (
     conversationId: string,
     options?: { limit?: number; beforeRowid?: number; beforeCreatedAt?: string },

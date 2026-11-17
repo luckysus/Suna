@@ -181,7 +181,7 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("combobox", { name: "languageLabel" })).toBeInTheDocument();
     await openModelDrawer("Steel LLM");
     expect(screen.getByDisplayValue("https://api.example.com/v1")).toBeInTheDocument();
-    expect(screen.getAllByText("settingsSecretConfigured").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/已配置|凭据已配置/).length).toBeGreaterThan(0);
     expect(screen.getByText("Steel LLM", { selector: "h3" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "settingsCategoryAppearance" }));
@@ -378,7 +378,7 @@ describe("SettingsPage", () => {
 
     fireEvent.click(await screen.findByRole("tab", { name: "settingsCategoryAppearance" }));
     fireEvent.click(screen.getByRole("button", { name: "settingsFontLarge" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /settingsAgentPanel/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /settingsAnimations/ }));
 
     await waitFor(() => expect(document.documentElement.dataset.fontSize).toBe("large"));
 
@@ -388,7 +388,7 @@ describe("SettingsPage", () => {
     ), { timeout: 1500 });
     expect(desktop.setSetting).toHaveBeenCalledWith(
       "ui.preferences",
-      expect.stringContaining('"showAgentPanel":false'),
+      expect.stringContaining('"enableAnimations":false'),
     );
   });
 

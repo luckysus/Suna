@@ -181,10 +181,12 @@ export default function ChildAgentPanel({ parentRunId, parentConversationId, sho
   const state = selected ? (settledStates.includes(selected.state) ? selected.state : view?.state ?? selected.state) : null;
   const progress = state === "completed" ? 100 : view?.taskProgress?.progress;
 
+  if (!loading && children.length === 0 && !error) return null;
+
   return <section className="suna-chat-inspector-section suna-child-agents" aria-label="子 Agent 任务">
     <div className="suna-chat-inspector-section-heading"><h4><GitBranch size={13} />子 Agent 任务</h4><button type="button" className="suna-child-refresh" aria-label="刷新子任务" onClick={() => setRefreshNonce((value) => value + 1)}><RefreshCw size={12} /></button></div>
     {error && <p className="suna-child-error" role="alert"><CircleAlert size={12} />{error}</p>}
-    {loading && children.length === 0 ? <small role="status"><LoaderCircle size={12} className="suna-spin" />读取子任务...</small> : children.length === 0 ? <small>此运行尚未委派子任务。</small> : <>
+    {loading && children.length === 0 ? <small role="status"><LoaderCircle size={12} className="suna-spin" />读取子任务...</small> : children.length === 0 ? null : <>
       <div className="suna-child-list">{children.map((child, index) => {
         const childView = views[child.child_turn_id];
         const childState = settledStates.includes(child.state) ? child.state : childView?.state ?? child.state;

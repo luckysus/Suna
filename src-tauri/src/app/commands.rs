@@ -68,6 +68,8 @@ macro_rules! handler {
             crate::app::storage_commands::conversations::list_messages_page,
             crate::app::storage_commands::conversations::search_history,
             crate::app::storage_commands::conversations::append_message,
+            crate::app::storage_commands::feedback::save_agent_feedback,
+            crate::app::storage_commands::feedback::get_agent_feedback,
             crate::app::storage_commands::history::save_conversation_snapshot,
             crate::app::storage_commands::history::replace_message_after_edit,
             crate::app::storage_commands::history::truncate_conversation_after_message,

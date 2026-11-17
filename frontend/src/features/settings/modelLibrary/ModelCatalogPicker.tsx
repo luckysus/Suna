@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CatalogModelEntry, CatalogProvider, ProfileModelType, ProviderKind } from "../../../bridge/desktop";
 import { providerLabel, useModelProviders } from "./useModelProviders";
-import { Button } from "../../../components/ui/button";
 
 export default function ModelCatalogPicker({
   modelType,
@@ -64,36 +63,42 @@ export default function ModelCatalogPicker({
 
   return (
     <section className="suna-model-catalog-picker" aria-label="内置模型目录">
-      <div className="suna-model-catalog-providers">
-        {visibleProviders.map((provider) => (
-          <button
-            key={provider.id}
-            type="button"
-            className={`suna-model-catalog-provider ${activeProvider?.id === provider.id ? "is-active" : ""}`}
-            onClick={() => {
-              setActiveId(provider.id);
-              applyProvider(provider);
-            }}
-          >
-            {provider.icon_svg && (
-              <span className="suna-model-catalog-icon" aria-hidden dangerouslySetInnerHTML={{ __html: provider.icon_svg }} />
-            )}
-            {providerLabel(provider)}
-          </button>
-        ))}
+      <div className="suna-model-catalog-block">
+        <p className="suna-model-catalog-label">服务商</p>
+        <div className="suna-model-catalog-providers">
+          {visibleProviders.map((provider) => (
+            <button
+              key={provider.id}
+              type="button"
+              className={`suna-model-catalog-provider ${activeProvider?.id === provider.id ? "is-active" : ""}`}
+              onClick={() => {
+                setActiveId(provider.id);
+                applyProvider(provider);
+              }}
+            >
+              {provider.icon_svg && (
+                <span className="suna-model-catalog-icon" aria-hidden dangerouslySetInnerHTML={{ __html: provider.icon_svg }} />
+              )}
+              {providerLabel(provider)}
+            </button>
+          ))}
+        </div>
       </div>
       {activeProvider && (activeProvider.models?.length ?? 0) > 0 && (
-        <div className="suna-model-catalog-models">
-          {activeProvider.models!.map((model) => (
-            <Button
-              key={model.id}
-              type="button"
-              variant={modelId === model.id ? "primary" : "secondary"}
-              onClick={() => applyModel(activeProvider, model)}
-            >
-              {model.name}
-            </Button>
-          ))}
+        <div className="suna-model-catalog-block">
+          <p className="suna-model-catalog-label">推荐模型</p>
+          <div className="suna-model-catalog-models">
+            {activeProvider.models!.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                className={`suna-model-catalog-model ${modelId === model.id ? "is-active" : ""}`}
+                onClick={() => applyModel(activeProvider, model)}
+              >
+                {model.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </section>

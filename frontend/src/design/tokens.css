@@ -1,30 +1,34 @@
 :root {
   color-scheme: light;
-  /* 主流工业级高质感浅色模式 (Linear / Vercel / Apple Light)
-     画布纯白 #FFFFFF / 侧边栏微白 #FAFAFA / 柔和底色 #F4F4F5 / 悬停 #EAEBEF
-     边线 #E4E4E7 / 强边线 #D4D4D8
-     主文字 Zinc-900 #18181B / 次文字 Zinc-700 #3F3F46 / 弱文字 Zinc-500 #71717A
-     主操作 #18181B / 悬停 #27272A */
+  /* 现代工业科研级高质感浅色模式 (UI/UX Pro Max: Precision Steel & Science Blue)
+     画布纯白 #FFFFFF / 侧边栏 Slate-50 #F8FAFC / 柔和底色 #F1F5F9 / 悬停 #E2E8F0
+     边线 #E2E8F0 / 强边线 #CBD5E1
+     主文字 Slate-900 #0F172A / 次文字 Slate-700 #334155 / 弱文字 Slate-500 #64748B
+     品牌科技蓝 #2563EB / 悬停 #1D4ED8 / 淡透底 rgba(37, 99, 235, 0.08) */
   --suna-bg: #ffffff;
   --suna-bg-raised: #ffffff;
-  --suna-bg-soft: #f4f4f5;
-  --suna-bg-hover: #ebebee;
-  --suna-sidebar: #fafafa;
-  --suna-line: #e4e4e7;
-  --suna-line-strong: #d4d4d8;
-  --suna-text: #18181b;
-  --suna-text-soft: #3f3f46;
-  --suna-text-muted: #71717a;
-  --suna-text-rgb: 24, 24, 27;
+  --suna-bg-soft: #f8fafc;
+  --suna-bg-hover: #f1f5f9;
+  --suna-sidebar: #f8fafc;
+  --suna-sidebar-border: #e2e8f0;
+  --suna-line: #e2e8f0;
+  --suna-line-strong: #cbd5e1;
+  --suna-text: #0f172a;
+  --suna-text-soft: #334155;
+  --suna-text-muted: #64748b;
+  --suna-text-rgb: 15, 23, 42;
   --suna-bg-rgb: 255, 255, 255;
-  --suna-steel: #18181b;
-  --suna-primary: #18181b;
+  --suna-steel: #2563eb;
+  --suna-primary: #2563eb;
+  --suna-primary-hover: #1d4ed8;
+  --suna-primary-soft: rgba(37, 99, 235, 0.08);
+  --suna-primary-border: rgba(37, 99, 235, 0.22);
   --suna-primary-contrast: #ffffff;
   --suna-primary-contrast-muted: rgba(255, 255, 255, 0.75);
-  --suna-primary-fill: #18181b;
-  --suna-primary-fill-hover: #27272a;
-  --suna-amber: #18181b;
-  --suna-amber-soft: #f4f4f5;
+  --suna-primary-fill: #2563eb;
+  --suna-primary-fill-hover: #1d4ed8;
+  --suna-amber: #d97706;
+  --suna-amber-soft: #fffbeb;
   --suna-green: #16a34a;
   --suna-success-text: #15803d;
   --suna-green-soft: #f0fdf4;
@@ -34,21 +38,21 @@
   --suna-warning: #d97706;
   --suna-warning-text: #92400e;
   --suna-warning-soft: #fffbeb;
-  --suna-accent: #18181b;
-  /* 7-Tier Typographic Scale (UI/UX Pro Max) */
-  --suna-font-h1: calc(24px * var(--suna-ui-font-scale));
-  --suna-font-h2: calc(18px * var(--suna-ui-font-scale));
-  --suna-font-h3: calc(15px * var(--suna-ui-font-scale));
-  --suna-font-h4: calc(14px * var(--suna-ui-font-scale));
+  --suna-accent: #2563eb;
+  /* 7-Tier Typographic Scale (UI/UX Pro Max Optimized Hierarchy) */
+  --suna-font-h1: calc(26px * var(--suna-ui-font-scale));
+  --suna-font-h2: calc(20px * var(--suna-ui-font-scale));
+  --suna-font-h3: calc(16px * var(--suna-ui-font-scale));
+  --suna-font-h4: calc(14.5px * var(--suna-ui-font-scale));
   --suna-font-body: calc(14px * var(--suna-ui-font-scale));
   --suna-font-sub: calc(13px * var(--suna-ui-font-scale));
   --suna-font-caption: calc(12px * var(--suna-ui-font-scale));
   --suna-font-kicker: calc(11px * var(--suna-ui-font-scale));
 
   --suna-leading-tight: 1.25;
-  --suna-leading-snug: 1.35;
-  --suna-leading-normal: 1.5;
-  --suna-leading-loose: 1.6;
+  --suna-leading-snug: 1.38;
+  --suna-leading-normal: 1.55;
+  --suna-leading-loose: 1.65;
 
   /* Layout hierarchy tokens */
   --suna-sidebar-width: 236px;
@@ -62,8 +66,11 @@
   --suna-topbar-height: 48px;
   --suna-chat-session-width: 236px;
   --suna-chat-inspector-width: 300px;
+  --suna-chat-inspector-collapsed-width: 42px;
   --suna-chat-session-compact-width: 200px;
   --suna-chat-inspector-compact-width: 260px;
+  --suna-space-card: 16px;
+  --suna-space-gap: 16px;
   --suna-radius: 8px;
   --suna-radius-small: 6px;
   --suna-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
@@ -102,9 +109,10 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
      主操作 #F4F4F5 / 悬停 #E4E4E7 */
   --suna-bg: #222226;
   --suna-bg-raised: #2a2a30;
-  --suna-bg-soft: #303036;
+  --suna-bg-soft: #2a2a32;
   --suna-bg-hover: #383842;
-  --suna-sidebar: #222226;
+  --suna-sidebar: #1a1a20;
+  --suna-sidebar-border: #2e2e38;
   --suna-line: #34343d;
   --suna-line-strong: #484856;
   --suna-text: #f4f4f5;
@@ -114,6 +122,9 @@ html[data-motion="reduced"] *::after { animation-duration: .01ms !important; ani
   --suna-bg-rgb: 34, 34, 38;
   --suna-steel: #3b82f6;
   --suna-primary: #3b82f6;
+  --suna-primary-hover: #60a5fa;
+  --suna-primary-soft: rgba(59, 130, 246, 0.12);
+  --suna-primary-border: rgba(59, 130, 246, 0.28);
   --suna-primary-contrast: #ffffff;
   --suna-primary-contrast-muted: rgba(255, 255, 255, 0.75);
   --suna-primary-fill: #3b82f6;

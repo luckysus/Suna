@@ -10,8 +10,98 @@
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-.suna-new-app.is-sidebar-collapsed .suna-new-sidebar {
-  display: none;
+/* 侧边栏折叠为精致的 64px Icon Rail 模式 */
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar,
+.suna-new-sidebar.is-collapsed {
+  width: var(--suna-sidebar-collapsed-width, 64px) !important;
+  flex: 0 0 var(--suna-sidebar-collapsed-width, 64px) !important;
+  display: flex !important;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-brand,
+.suna-new-sidebar.is-collapsed .suna-new-brand {
+  padding: 14px 8px 10px;
+  justify-content: center;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-brand-text,
+.suna-new-sidebar.is-collapsed .suna-new-brand-text,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-create span,
+.suna-new-sidebar.is-collapsed .suna-new-create span,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-create kbd,
+.suna-new-sidebar.is-collapsed .suna-new-create kbd,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-nav-label,
+.suna-new-sidebar.is-collapsed .suna-new-nav-label,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-nav-item span,
+.suna-new-sidebar.is-collapsed .suna-new-nav-item span,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-history-header,
+.suna-new-sidebar.is-collapsed .suna-new-history-header,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-history-list,
+.suna-new-sidebar.is-collapsed .suna-new-history-list,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-bottom-link span,
+.suna-new-sidebar.is-collapsed .suna-new-bottom-link span,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-bottom-link kbd,
+.suna-new-sidebar.is-collapsed .suna-new-bottom-link kbd,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-user div,
+.suna-new-sidebar.is-collapsed .suna-new-user div,
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-user svg:last-child,
+.suna-new-sidebar.is-collapsed .suna-new-user svg:last-child {
+  display: none !important;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-create,
+.suna-new-sidebar.is-collapsed .suna-new-create {
+  padding: 8px;
+  justify-content: center;
+  margin: 6px 8px;
+  min-width: 0;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-create-left,
+.suna-new-sidebar.is-collapsed .suna-new-create-left {
+  justify-content: center;
+  margin: 0;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-nav-item,
+.suna-new-sidebar.is-collapsed .suna-new-nav-item {
+  justify-content: center;
+  padding: 8px 0;
+  margin: 2px 8px;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-bottom-link,
+.suna-new-sidebar.is-collapsed .suna-new-bottom-link {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.suna-new-app.is-sidebar-collapsed .suna-new-sidebar .suna-new-user,
+.suna-new-sidebar.is-collapsed .suna-new-user {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.suna-new-history-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  margin-top: 4px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  font-size: calc(12px * var(--suna-ui-font-scale));
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.suna-new-history-more-toggle:hover {
+  background: var(--suna-bg-hover);
+  color: var(--suna-text);
 }
 
 .suna-new-app.is-desktop-shell {
@@ -88,17 +178,45 @@
 
 /* Brand / Logo lockup */
 .suna-new-brand {
-  padding: 18px 16px 14px;
+  padding: 16px 14px 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
   user-select: none;
 }
 
-.suna-new-brand > div {
+.suna-new-brand-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.suna-new-brand-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.suna-sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+}
+
+.suna-sidebar-toggle-btn:hover {
+  background: var(--suna-bg-hover);
+  color: var(--suna-text);
 }
 
 .suna-new-brand strong {
@@ -119,31 +237,31 @@
   text-transform: uppercase;
 }
 
-/* "+ 新对话" Action Button - Elevated Precision Desktop Control */
+/* "+ 新对话" Action Button - Elevated Precision Desktop Control (Modern Science Blue) */
 .suna-new-create {
   margin: 0 12px 14px;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 38px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: var(--suna-radius-small, 6px);
-  background: var(--suna-bg-raised);
-  color: var(--suna-text);
-  border: 1px solid var(--suna-line);
+  border-radius: var(--suna-radius, 8px);
+  background: var(--suna-primary-soft, rgba(37, 99, 235, 0.08));
+  color: var(--suna-primary);
+  border: 1px solid var(--suna-primary-border, rgba(37, 99, 235, 0.22));
   font: inherit;
   font-family: inherit;
   font-size: calc(13px * var(--suna-ui-font-scale));
-  font-weight: 550;
+  font-weight: 600;
   cursor: pointer;
   outline: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: all 140ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .suna-new-create span {
-  color: var(--suna-text);
-  font-weight: 550;
+  color: var(--suna-primary);
+  font-weight: 600;
 }
 
 .suna-new-create-left {
@@ -153,7 +271,7 @@
 }
 
 .suna-new-create svg {
-  color: var(--suna-text-muted);
+  color: var(--suna-primary);
   flex-shrink: 0;
   transition: color 140ms ease, transform 140ms ease;
 }
@@ -165,30 +283,35 @@
   border-radius: 4px;
   font-family: var(--suna-mono);
   font-size: calc(10.5px * var(--suna-ui-font-scale));
-  font-weight: 500;
+  font-weight: 550;
   letter-spacing: 0.02em;
-  background: var(--suna-bg-soft);
-  color: var(--suna-text-muted);
-  border: 1px solid var(--suna-line);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--suna-primary);
+  border: 1px solid var(--suna-primary-border, rgba(37, 99, 235, 0.2));
   transition: all 140ms ease;
 }
 
+[data-theme="dark"] .suna-new-create kbd {
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--suna-primary);
+}
+
 .suna-new-create:hover {
-  background: var(--suna-bg-hover);
-  border-color: var(--suna-line-strong);
-  color: var(--suna-text);
+  background: rgba(37, 99, 235, 0.14);
+  border-color: var(--suna-primary);
+  color: var(--suna-primary-hover, #1d4ed8);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.16);
 }
 
 .suna-new-create:hover svg {
-  color: var(--suna-text);
-  transform: scale(1.08);
+  color: var(--suna-primary-hover, #1d4ed8);
+  transform: scale(1.1);
 }
 
 .suna-new-create:hover kbd {
-  color: var(--suna-text);
-  border-color: var(--suna-line-strong);
+  color: var(--suna-primary-hover, #1d4ed8);
+  border-color: var(--suna-primary);
 }
 
 .suna-new-create:active {
@@ -222,11 +345,12 @@
 
 /* Category Section Labels */
 .suna-new-nav-label {
-  margin: 14px 8px 6px;
+  margin: 16px 8px 6px;
   color: var(--suna-text-muted);
-  font-size: calc(11.5px * var(--suna-ui-font-scale));
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-size: calc(11px * var(--suna-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   user-select: none;
 }
 
@@ -234,7 +358,7 @@
   margin-top: 18px;
 }
 
-/* Navigation Items */
+/* Navigation Items (Modern Steel & Science Blue Highlighting) */
 .suna-new-nav-item {
   position: relative;
   width: 100%;
@@ -245,10 +369,10 @@
   align-items: center;
   gap: 10px;
   border: 0;
-  border-radius: var(--suna-radius-small);
+  border-radius: var(--suna-radius-small, 6px);
   background: transparent;
   color: var(--suna-text-soft);
-  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  font-size: calc(13px * var(--suna-ui-font-scale));
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -259,29 +383,49 @@
 .suna-new-nav-item svg {
   color: var(--suna-text-muted);
   flex-shrink: 0;
-  transition: color 140ms ease;
+  transition: color 140ms ease, transform 140ms ease;
 }
 
 .suna-new-nav-item:hover {
-  background: var(--suna-bg-hover);
+  background: rgba(37, 99, 235, 0.05);
   color: var(--suna-text);
 }
 
 .suna-new-nav-item:hover svg {
-  color: var(--suna-text);
+  color: var(--suna-primary);
+  transform: scale(1.06);
 }
 
 .suna-new-nav-item.is-active {
-  background: var(--suna-bg-soft) !important;
-  color: var(--suna-text) !important;
+  background: var(--suna-primary-soft, rgba(37, 99, 235, 0.09)) !important;
+  color: var(--suna-primary) !important;
   font-weight: 600;
   box-shadow: none !important;
   position: relative;
 }
 
-.suna-new-nav-item.is-active svg,
+.suna-new-nav-item.is-active svg {
+  color: var(--suna-primary) !important;
+  transform: scale(1.05);
+}
+
 .suna-new-nav-item.is-active span {
-  color: var(--suna-text) !important;
+  color: var(--suna-primary) !important;
+  font-weight: 600;
+}
+
+/* 左侧精致的蓝色导轨小胶囊指示条 */
+.suna-new-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3.5px;
+  height: 18px;
+  border-radius: 0 999px 999px 0;
+  background: var(--suna-primary);
+  box-shadow: 0 0 6px rgba(37, 99, 235, 0.4);
 }
 
 /* Recent Conversations Header & Archived Toggle */
@@ -643,6 +787,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.suna-new-content > .suna-chat.is-inspector-collapsed {
+  grid-template-columns: minmax(0, 1fr) var(--suna-chat-inspector-collapsed-width, 42px);
+}
+
 /* --------------------------------------------------------------------------
    2. Main Chat Area (.suna-chat-main)
    -------------------------------------------------------------------------- */
@@ -653,6 +801,15 @@
   min-width: 0;
   height: 100%;
   position: relative;
+  /*
+    Shared inset for transcript + composer (steel-agent gutter column).
+    Use the same max(gutter, centered reading inset) on both — no % custom props.
+  */
+  --suna-chat-gutter: clamp(48px, 8vw, 160px);
+  --suna-chat-inset: max(
+    var(--suna-chat-gutter),
+    calc((100% - var(--suna-content-reading-max, 880px)) / 2)
+  );
 }
 
 .suna-new-content .suna-chat-header {
@@ -660,10 +817,12 @@
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  padding: 4px 24px;
+  width: 100%;
+  padding: 4px var(--suna-chat-inset);
   border-bottom: 1px solid var(--suna-line);
   background: var(--suna-bg);
   flex: 0 0 auto;
+  box-sizing: border-box;
 }
 
 .suna-chat-header h2 {
@@ -683,28 +842,40 @@
   gap: 8px;
 }
 
+.suna-new-content .suna-chat-main-alerts,
 .suna-chat-main-alerts {
-  padding: 8px 24px 0;
-  max-width: var(--suna-content-reading-max, 880px);
-  width: 100%;
-  margin: 0 auto;
+  width: auto;
+  max-width: none;
+  margin: 8px var(--suna-chat-inset) 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .suna-new-content .suna-chat-messages {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 24px 24px 16px;
+  /* Restore visible left/right gutters; children fill the remaining column. */
+  padding: 24px var(--suna-chat-inset) 16px !important;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 20px;
   min-height: 0;
   position: relative;
+  box-sizing: border-box;
 }
 
 .suna-new-content .suna-chat-messages > * {
-  width: 100%;
-  max-width: var(--suna-content-reading-max, 880px);
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+.suna-new-content .suna-chat-messages > .suna-chat-user-turn {
+  width: auto !important;
+  max-width: min(760px, 76%) !important;
+  margin-left: auto !important;
+  align-self: flex-end;
 }
 
 /* --------------------------------------------------------------------------
@@ -717,9 +888,10 @@
   justify-content: flex-start;
   padding: 28px 16px 20px !important;
   text-align: center;
-  max-width: var(--suna-content-reading-max, 880px);
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .suna-welcome-brand {
@@ -911,24 +1083,358 @@
 }
 
 /* --------------------------------------------------------------------------
+   4a. Thought panel (steel-agent ThoughtStep)
+   -------------------------------------------------------------------------- */
+.suna-chat-thought {
+  width: 100%;
+  margin: 0 0 10px;
+  min-width: 0;
+}
+
+.suna-chat-thought-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.suna-chat-thought-toggle:hover {
+  color: var(--suna-text);
+}
+
+.suna-chat-thought-toggle svg:first-child {
+  color: var(--suna-primary);
+}
+
+.suna-chat-thought-body {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  line-height: 1.65;
+  color: var(--suna-text-soft);
+}
+
+.suna-chat-thought[data-thought-streaming="true"] .suna-chat-thought-toggle {
+  color: var(--suna-text);
+}
+
+.suna-chat-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.suna-chat-timeline-content {
+  width: 100%;
+  /* Keep parity with .ai-markdown-body / final answer — avoid shrink on settle. */
+  font-size: 1.0625rem;
+  line-height: 1.8;
+  color: var(--suna-text);
+}
+
+.suna-chat-timeline .suna-chat-thought {
+  margin-bottom: 0;
+}
+
+.suna-chat-timeline-tool {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 6px 2px;
+}
+
+.suna-chat-timeline-tool-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--suna-line);
+  background: var(--suna-bg-soft);
+  color: var(--suna-primary);
+}
+
+.suna-chat-timeline-tool-icon.is-good { color: var(--suna-success, #2f9d6a); }
+.suna-chat-timeline-tool-icon.is-danger { color: var(--suna-danger, #c44); }
+.suna-chat-timeline-tool-icon.is-pending { color: var(--suna-primary); }
+
+.suna-chat-timeline-tool-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-soft);
+}
+
+.suna-chat-timeline-tool-body strong {
+  color: var(--suna-text);
+  font-weight: 600;
+}
+
+.suna-chat-timeline-tool-body strong.is-active {
+  background: linear-gradient(90deg, var(--suna-text-muted), var(--suna-primary), var(--suna-text-muted));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: suna-tool-shimmer 1.6s linear infinite;
+}
+
+@keyframes suna-tool-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.suna-chat-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--suna-line);
+  border-radius: 999px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text-muted);
+  padding: 4px 10px;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  cursor: pointer;
+}
+
+.suna-chat-chip-toggle:hover {
+  color: var(--suna-text);
+}
+
+.suna-chat-web-sources,
+.suna-chat-query-rewrite,
+.suna-chat-research-trace,
+.suna-chat-suggested-questions,
+.suna-chat-follow-up-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.suna-chat-web-sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suna-chat-web-source-link {
+  display: inline-flex;
+  max-width: 260px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-soft);
+  color: var(--suna-text);
+  padding: 6px 10px;
+  text-decoration: none;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+}
+
+.suna-chat-web-source-link span {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--suna-primary) 16%, transparent);
+  color: var(--suna-primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.suna-chat-web-source-link em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.suna-chat-query-rewrite-body,
+.suna-chat-research-trace-body {
+  border: 1px solid var(--suna-line);
+  border-radius: 10px;
+  background: var(--suna-bg-soft);
+  padding: 10px 12px;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  line-height: 1.55;
+  color: var(--suna-text-soft);
+}
+
+.suna-chat-follow-up-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.suna-chat-follow-up-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: calc(13px * var(--suna-ui-font-scale));
+}
+
+.suna-chat-user-context {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.suna-chat-user-context-chip {
+  border: 1px solid color-mix(in srgb, var(--suna-primary-contrast) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--suna-primary-fill) 82%, #000);
+  color: var(--suna-primary-contrast);
+  padding: 2px 8px;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+}
+
+.suna-chat-assistant-turn > .suna-chat-turn-timer {
+  margin: 0 0 8px;
+}
+
+.suna-chat-turn-timer {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 12px;
+  padding: 0 2px;
+  color: var(--suna-text-muted);
+  font-size: calc(13.5px * var(--suna-ui-font-scale));
+  line-height: 1.65;
+}
+
+.suna-chat-turn-timer-parts {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.suna-chat-turn-timer-part {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.suna-chat-turn-timer-value {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.suna-chat-messages-shell {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.suna-chat-messages-shell > .suna-chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.suna-chat-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  border: 1px solid var(--suna-line);
+  border-radius: 999px;
+  background: var(--suna-bg);
+  box-shadow: var(--suna-shadow-soft);
+  color: var(--suna-text);
+  padding: 8px 12px;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  cursor: pointer;
+}
+
+.suna-chat-queued {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--suna-line);
+  border-radius: 12px;
+  background: var(--suna-bg-soft);
+  padding: 10px 12px;
+  font-size: calc(12.5px * var(--suna-ui-font-scale));
+}
+
+.suna-chat-queued ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.suna-chat-queued li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suna-chat-queued li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suna-chat-queued button {
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
    4. User Bubble & Assistant Turn (.suna-chat-user-turn, .suna-chat-assistant-turn)
+   Web (steel-agent): user right-aligned filled bubble max ~76%; assistant stays in column.
    -------------------------------------------------------------------------- */
 .suna-chat-user-turn {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   margin-left: auto;
-  max-width: min(760px, 85%);
-  gap: 4px;
+  max-width: min(760px, 76%);
+  gap: 6px;
 }
 
 .suna-chat-user-bubble {
-  background: var(--suna-bg-soft);
-  color: var(--suna-text);
-  border: 1px solid var(--suna-line);
+  background: var(--suna-primary-fill);
+  color: var(--suna-primary-contrast);
+  border: 0;
   border-radius: 16px 4px 16px 16px;
-  padding: 11px 16px;
-  font-size: calc(14px * var(--suna-ui-font-scale));
+  padding: 12px 16px;
+  font-size: calc(14.5px * var(--suna-ui-font-scale));
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
@@ -940,16 +1446,30 @@
   flex-direction: column;
   align-items: flex-start;
   margin-right: auto;
-  max-width: min(1040px, 96%);
+  max-width: 100%;
   width: 100%;
   gap: 6px;
+  box-sizing: border-box;
 }
 
 .suna-chat-assistant-turn .suna-chat-answer {
   width: 100%;
-  font-size: calc(14px * var(--suna-ui-font-scale));
-  line-height: 1.7;
+  /* Same body size as streaming timeline content / .ai-markdown-body. */
+  font-size: 1.0625rem;
+  line-height: 1.8;
   color: var(--suna-text);
+}
+
+.suna-chat-message-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+}
+
+.suna-chat-message-actions-row .mt-2 {
+  margin-top: 0;
 }
 
 .suna-chat-message-actions {
@@ -962,7 +1482,14 @@
 
 .suna-chat-user-turn:hover .suna-chat-message-actions,
 .suna-chat-assistant-turn:hover .suna-chat-message-actions,
-.suna-chat-message-actions:focus-within {
+.suna-chat-assistant-turn:hover .suna-chat-message-actions-row .suna-chat-message-actions,
+.suna-chat-message-actions:focus-within,
+.suna-chat-message-actions-row:focus-within .suna-chat-message-actions {
+  opacity: 1;
+}
+
+/* Keep thumbs + copy visible together on the action row. */
+.suna-chat-assistant-turn .suna-chat-message-actions-row .suna-chat-message-actions {
   opacity: 1;
 }
 
@@ -1174,40 +1701,50 @@
 
 /* --------------------------------------------------------------------------
    5. Chat Composer (.suna-chat-composer)
+   Web (steel-agent): same reading column as turns; outline card; toolbar inside;
+   borderless model chip; circular send on the right.
    -------------------------------------------------------------------------- */
+.suna-new-content .suna-chat-main > .suna-chat-composer,
 .suna-new-content .suna-chat-composer {
   position: relative;
-  width: calc(100% - 48px);
-  max-width: var(--suna-content-reading-max, 880px);
-  margin: 0 auto 24px;
-  padding: 14px 18px 12px;
+  z-index: 10;
+  /* Same horizontal inset as .suna-chat-messages — widths stay locked together. */
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 var(--suna-chat-inset) 16px !important;
+  padding: 8px 10px 10px;
   border: 1px solid var(--suna-line);
   border-radius: 16px;
   background: var(--suna-bg-raised);
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
   display: flex;
   flex-direction: column;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
   flex: 0 0 auto;
+  box-sizing: border-box;
 }
 
 .suna-new-content .suna-chat-composer:focus-within {
   border-color: var(--suna-primary);
-  box-shadow: 0 0 0 1px var(--suna-primary), 0 10px 36px rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--suna-primary) 18%, transparent),
+    0 10px 32px rgba(15, 23, 42, 0.08);
 }
 
-.suna-chat-composer textarea {
+.suna-chat-composer textarea,
+.suna-new-content .suna-chat-composer textarea {
   width: 100%;
-  min-height: 64px;
-  max-height: 220px;
-  padding: 0;
+  min-height: 44px;
+  max-height: 8rem;
+  padding: 8px 10px 6px;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--suna-text);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: calc(15px * var(--suna-ui-font-scale));
+  line-height: 1.65;
   resize: none;
+  box-shadow: none;
 }
 
 .suna-chat-composer textarea::placeholder {
@@ -1219,50 +1756,55 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
   padding: 14px;
-  margin-bottom: 8px;
-  border: 1.5px dashed var(--suna-line-strong);
-  border-radius: 10px;
-  background: var(--suna-bg-soft);
+  border: 2px dashed var(--suna-primary);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--suna-bg-raised) 92%, transparent);
   color: var(--suna-text);
   font-size: 13px;
   font-weight: 500;
-  transition: all 140ms ease;
-}
-
-.suna-chat-dropzone:hover {
-  border-color: var(--suna-primary);
-  background: var(--suna-bg-hover);
+  pointer-events: none;
 }
 
 .suna-chat-composer-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--suna-line);
+  gap: 8px;
+  margin-top: 4px;
+  padding: 2px 2px 0;
+  border-top: 0;
 }
 
 .suna-chat-composer-tools,
 .suna-chat-composer-right {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.suna-chat-composer-right {
+  margin-left: auto;
 }
 
 .suna-chat-composer-tool {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 10px;
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--suna-line);
   border-radius: 999px;
   background: transparent;
   color: var(--suna-text-muted);
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 500;
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
@@ -1273,8 +1815,8 @@
 }
 
 .suna-chat-composer-tool.is-active {
-  background: var(--suna-bg-active);
-  border-color: var(--suna-line-strong);
+  background: var(--suna-primary-soft);
+  border-color: var(--suna-primary);
   color: var(--suna-text);
   font-weight: 600;
 }
@@ -1286,14 +1828,15 @@
 .suna-chat-model-button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 9px;
-  border: 1px solid var(--suna-line);
-  border-radius: 8px;
+  gap: 6px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: var(--suna-text-soft);
-  font-size: calc(12.5px * var(--suna-ui-font-scale));
+  color: var(--suna-text-muted);
+  font-size: calc(13px * var(--suna-ui-font-scale));
+  font-weight: 500;
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;
 }
@@ -1304,10 +1847,11 @@
 }
 
 .suna-chat-model-button span {
-  max-width: 140px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: right;
 }
 
 .suna-chat-model-button svg {
@@ -1367,13 +1911,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   background: var(--suna-primary-fill);
   color: var(--suna-primary-contrast);
   border: 0;
   cursor: pointer;
+  box-shadow: var(--suna-shadow-soft);
   transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
   flex: 0 0 auto;
 }
@@ -1381,10 +1926,11 @@
 .suna-chat-send-button:hover:not(:disabled) {
   background: var(--suna-primary-fill-hover);
   transform: translateY(-1px);
+  opacity: 0.92;
 }
 
 .suna-chat-send-button:disabled {
-  opacity: 0.35;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -1392,6 +1938,7 @@
   background: var(--suna-bg-soft);
   border: 1px solid var(--suna-line);
   color: var(--suna-text);
+  box-shadow: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -1400,14 +1947,96 @@
 .suna-new-content .suna-chat-inspector {
   display: flex;
   flex-direction: column;
-  background: var(--suna-bg-soft);
-  border-left: 1px solid var(--suna-line);
+  background: var(--suna-sidebar);
+  border-left: 1px solid var(--suna-sidebar-border, var(--suna-line));
   padding: 16px 14px;
   overflow-y: auto;
   gap: 14px;
   margin: 0;
   border-radius: 0;
   box-shadow: none;
+  transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.suna-new-content .suna-chat-inspector.is-collapsed {
+  padding: 12px 0;
+  width: var(--suna-chat-inspector-collapsed-width, 42px);
+  min-width: var(--suna-chat-inspector-collapsed-width, 42px);
+  align-items: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+.suna-chat-inspector-expand-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.suna-chat-inspector-expand-btn:hover {
+  color: var(--suna-primary);
+  background: var(--suna-primary-soft, rgba(37, 99, 235, 0.08));
+}
+
+.suna-inspector-vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  letter-spacing: 0.15em;
+  font-weight: 600;
+  color: var(--suna-text-muted);
+}
+
+.suna-inspector-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.suna-inspector-pulse.is-ready {
+  background: var(--suna-green);
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.5);
+}
+
+.suna-inspector-pulse.is-running {
+  background: var(--suna-primary);
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.6);
+  animation: pulse-glow 1.5s infinite;
+}
+
+.suna-inspector-pulse.is-alert {
+  background: var(--suna-warning);
+  box-shadow: 0 0 8px rgba(217, 119, 6, 0.6);
+  animation: pulse-glow 1s infinite;
+}
+
+.suna-chat-inspector-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--suna-text-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.suna-chat-inspector-collapse-btn:hover {
+  background: var(--suna-bg-hover);
+  color: var(--suna-text);
 }
 
 .suna-chat-inspector-empty {
@@ -1417,25 +2046,33 @@
   justify-content: center;
   height: 100%;
   text-align: center;
-  padding: 40px 16px;
+  padding: 40px 18px;
   color: var(--suna-text-muted);
+  background: radial-gradient(circle at center 35%, rgba(37, 99, 235, 0.08) 0%, transparent 68%);
 }
 
 .suna-chat-inspector-empty-icon {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--suna-line);
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--suna-primary-border, rgba(37, 99, 235, 0.22));
   background: var(--suna-bg-raised);
-  color: var(--suna-text);
-  margin-bottom: 12px;
+  color: var(--suna-primary);
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.suna-chat-inspector-empty-icon:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
 }
 
 .suna-chat-inspector-empty strong {
-  font-size: calc(14px * var(--suna-ui-font-scale));
-  font-weight: 650;
+  font-size: calc(14.5px * var(--suna-ui-font-scale));
+  font-weight: 700;
   color: var(--suna-text);
 }
 
@@ -1496,19 +2133,26 @@
 
 .suna-chat-inspector-metrics > div {
   padding: 10px 12px;
-  border: 1px solid var(--suna-line);
+  border: 1px solid var(--suna-sidebar-border, var(--suna-line));
   border-radius: 9px;
   background: var(--suna-bg-raised);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.suna-chat-inspector-metrics > div:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
 }
 
 .suna-chat-inspector-metrics span {
-  font-size: calc(11.5px * var(--suna-ui-font-scale));
+  font-size: calc(11px * var(--suna-ui-font-scale));
   font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--suna-text-muted);
 }
 
@@ -1516,7 +2160,7 @@
   font-size: calc(18px * var(--suna-ui-font-scale));
   font-weight: 750;
   font-variant-numeric: tabular-nums;
-  color: var(--suna-text);
+  color: var(--suna-primary);
 }
 
 .suna-chat-inspector-section {
@@ -1808,9 +2452,9 @@
 }
 
 [data-theme="dark"] .suna-chat-user-bubble {
-  background: var(--suna-bg-hover);
-  border: 1px solid var(--suna-line);
-  color: var(--suna-text);
+  background: var(--suna-primary-fill);
+  border: 0;
+  color: var(--suna-primary-contrast);
   box-shadow: var(--suna-shadow-soft);
 }
 
@@ -1834,23 +2478,25 @@
 [data-theme="dark"] .suna-new-content .suna-chat-composer {
   border-color: var(--suna-line);
   background: var(--suna-bg-raised);
-  box-shadow: var(--suna-shadow);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="dark"] .suna-new-content .suna-chat-composer:focus-within {
-  border-color: var(--suna-line-strong);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  border-color: var(--suna-primary);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--suna-primary) 22%, transparent),
+    0 10px 36px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .suna-chat-dropzone {
-  border-color: var(--suna-line-strong);
-  background: var(--suna-bg-soft);
+  border-color: var(--suna-primary);
+  background: color-mix(in srgb, var(--suna-bg-raised) 92%, transparent);
   color: var(--suna-text);
 }
 
 [data-theme="dark"] .suna-chat-composer-tool.is-active {
-  background: var(--suna-bg-active);
-  border-color: var(--suna-line-strong);
+  background: var(--suna-primary-soft);
+  border-color: var(--suna-primary);
   color: var(--suna-text);
 }
 
@@ -1913,6 +2559,10 @@
 }
 
 @media (max-width: 900px) {
+  .suna-new-content .suna-chat-main {
+    --suna-chat-gutter: clamp(16px, 4vw, 32px);
+  }
+
   .suna-new-app .suna-new-sidebar {
     width: 60px;
     flex-basis: 60px;

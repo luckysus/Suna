@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, type FormEvent, type ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useLocale } from "../../i18n/locale";
 import {
   desktop,
@@ -141,6 +141,13 @@ export interface ChatControllerProps {
   onCancel: () => void;
   onSteer: (message: string) => void;
   onFollowUp: (message: string) => void;
+  onForkMessage: (message: Message) => void;
+  onFeedback: (message: Message, rating: "up" | "down", reason?: string) => Promise<boolean>;
+  queuedMessages: string[];
+  pendingMeta: { attachments: string[]; knowledge: string[] };
+  onEnqueueMessage: (message: string) => void;
+  onRemoveQueuedMessage: (index: number) => void;
+  onSendQueuedHead: () => void;
   onRetry: () => void;
   onResume: () => void;
   onResolvePermission: (permissionId: string, decision: PermissionDecision) => void;
@@ -202,6 +209,11 @@ export function useChatController(): ChatControllerProps {
   const knowledgeBases = useKnowledgeStore((state) => state.knowledgeBases);
   const knowledgeBaseIds = useKnowledgeStore((state) => state.selectedKnowledgeBaseIds);
   const knowledgeFilters = useKnowledgeStore((state) => state.knowledgeFilters);
+  const [queuedMessages, setQueuedMessages] = useState<string[]>([]);
+  const [pendingMeta, setPendingMeta] = useState<{ attachments: string[]; knowledge: string[] }>({
+    attachments: [],
+    knowledge: [],
+  });
 
   const messagePageCursor = useChatStore((state) => state.messagePageCursor);
 
@@ -323,10 +335,19 @@ export function useChatController(): ChatControllerProps {
       if (!isActiveConversation(conversationId, generation)) return;
       applyInitialMessagePage(page);
       setDraft(nextDraft);
-      setAgentRun(null);
+      const buffered = [...agentViews.current.entries()]
+        .filter(([key]) => key.startsWith(`${conversationId}:`))
+        .map(([, view]) => view)
+        .sort((left, right) => right.sequence - left.sequence)[0];
+      if (buffered && !TERMINAL_AGENT_RUN_STATES.has(buffered.state)) {
+        setAgentRun(buffered);
+      } else {
+        setAgentRun(null);
+      }
       const recovered = recoveredRunsRef.current.find((candidate) => candidate.run.conversation_id === conversationId);
       const runId = [...page.messages].reverse().map(messageRunId).find((value): value is string => value !== null)
-        ?? recovered?.run.id;
+        ?? recovered?.run.id
+        ?? buffered?.runId;
       if (runId) {
         await hydrateAgentRun(conversationId, runId, generation);
       }
@@ -467,27 +488,31 @@ export function useChatController(): ChatControllerProps {
     let mounted = true;
     let dispose: (() => void) | undefined;
     const handleEvent = (event: Parameters<Parameters<typeof desktop.listenAgentEvents>[0]>[0]) => {
-      if (!mounted || (selectedId && event.conversation_id !== selectedId)) return;
+      if (!mounted) return;
       const key = `${event.conversation_id}:${event.run_id}`;
       const current = agentViews.current.get(key) ?? createAgentRunView(event.run_id, event.conversation_id);
       const previousSequence = current.sequence;
       const next = reduceAgentEvent(current, event);
+      // Always buffer — switching chats must not drop an in-flight run.
       agentViews.current.set(key, next);
-      setAgentRun((visible) => visible?.runId === event.run_id && visible.conversationId === event.conversation_id
-        ? next
-        : visible ?? next);
-      if (event.type === "evidence_attached" && event.data.citation_numbers.length > 0) {
-        void Promise.all(event.data.citation_numbers.map((citationNumber) =>
-          desktop.resolveKnowledgeCitation(event.data.evidence_pack_id, citationNumber).catch(() => null),
-        )).then((citations) => {
-          if (!mounted) return;
-          const evidence = citations.filter((citation): citation is NonNullable<typeof citation> => citation !== null).map((citation) => ({
-            citation_number: citation.citation_number,
-            chunk: citation.chunk,
-            assets: citation.assets,
-          }));
-          setStreamingCitations(evidence);
-        });
+      const selected = !selectedId || event.conversation_id === selectedId;
+      if (selected) {
+        setAgentRun((visible) => visible?.runId === event.run_id && visible.conversationId === event.conversation_id
+          ? next
+          : visible ?? next);
+        if (event.type === "evidence_attached" && event.data.citation_numbers.length > 0) {
+          void Promise.all(event.data.citation_numbers.map((citationNumber) =>
+            desktop.resolveKnowledgeCitation(event.data.evidence_pack_id, citationNumber).catch(() => null),
+          )).then((citations) => {
+            if (!mounted) return;
+            const evidence = citations.filter((citation): citation is NonNullable<typeof citation> => citation !== null).map((citation) => ({
+              citation_number: citation.citation_number,
+              chunk: citation.chunk,
+              assets: citation.assets,
+            }));
+            setStreamingCitations(evidence);
+          });
+        }
       }
       if (event.sequence > previousSequence + 1 && !replayingRuns.current.has(key)) {
         replayingRuns.current.add(key);
@@ -496,9 +521,11 @@ export function useChatController(): ChatControllerProps {
             if (!mounted) return;
             const replayed = reduceAgentEvents(agentViews.current.get(key) ?? current, events);
             agentViews.current.set(key, replayed);
-            setAgentRun((visible) => visible?.runId === event.run_id && visible.conversationId === event.conversation_id
-              ? replayed
-              : visible ?? replayed);
+            if (!selectedId || event.conversation_id === selectedId) {
+              setAgentRun((visible) => visible?.runId === event.run_id && visible.conversationId === event.conversation_id
+                ? replayed
+                : visible ?? replayed);
+            }
           })
           .catch((cause) => {
             if (mounted) setError(errorMessage(cause, t("chatError")));
@@ -593,10 +620,9 @@ export function useChatController(): ChatControllerProps {
     setConversations(nextConversations);
   };
 
-  const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const question = draft.trim();
-    if ((!question && attachments.length === 0) || pendingQuestion !== null) return;
+  const sendQuestion = async (questionInput: string, attachmentInput: LocalAgentAttachment[] = []) => {
+    const question = questionInput.trim();
+    if ((!question && attachmentInput.length === 0) || pendingQuestion !== null) return;
     setError(null);
     let conversationId = selectedId;
     try {
@@ -608,8 +634,15 @@ export function useChatController(): ChatControllerProps {
       }
       const runId = crypto.randomUUID();
       const submittedMessage = question || "请分析附加图片";
-      const submittedAttachments = attachments;
+      const submittedAttachments = attachmentInput;
       const shouldSearch = (smartSearchEnabled || autoSearchEnabled) && shouldRunSmartSearch(question);
+      const knowledgeNames = knowledgeBases
+        .filter((base) => knowledgeBaseIds.includes(base.id))
+        .map((base) => base.name);
+      setPendingMeta({
+        attachments: submittedAttachments.map((item) => item.name),
+        knowledge: knowledgeNames,
+      });
       setPendingQuestion(submittedMessage);
       setAgentRun(createAgentRunView(runId, conversationId));
       setActiveRunId(runId);
@@ -655,7 +688,20 @@ export function useChatController(): ChatControllerProps {
     } finally {
       setPendingQuestion(null);
       setActiveRunId(null);
+      setPendingMeta({ attachments: [], knowledge: [] });
     }
+  };
+
+  const submitMessage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const question = draft.trim();
+    if (pendingQuestion !== null) {
+      if (!question) return;
+      setQueuedMessages((current) => [...current, question]);
+      setDraft("");
+      return;
+    }
+    await sendQuestion(question, attachments);
   };
 
   const cancelRun = async () => {
@@ -823,6 +869,34 @@ export function useChatController(): ChatControllerProps {
     setKnowledgeFilters(filters);
   };
 
+  const forkMessage = async (message: Message) => {
+    try {
+      const created = await desktop.forkConversationFromMessage(message.id);
+      setConversations((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      setSelectedId(created.id);
+      setNotice("已从此处分叉新对话");
+    } catch (cause) {
+      setError(errorMessage(cause, t("chatError")));
+    }
+  };
+
+  const enqueueMessage = (message: string) => {
+    const value = message.trim();
+    if (!value) return;
+    setQueuedMessages((current) => [...current, value]);
+  };
+
+  const removeQueuedMessage = (index: number) => {
+    setQueuedMessages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const sendQueuedHead = async () => {
+    if (pendingQuestion !== null || queuedMessages.length === 0) return;
+    const [next, ...rest] = queuedMessages;
+    setQueuedMessages(rest);
+    await sendQuestion(next, []);
+  };
+
   return {
     conversations,
     selectedId,
@@ -847,6 +921,8 @@ export function useChatController(): ChatControllerProps {
     attachments,
     error,
     notice,
+    queuedMessages,
+    pendingMeta,
     onNewConversation: (initialDraft) => void createConversation(initialDraft),
     onSelectConversation: setSelectedId,
     onDraftChange: setDraft,
@@ -855,6 +931,24 @@ export function useChatController(): ChatControllerProps {
     onCancel: () => void cancelRun(),
     onSteer: (message) => void steerRun(message),
     onFollowUp: (message) => void followUpRun(message),
+    onForkMessage: (message) => void forkMessage(message),
+    onFeedback: async (message, rating, reason) => {
+      try {
+        const result = await desktop.saveAgentFeedback({
+          conversationId: message.conversation_id,
+          messageId: message.id,
+          rating,
+          reason,
+          content: message.content.slice(0, 500),
+        });
+        return result?.ok === true;
+      } catch {
+        return false;
+      }
+    },
+  onEnqueueMessage: enqueueMessage,
+  onRemoveQueuedMessage: removeQueuedMessage,
+  onSendQueuedHead: () => void sendQueuedHead(),
     onRetry: () => void retryRun(),
     onResume: () => void resumeRun(),
     onResolvePermission: (permissionId, decision) => void resolvePermission(permissionId, decision),

@@ -237,6 +237,8 @@ fn desktop_response_exposes_loaded_skill_audit() {
         }],
         &[],
         &[],
+        None,
+        None,
     );
 
     assert_eq!(response["skills"]["available"][0]["name"], "steel-review");
@@ -273,6 +275,8 @@ fn desktop_response_exposes_selected_memory_audit() {
         &[],
         &[],
         &selected_memories,
+        None,
+        None,
     );
 
     assert_eq!(response["memory"]["selected_count"], 1);
@@ -304,10 +308,15 @@ fn desktop_response_exposes_tool_call_audit() {
             "status": "succeeded",
         })],
         &[],
+        Some("2026-11-08T16:00:00+00:00"),
+        Some("2026-11-08T16:00:05+00:00"),
     );
 
     assert_eq!(response["tool_calls"][0]["name"], "search_literature");
     assert_eq!(response["tool_calls"][0]["status"], "succeeded");
+    assert_eq!(response["duration_ms"], 5000);
+    assert_eq!(response["workflow"]["started_at"], "2026-11-08T16:00:00+00:00");
+    assert_eq!(response["workflow"]["ended_at"], "2026-11-08T16:00:05+00:00");
 }
 
 #[test]

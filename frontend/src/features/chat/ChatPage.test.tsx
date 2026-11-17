@@ -586,7 +586,31 @@ describe("ChatPage", () => {
 
     expect(await screen.findByText("1 条记忆")).toBeInTheDocument();
     expect(screen.getByText("1 个技能")).toBeInTheDocument();
-    expect(screen.getByText("1 个工具")).toBeInTheDocument();
+    expect(screen.queryByText("1 个工具")).not.toBeInTheDocument();
+  });
+
+  it("shows a collapsible thought above the persisted assistant answer", async () => {
+    vi.mocked(desktop.listMessagesPage).mockResolvedValue(messagePage([
+      userMessage,
+      {
+        ...userMessage,
+        id: "message-2",
+        role: "agent",
+        content: "东北大学位于沈阳。",
+        response_json: JSON.stringify({
+          reasoning: "先确认学校所在城市，再组织回答。",
+          reasoning_ms: 800,
+        }),
+      },
+    ]));
+
+    render(<ChatPage />);
+
+    expect(await screen.findByText("已思考（用时 1 秒）")).toBeInTheDocument();
+    expect(screen.queryByText("先确认学校所在城市，再组织回答。")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "展开本轮思考" }));
+    expect(screen.getByText("先确认学校所在城市，再组织回答。")).toBeInTheDocument();
+    expect(screen.getByText("东北大学位于沈阳。")).toBeInTheDocument();
   });
 
   it("fills the composer with a Web follow-up question", async () => {

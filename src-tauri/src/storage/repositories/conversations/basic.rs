@@ -142,7 +142,7 @@ pub fn delete(
     conversation_id: &str,
 ) -> Result<(), String> {
     let tx = conn.transaction().map_err(|error| error.to_string())?;
-    for table in ["messages", "conversation_summaries", "conversation_drafts"] {
+    for table in ["messages", "conversation_summaries", "conversation_drafts", "agent_feedback"] {
         tx.execute(
             &format!("DELETE FROM {table} WHERE workspace_id = ?1 AND conversation_id = ?2"),
             params![workspace_id, conversation_id],

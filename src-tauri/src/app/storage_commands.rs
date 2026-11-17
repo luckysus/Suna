@@ -1,4 +1,5 @@
 pub(crate) mod conversations;
+pub(crate) mod feedback;
 pub(crate) mod history;
 pub(crate) mod logic;
 pub(crate) mod memory;

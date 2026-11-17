@@ -130,11 +130,13 @@ impl McpLegacySseConfig {
     pub fn validate(&self) -> Result<(), McpError> {
         let url = reqwest_013::Url::parse(&self.url)
             .map_err(|error| McpError::InvalidTransport(format!("invalid MCP SSE URL: {error}")))?;
-        if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        if !matches!(url.scheme(), "http" | "https") {
             return Err(McpError::InvalidTransport(
                 "MCP SSE URL must use http or https and include a host".to_string(),
             ));
         }
+        super::host::reject_blocked_mcp_host(url.host_str())
+            .map_err(McpError::InvalidTransport)?;
         if !url.username().is_empty() || url.password().is_some() {
             return Err(McpError::InvalidTransport(
                 "MCP SSE URL must not contain credentials".to_string(),

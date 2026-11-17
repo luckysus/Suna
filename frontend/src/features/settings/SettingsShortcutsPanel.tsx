@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Keyboard, RotateCcw, Save } from "lucide-react";
 import { getSettingValue, setSettingValue } from "./settingsModel";
 import { settingsErrorMessage } from "./settingsError";
-import { defaultShortcuts, normalizeShortcuts, shortcutChoices, shortcutRows, type ShortcutKey as ShortcutKeyType } from "../../app/shortcuts";
+import { defaultShortcuts, normalizeShortcuts, shortcutChoices, shortcutRows, shortcutsSchemaVersion, type ShortcutKey as ShortcutKeyType } from "../../app/shortcuts";
 import { useDebouncedCallback } from "../../hooks/useDebouncedCallback";
 import { useLocale } from "../../i18n/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -48,7 +48,7 @@ export default function SettingsShortcutsPanel() {
     if (duplicateFor(next)) { setError("快捷键不能重复，请修改冲突的操作"); setSaved(false); return; }
     const currentRequest = ++request.current;
     setSaving(true); setError(null); setSaved(false);
-    try { await setSettingValue("ui.shortcuts", JSON.stringify({ version: 1, ...next })); if (currentRequest === request.current) { setLoadError(false); setSaved(true); } }
+    try { await setSettingValue("ui.shortcuts", JSON.stringify({ version: shortcutsSchemaVersion, ...next })); if (currentRequest === request.current) { setLoadError(false); setSaved(true); } }
     catch (cause) { if (currentRequest === request.current) { setLoadError(false); setError(settingsErrorMessage(cause, "快捷键保存失败，请重试")); } }
     finally { if (currentRequest === request.current) setSaving(false); }
   };

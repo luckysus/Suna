@@ -7,8 +7,10 @@ use std::time::Duration;
 pub fn open(path: impl AsRef<Path>) -> Result<(Connection, MigrationReport), StorageError> {
     let mut connection = Connection::open(path)
         .map_err(|error| StorageError::new("database_open_failed", error.to_string()))?;
+    // Agent runs keep a second writer open while UI/settings also write; wait
+    // longer under WAL before surfacing "database is locked".
     connection
-        .busy_timeout(Duration::from_secs(5))
+        .busy_timeout(Duration::from_secs(30))
         .map_err(|error| StorageError::new("database_config_failed", error.to_string()))?;
     connection
         .pragma_update(None, "journal_mode", "WAL")

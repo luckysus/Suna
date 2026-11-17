@@ -492,10 +492,10 @@
 
 .suna-chat-composer {
   border-top: 1px solid var(--suna-line);
-  margin: 0 auto;
-  max-width: 780px;
+  margin: 0;
+  max-width: none;
   padding-top: 15px;
-  width: 100%;
+  width: auto;
 }
 
 .suna-chat-composer textarea {

@@ -2,6 +2,7 @@ mod agent_tools;
 mod catalog;
 mod client;
 mod config;
+mod host;
 mod http;
 mod model;
 mod sse;

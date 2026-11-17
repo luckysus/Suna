@@ -198,6 +198,10 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         version: 46,
         sql: include_str!("migrations/0046_provider_profile_metadata.sql"),
     },
+    Migration {
+        version: 47,
+        sql: include_str!("migrations/0047_agent_feedback.sql"),
+    },
 ];
 
 pub fn latest_version() -> u32 {

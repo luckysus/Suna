@@ -1,12 +1,5 @@
 import type { EvidenceItem, Message } from "../../../bridge/desktop";
 
-export interface AgentConversation {
-  sessionId: string;
-  title: string;
-  updatedAt: string;
-  pinned?: boolean;
-}
-
 export interface WebRecommendation {
   title: string;
   category?: string;
@@ -33,8 +26,32 @@ export interface WebSource {
   snippet?: string;
 }
 
+export interface WebQueryRewrite {
+  original_query: string;
+  retrieval_query: string;
+  changed?: boolean;
+  alias_queries?: string[];
+  multi_queries?: string[];
+  hyde_used?: boolean;
+  step_back_query?: string;
+  decomposed_queries?: string[];
+}
+
+export interface WebResearchSnapshot {
+  goal?: string;
+  plan?: string;
+  tasks?: string[];
+  evidence?: string[];
+  decisions?: string[];
+  verification_issues?: string[];
+  todo?: string[];
+  status?: string;
+  replan_count?: number;
+}
+
 export interface WebResponse {
   follow_up_questions: string[];
+  suggested_questions: string[];
   recommendations: WebRecommendation[];
   pending_confirmations: WebPendingConfirmation[];
   evidence: EvidenceItem[];
@@ -42,6 +59,13 @@ export interface WebResponse {
   reasoning?: string;
   reasoning_ms?: number;
   web_sources: WebSource[];
+  query_rewrite?: WebQueryRewrite | null;
+  research?: WebResearchSnapshot | null;
+  tool_calls?: unknown;
+  run_id?: string;
+  duration_ms?: number;
+  started_at?: string;
+  ended_at?: string;
 }
 
 export interface WebContextStatus {
@@ -142,8 +166,11 @@ export function parseWebResponse(message: Message): WebResponse | null {
   try {
     const record = asRecord(JSON.parse(message.response_json));
     if (!record) return null;
+    const rewrite = asRecord(record.query_rewrite);
+    const research = asRecord(record.research);
     return {
       follow_up_questions: asStringArray(record.follow_up_questions),
+      suggested_questions: asStringArray(record.suggested_questions),
       recommendations: asRecommendations(record.recommendations),
       pending_confirmations: asConfirmations(record.pending_confirmations),
       evidence: asEvidence(record.evidence),
@@ -151,6 +178,40 @@ export function parseWebResponse(message: Message): WebResponse | null {
       reasoning: typeof record.reasoning === "string" ? record.reasoning : undefined,
       reasoning_ms: typeof record.reasoning_ms === "number" ? record.reasoning_ms : undefined,
       web_sources: asWebSources(record.web_sources),
+      tool_calls: record.tool_calls,
+      run_id: typeof record.run_id === "string" ? record.run_id : undefined,
+      duration_ms: typeof record.duration_ms === "number" ? record.duration_ms : undefined,
+      started_at: typeof asRecord(record.workflow)?.started_at === "string"
+        ? String(asRecord(record.workflow)?.started_at)
+        : typeof record.started_at === "string" ? record.started_at : undefined,
+      ended_at: typeof asRecord(record.workflow)?.ended_at === "string"
+        ? String(asRecord(record.workflow)?.ended_at)
+        : typeof record.ended_at === "string" ? record.ended_at : undefined,
+      query_rewrite: rewrite && typeof rewrite.original_query === "string" && typeof rewrite.retrieval_query === "string"
+        ? {
+          original_query: rewrite.original_query,
+          retrieval_query: rewrite.retrieval_query,
+          changed: rewrite.changed === true,
+          alias_queries: asStringArray(rewrite.alias_queries),
+          multi_queries: asStringArray(rewrite.multi_queries),
+          hyde_used: rewrite.hyde_used === true,
+          step_back_query: typeof rewrite.step_back_query === "string" ? rewrite.step_back_query : undefined,
+          decomposed_queries: asStringArray(rewrite.decomposed_queries),
+        }
+        : null,
+      research: research
+        ? {
+          goal: typeof research.goal === "string" ? research.goal : undefined,
+          plan: typeof research.plan === "string" ? research.plan : undefined,
+          tasks: asStringArray(research.tasks),
+          evidence: asStringArray(research.evidence),
+          decisions: asStringArray(research.decisions),
+          verification_issues: asStringArray(research.verification_issues),
+          todo: asStringArray(research.todo),
+          status: typeof research.status === "string" ? research.status : undefined,
+          replan_count: typeof research.replan_count === "number" ? research.replan_count : undefined,
+        }
+        : null,
     };
   } catch {
     return null;

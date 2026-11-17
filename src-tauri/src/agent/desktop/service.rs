@@ -353,6 +353,90 @@ pub fn append_agent_message(
     )
 }
 
+/// Rebuild any assistant text already streamed into run events (deltas / completed).
+pub fn load_partial_assistant_text(
+    conn: &Connection,
+    workspace_id: &str,
+    run_id: uuid::Uuid,
+) -> Result<Option<String>, String> {
+    let events = crate::storage::repositories::events::replay(conn, workspace_id, run_id, 0)
+        .map_err(|error| error.to_string())?;
+    let mut deltas = String::new();
+    let mut completed: Option<String> = None;
+    for event in events {
+        match event.data {
+            crate::agent::protocol::AgentEventData::MessageDelta(delta)
+                if matches!(
+                    delta.role,
+                    crate::agent::protocol::AgentMessageRole::Assistant
+                ) =>
+            {
+                deltas.push_str(&delta.delta);
+            }
+            crate::agent::protocol::AgentEventData::MessageCompleted(message)
+                if matches!(
+                    message.role,
+                    crate::agent::protocol::AgentMessageRole::Assistant
+                ) =>
+            {
+                let content = message.content.trim();
+                if !content.is_empty() {
+                    completed = Some(message.content);
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(content) = completed {
+        return Ok(Some(content));
+    }
+    let trimmed = deltas.trim();
+    if trimmed.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(deltas))
+    }
+}
+
+/// Persist a failed/partial assistant turn so streamed text is not lost from history.
+pub fn append_failed_agent_message(
+    conn: &mut Connection,
+    workspace_id: &str,
+    conversation_id: &str,
+    run_id: &str,
+    answer: &str,
+    error: &str,
+    started_at: Option<&str>,
+    ended_at: Option<&str>,
+) -> Result<(), String> {
+    let content = {
+        let text = answer.trim_end();
+        if text.is_empty() {
+            format!("[generation failed] {error}")
+        } else {
+            format!("{text}\n\n[generation failed]")
+        }
+    };
+    let response = serde_json::json!({
+        "status": "failed",
+        "run_id": run_id,
+        "error": error,
+        "workflow": {
+            "state": "failed",
+            "started_at": started_at,
+            "ended_at": ended_at,
+        }
+    });
+    append_agent_message(
+        conn,
+        workspace_id,
+        conversation_id,
+        "agent",
+        &content,
+        Some(response.to_string()),
+    )
+}
+
 pub fn save_summary(
     conn: &mut Connection,
     workspace_id: &str,
@@ -367,4 +451,115 @@ pub fn save_summary(
         summary,
         covered_message_id,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent::protocol::{
+        AgentEventData, AgentMessageRole, MessageCompleted, MessageDelta,
+    };
+    use crate::agent::session::service::SessionService;
+    use crate::storage::migrations;
+    use crate::storage::repositories::{
+        events,
+        runs::{self, NewAgentRun},
+    };
+    use chrono::Utc;
+    use rusqlite::Connection;
+    use uuid::Uuid;
+
+    fn open_db() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrations::migrate(&mut conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn failed_path_persists_streamed_assistant_text() {
+        let mut conn = open_db();
+        let workspace = "local";
+        let conversation = SessionService::new(&mut conn, workspace)
+            .unwrap()
+            .create_conversation("fail persist")
+            .unwrap();
+        let user = SessionService::new(&mut conn, workspace)
+            .unwrap()
+            .append_message(&conversation.id, "user", "question", None)
+            .unwrap();
+        let run_id = Uuid::new_v4();
+        let conversation_id = Uuid::parse_str(&conversation.id).unwrap();
+        let user_message_id = Uuid::parse_str(&user.id).unwrap();
+        runs::create(
+            &mut conn,
+            NewAgentRun {
+                id: run_id,
+                workspace_id: workspace.to_string(),
+                conversation_id,
+                user_message_id,
+                event_id: Uuid::new_v4(),
+                timestamp: Utc::now(),
+            },
+        )
+        .unwrap();
+        let message_id = Uuid::new_v4();
+        events::append(
+            &mut conn,
+            workspace,
+            run_id,
+            Uuid::new_v4(),
+            Utc::now(),
+            AgentEventData::MessageDelta(MessageDelta {
+                message_id,
+                role: AgentMessageRole::Assistant,
+                delta: "partial ".into(),
+            }),
+        )
+        .unwrap();
+        events::append(
+            &mut conn,
+            workspace,
+            run_id,
+            Uuid::new_v4(),
+            Utc::now(),
+            AgentEventData::MessageCompleted(MessageCompleted {
+                message_id,
+                role: AgentMessageRole::Assistant,
+                content: "partial answer".into(),
+                partial: true,
+            }),
+        )
+        .unwrap();
+
+        let partial = load_partial_assistant_text(&conn, workspace, run_id)
+            .unwrap()
+            .expect("partial text");
+        assert_eq!(partial, "partial answer");
+
+        append_failed_agent_message(
+            &mut conn,
+            workspace,
+            &conversation.id,
+            &run_id.to_string(),
+            &partial,
+            "provider timeout",
+            None,
+            None,
+        )
+        .unwrap();
+
+        let messages = SessionService::new(&mut conn, workspace)
+            .unwrap()
+            .list_messages(&conversation.id)
+            .unwrap();
+        let last = messages.last().expect("assistant row");
+        assert_eq!(last.role, "agent");
+        assert!(last.content.contains("partial answer"));
+        assert!(last.content.contains("generation failed"));
+        assert!(last
+            .response_json
+            .as_deref()
+            .unwrap_or("")
+            .contains("\"status\":\"failed\""));
+    }
 }

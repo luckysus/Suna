@@ -1,6 +1,7 @@
 use crate::agent::desktop::{
-    append_agent_message, assistant_content_for_stream_result, build_agent_response_json,
-    prepare_chat, prepare_summary, save_summary, LocalAgentChatRequest,
+    append_agent_message, append_failed_agent_message, assistant_content_for_stream_result,
+    build_agent_response_json, load_partial_assistant_text, prepare_chat, prepare_summary,
+    save_summary, LocalAgentChatRequest,
 };
 use crate::agent::runtime::RuntimeHost;
 use crate::app::desktop_agent_runtime::run_standard_agent;
@@ -41,11 +42,32 @@ pub async fn desktop_agent_chat(
         return Ok(response);
     }
 
+    let started_at = chrono::Utc::now();
     let streamed = run_standard_agent(&app, &agent_state, &preparation, workspace_id).await;
+    let ended_at = chrono::Utc::now();
+    let started_at = started_at.to_rfc3339();
+    let ended_at = ended_at.to_rfc3339();
     let streamed = match streamed {
         Ok(answer) => answer,
         Err(error) => {
             agent_state.clear_cancelled(&run_id);
+            let _ = with_conn_mut(&db, |conn| {
+                let partial = load_partial_assistant_text(conn, workspace_id, preparation.run_id)?
+                    .unwrap_or_default();
+                if partial.trim().is_empty() {
+                    return Ok(());
+                }
+                append_failed_agent_message(
+                    conn,
+                    workspace_id,
+                    &conversation_id,
+                    &run_id,
+                    &partial,
+                    &error,
+                    Some(&started_at),
+                    Some(&ended_at),
+                )
+            });
             return Err(error);
         }
     };
@@ -66,6 +88,8 @@ pub async fn desktop_agent_chat(
         &preparation.skills.rendered.loaded,
         &streamed.tool_calls,
         &preparation.selected_memories,
+        Some(&started_at),
+        Some(&ended_at),
     );
     if streamed.stopped {
         response["status"] = Value::String("cancelled".to_string());
@@ -101,11 +125,10 @@ pub async fn desktop_agent_chat(
     })?;
 
     if !streamed.stopped {
-        let summary = with_conn_mut(&db, |conn| {
+        match with_conn_mut(&db, |conn| {
             prepare_summary(conn, workspace_id, &conversation_id, None, secrets.store())
-        });
-        if let Ok(Ok(summary)) = summary {
-            if let Ok(summary_answer) = stream_llm_answer(
+        }) {
+            Ok(Ok(summary)) => match stream_llm_answer(
                 &agent_state,
                 &run_id,
                 &summary.config,
@@ -114,8 +137,10 @@ pub async fn desktop_agent_chat(
             )
             .await
             {
-                if !summary_answer.stopped && !summary_answer.text.trim().is_empty() {
-                    let _ = with_conn_mut(&db, |conn| {
+                Ok(summary_answer)
+                    if !summary_answer.stopped && !summary_answer.text.trim().is_empty() =>
+                {
+                    if let Err(error) = with_conn_mut(&db, |conn| {
                         save_summary(
                             conn,
                             workspace_id,
@@ -123,9 +148,15 @@ pub async fn desktop_agent_chat(
                             summary_answer.text.trim(),
                             Some(summary.plan.covered_message_id.clone()),
                         )
-                    });
+                    }) {
+                        log::warn!("conversation summary save failed: {error}");
+                    }
                 }
-            }
+                Ok(_) => {}
+                Err(error) => log::warn!("conversation summary generation failed: {error}"),
+            },
+            Ok(Err(_)) => {}
+            Err(error) => log::warn!("conversation summary prepare failed: {error}"),
         }
     }
     agent_state.clear_cancelled(&run_id);

@@ -213,9 +213,11 @@ export function editorFor(slot: ProviderSlot, profile: ProviderProfileResponse |
 
 export function providerErrorMessage(
   code: string | null | undefined,
-  translate: (key: "credentialAuthentication" | "providerQuota" | "providerTimeout" | "providerNetwork" | "providerInvalidResponse") => string,
+  translate: (key: "credentialMissing" | "credentialAuthentication" | "providerQuota" | "providerTimeout" | "providerNetwork" | "providerInvalidResponse" | "providerInvalidModelList") => string,
 ) {
   switch (code) {
+    case "missing_credential":
+      return translate("credentialMissing");
     case "authentication":
       return translate("credentialAuthentication");
     case "quota":
@@ -224,6 +226,8 @@ export function providerErrorMessage(
       return translate("providerTimeout");
     case "network":
       return translate("providerNetwork");
+    case "invalid_model_list":
+      return translate("providerInvalidModelList");
     default:
       return translate("providerInvalidResponse");
   }

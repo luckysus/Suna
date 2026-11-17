@@ -170,6 +170,8 @@ pub fn build_agent_response_json(
     loaded_skills: &[LoadedSkill],
     tool_calls: &[Value],
     selected_memories: &[Value],
+    started_at: Option<&str>,
+    ended_at: Option<&str>,
 ) -> Value {
     let evidence = evidence_pack
         .map(|pack| pack.evidence.clone())
@@ -181,6 +183,13 @@ pub fn build_agent_response_json(
         "answer": answer,
         "reasoning": reasoning,
         "reasoning_ms": reasoning_ms,
+        "duration_ms": started_at
+            .zip(ended_at)
+            .and_then(|(start, end)| {
+                let start = chrono::DateTime::parse_from_rfc3339(start).ok()?;
+                let end = chrono::DateTime::parse_from_rfc3339(end).ok()?;
+                Some((end - start).num_milliseconds().max(0) as u64)
+            }),
         "follow_up_questions": [],
         "plan_steps": [],
         "tool_calls": tool_calls,
@@ -226,8 +235,8 @@ pub fn build_agent_response_json(
             "edges": [],
             "events": [],
             "summary": "desktop local agent",
-            "started_at": null,
-            "ended_at": null
+            "started_at": started_at,
+            "ended_at": ended_at
         },
         "llm_config": {
             "provider": config_provider,

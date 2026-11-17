@@ -731,7 +731,9 @@ async fn run_standard_agent_inner(
         if let Ok(mut tool_calls) = tool_call_audit_for_events.lock() {
             capture_tool_call_audit(&mut tool_calls, &event.data);
         }
-        let _ = app_for_events.emit("agent-event", event);
+        if let Err(error) = app_for_events.emit("agent-event", event) {
+            log::warn!("agent-event emit failed for run {}: {error}", event.run_id);
+        }
         Ok(())
     };
     let mut sink = SqliteAgentEventSink::new(&mut connection, workspace_id, run_id, &mut publisher);

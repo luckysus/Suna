@@ -16,7 +16,6 @@ export interface AppearancePreferences {
   fontSize: FontSizePreference;
   density: DensityPreference;
   enableAnimations: boolean;
-  showAgentPanel: boolean;
   restoreSession: boolean;
   saveDrafts: boolean;
   showToolDetails: boolean;
@@ -31,7 +30,6 @@ export const defaultAppearancePreferences: AppearancePreferences = {
   fontSize: "medium",
   density: "comfortable",
   enableAnimations: true,
-  showAgentPanel: true,
   restoreSession: true,
   saveDrafts: true,
   showToolDetails: true,
@@ -48,11 +46,9 @@ export function normalizePreferences(raw: unknown): AppearancePreferences {
   const oldDensity = value.density === "standard" ? "comfortable" : value.density;
   return {
     ...defaultAppearancePreferences,
-    ...value,
     fontSize: value.fontSize === "small" || value.fontSize === "large" ? value.fontSize : "medium",
     density: oldDensity === "compact" || oldDensity === "spacious" ? oldDensity : "comfortable",
     enableAnimations: typeof value.enableAnimations === "boolean" ? value.enableAnimations : value.reduceMotion === true ? false : true,
-    showAgentPanel: typeof value.showAgentPanel === "boolean" ? value.showAgentPanel : typeof value.inspector === "boolean" ? value.inspector : true,
     restoreSession: typeof value.restoreSession === "boolean" ? value.restoreSession : true,
     saveDrafts: typeof value.saveDrafts === "boolean" ? value.saveDrafts : true,
     showToolDetails: typeof value.showToolDetails === "boolean" ? value.showToolDetails : true,

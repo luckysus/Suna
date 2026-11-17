@@ -113,7 +113,7 @@ function AppearanceSettings() {
       <div className="suna-settings-control-row"><span><strong>{t("settingsDensity")}</strong></span><SegmentedControl value={preferences.density} options={densityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsDensity")} onChange={(density) => update({ density })} /></div>
       <div className="suna-settings-control-row"><span><strong>{t("settingsSidebarWidth")}</strong></span><SegmentedControl value={preferences.sidebarWidth} options={sidebarWidthOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))} ariaLabel={t("settingsSidebarWidth")} onChange={(sidebarWidth) => update({ sidebarWidth })} /></div>
     </div>
-    <div className="suna-appearance-section suna-settings-toggle-list"><ToggleRow checked={preferences.enableAnimations} label={t("settingsAnimations")} description={t("settingsAnimationsCopy")} onChange={(enableAnimations) => update({ enableAnimations })} /><ToggleRow checked={preferences.showAgentPanel} label={t("settingsAgentPanel")} description={t("settingsAgentPanelCopy")} onChange={(showAgentPanel) => update({ showAgentPanel })} /></div>
+    <div className="suna-appearance-section suna-settings-toggle-list"><ToggleRow checked={preferences.enableAnimations} label={t("settingsAnimations")} description={t("settingsAnimationsCopy")} onChange={(enableAnimations) => update({ enableAnimations })} /></div>
   </section>;
 }
 

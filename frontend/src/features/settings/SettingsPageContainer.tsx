@@ -35,6 +35,7 @@ import {
 } from "./settingsModel";
 import { settingsErrorMessage } from "./settingsError";
 import type { ProfileModelType } from "../../bridge/desktop";
+import { defaultShortcuts, normalizeShortcuts, shortcutsSchemaVersion } from "../../app/shortcuts";
 
 function modelTypeForSlot(slot: ProviderSlot): ProfileModelType {
   if (slot === "mineru") return "document_parser";
@@ -87,7 +88,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("Suna");
-  const [shortcutSend, setShortcutSend] = useState("Ctrl+Enter");
+  const [shortcutSend, setShortcutSend] = useState(defaultShortcuts.send);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [settingsSnapshot, setSettingsSnapshot] = useState<Record<string, string | null>>({});
   const load = async () => {
@@ -103,9 +104,8 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
       setPlan("free");
       setEditors((Object.keys(defaults) as ProviderSlot[]).map((slot) => editorFor(slot, undefined)));
       const account = parseObject(readLocalSetting("profile.account"));
-      const shortcut = parseObject(readLocalSetting("ui.shortcuts"));
       setAccountName(typeof account.display_name === "string" && account.display_name.trim() ? account.display_name : "Suna");
-      setShortcutSend(typeof shortcut.send === "string" && shortcut.send ? shortcut.send : "Ctrl+Enter");
+      setShortcutSend(normalizeShortcuts(readLocalSetting("ui.shortcuts")).send);
       setSettingsSnapshot(Object.fromEntries(["profile.account", "ui.shortcuts", "ui.settings_tab", "ui.theme", "ui.locale", "ui.preferences", "agent.preferences", "model.preferences", "model.provider.preferences", "knowledge.preferences"].map((key) => [key, readLocalSetting(key)])));
       if (!initialTab && typeof window !== "undefined") {
         const savedTab = window.sessionStorage.getItem("suna.settings.tab")
@@ -154,9 +154,8 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
         return editorFor(slot, profile, meta);
       }));
       const account = parseObject(accountValue);
-      const shortcut = parseObject(shortcutValue);
       setAccountName(typeof account.display_name === "string" && account.display_name.trim() ? account.display_name : "Suna");
-      setShortcutSend(typeof shortcut.send === "string" && shortcut.send ? shortcut.send : "Ctrl+Enter");
+      setShortcutSend(normalizeShortcuts(shortcutValue).send);
       setSettingsSnapshot({
         "profile.account": accountValue,
         "ui.shortcuts": shortcutValue,
@@ -189,7 +188,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
   };
   const saveShortcut = async (value: string) => {
     setShortcutSend(value);
-    await persistSetting("ui.shortcuts", JSON.stringify({ version: 1, send: value }));
+    await persistSetting("ui.shortcuts", JSON.stringify({ version: shortcutsSchemaVersion, send: value }));
     setNotice(t("settingsSaved"));
   };
   const resetPreferences = async () => {
@@ -203,13 +202,13 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
       "model.preferences": JSON.stringify({}),
       "model.provider.preferences": JSON.stringify({}),
       "knowledge.preferences": JSON.stringify({}),
-      "ui.shortcuts": JSON.stringify({}),
+      "ui.shortcuts": JSON.stringify({ version: shortcutsSchemaVersion, ...defaultShortcuts }),
       "profile.account": JSON.stringify({ display_name: "Suna" }),
     };
     try {
       await Promise.all(Object.entries(resetValues).map(([key, value]) => persistSetting(key, value)));
       setAccountName("Suna");
-      setShortcutSend("Ctrl+Enter");
+      setShortcutSend(defaultShortcuts.send);
       setActiveTab("appearance");
       setSettingsSnapshot(resetValues);
       if (typeof window !== "undefined") {
@@ -293,7 +292,7 @@ const settingsTabs: SettingsTabOption<SettingsTab>[] = [
         imported["profile.account"] = value;
       }
       if (!Object.prototype.hasOwnProperty.call(imported, "ui.shortcuts") && typeof settings.shortcutSend === "string") {
-        const value = JSON.stringify({ version: 1, send: settings.shortcutSend });
+        const value = JSON.stringify({ version: shortcutsSchemaVersion, send: settings.shortcutSend });
         setShortcutSend(settings.shortcutSend);
         await persistSetting("ui.shortcuts", value);
         imported["ui.shortcuts"] = value;

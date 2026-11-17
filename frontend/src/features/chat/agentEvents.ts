@@ -10,6 +10,7 @@ import type {
   ToolOutcome,
   UsageUpdated,
 } from "../../bridge/generated/protocol";
+import { applyTimelineEvent, type ChatTimelineStep } from "./chatTimeline";
 
 export interface AgentToolView {
   toolCallId: string;
@@ -65,6 +66,7 @@ export interface AgentRunView {
   reasoning: string;
   reasoningMs: number | null;
   reasoningStreaming: boolean;
+  timelineSteps: ChatTimelineStep[];
   partial: boolean;
   toolCalls: AgentToolView[];
   permissions: AgentPermissionView[];
@@ -90,6 +92,7 @@ export function createAgentRunView(runId: string, conversationId: string): Agent
     reasoning: "",
     reasoningMs: null,
     reasoningStreaming: false,
+    timelineSteps: [],
     partial: false,
     toolCalls: [],
     permissions: [],
@@ -145,7 +148,7 @@ function drainPendingEvents(state: AgentRunView): AgentRunView {
 }
 
 function applyAgentEvent(state: AgentRunView, event: AgentEventEnvelope): AgentRunView {
-  const next = { ...state };
+  const next = { ...state, timelineSteps: applyTimelineEvent(state.timelineSteps, event) };
   switch (event.type) {
     case "run_created":
       next.state = event.data.state;

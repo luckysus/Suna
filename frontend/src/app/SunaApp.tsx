@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, ChevronRight, House, LayoutGrid, MessageSquareText, Moon, Pencil, Pin, PinOff, Plus, Search, Settings2, Sun, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, LayoutGrid, MessageSquareText, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { desktop, isDesktopRuntime } from "../bridge/desktop";
 import ChatPage from "../features/chat/ChatPage";
 import { ChatControllerProvider } from "../features/chat/chatController";
 import { useChatControllerContext } from "../features/chat/chatController";
 import ResearchProjectContext from "../features/research/ResearchProjectContext";
-import { getNavigationSection, getLocalizedSection, navigationSections, primaryNavigationSections, sidebarManageSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
+import { getLocalizedSection, navigationSections, primaryNavigationSections, sidebarManageSections, utilityNavigationSections, type NavigationSection, type SectionId } from "./navigation";
 import { isRootPath, useSectionRoute } from "./sectionRoute";
 import SunaTitleBar from "./SunaTitleBar";
 import { defaultShortcuts, normalizeShortcuts, parseShortcut, type ShortcutSettings } from "./shortcuts";
@@ -36,10 +36,27 @@ const DataLabPage = deferredPage(() => import("../features/data/DataLabPage"));
 const CapabilityManagementPage = deferredPage(() => import("../features/management/CapabilityManagementPage"));
 const SettingsPage = deferredPage(() => import("../features/settings/SettingsPage"));
 
+/** 设置、诊断与能力管理不依赖当前课题，避免顶栏干扰。 */
+const SECTIONS_WITHOUT_PROJECT_CONTEXT = new Set<SectionId>([
+  "settings",
+  "diagnostics",
+  "agents",
+  "tools",
+  "mcp",
+  "skills",
+  "models",
+  "account",
+  "about",
+]);
+
+function showsResearchProjectContext(section: SectionId): boolean {
+  return !SECTIONS_WITHOUT_PROJECT_CONTEXT.has(section);
+}
+
 export default function SunaApp() { return <ToastProvider><LocaleProvider><ThemeProvider><AppearanceProvider><ChatControllerProvider><SunaAppShell /></ChatControllerProvider></AppearanceProvider></ThemeProvider></LocaleProvider></ToastProvider>; }
 function SunaMark() { return <SunaLogo size={37} title="Suna" aria-hidden="true" />; }
 function ModuleView({ section, onOpenSettings }: { section: SectionId; onOpenSettings: () => void }) { return section === "projects" ? <ResearchProjectsPage /> : section === "literature" ? <LiteratureResearchPage /> : section === "prediction" ? <PerformancePredictionPage /> : section === "optimization" ? <ProcessOptimizationPage /> : section === "mcp" ? <McpManagementPage /> : section === "experiment" ? <ExperimentAssistantPage /> : section === "reports" ? <ResearchReportPage /> : section === "data" ? <DataLabPage /> : section === "agents" || section === "tools" || section === "skills" ? <CapabilityManagementPage section={section} /> : section === "models" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="providers" /> : section === "account" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="account" /> : section === "about" ? <SettingsPage onOpenDiagnostics={onOpenSettings} initialTab="about" /> : <ResearchModulePage section={section} />; }
-function NavButton({ item, active, onClick, onPrefetch }: { item: NavigationSection; active: SectionId; onClick: (id: SectionId) => void; onPrefetch?: (id: SectionId) => void }) { const Icon = item.icon; return <button className={`suna-new-nav-item ${active === item.id ? "is-active" : ""}`} onClick={() => onClick(item.id)} onMouseEnter={() => onPrefetch?.(item.id)} onFocus={() => onPrefetch?.(item.id)} onPointerDown={() => onPrefetch?.(item.id)}><Icon size={17} /><span>{item.label}</span></button>; }
+function NavButton({ item, active, onClick, onPrefetch }: { item: NavigationSection; active: SectionId; onClick: (id: SectionId) => void; onPrefetch?: (id: SectionId) => void }) { const Icon = item.icon; return <button className={`suna-new-nav-item ${active === item.id ? "is-active" : ""}`} title={item.label} aria-label={item.label} onClick={() => onClick(item.id)} onMouseEnter={() => onPrefetch?.(item.id)} onFocus={() => onPrefetch?.(item.id)} onPointerDown={() => onPrefetch?.(item.id)}><Icon size={17} /><span>{item.label}</span></button>; }
 function SunaAppShell() {
   const { t } = useLocale();
   const chat = useChatControllerContext();
@@ -59,6 +76,7 @@ function SunaAppShell() {
   const [accountName, setAccountName] = useState("Suna");
   const [shortcuts, setShortcuts] = useState<ShortcutSettings>(defaultShortcuts);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   useEffect(() => {
     if (!appearanceLoaded || startupApplied.current) return;
@@ -151,13 +169,12 @@ function SunaAppShell() {
       if (matches(event, shortcuts.focusInput)) { event.preventDefault(); (document.querySelector("textarea") as HTMLTextAreaElement | null)?.focus(); return; }
       if (matches(event, shortcuts.stopAgent)) { event.preventDefault(); chat.onCancel(); return; }
       if (matches(event, shortcuts.toggleSidebar)) { event.preventDefault(); setSidebarCollapsed((collapsed) => !collapsed); return; }
-      if (matches(event, shortcuts.toggleInspector)) { event.preventDefault(); updatePreferences({ showAgentPanel: !preferences.showAgentPanel }); return; }
       if (matches(event, shortcuts.recoverTask)) { event.preventDefault(); chat.onResume(); return; }
       if (event.key === "Escape") { setSearchOpen(false); setModelOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [chat.onCancel, chat.onNewConversation, chat.onResume, preferences.showAgentPanel, shortcuts, updatePreferences]);
+  }, [chat.onCancel, chat.onNewConversation, chat.onResume, shortcuts]);
   useEffect(()=>{const restore=()=>{if(window.location.pathname==='/chat'){const id=new URLSearchParams(window.location.search).get('conversation');if(id)void chat.onSelectConversation(id);}};restore();window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);},[activeSection,chat.onSelectConversation]);
   const localizedPrimarySections = useMemo(
     () => primaryNavigationSections.map((item) => getLocalizedSection(item, t)),
@@ -170,10 +187,6 @@ function SunaAppShell() {
   const localizedAllSections = useMemo(
     () => navigationSections.map((item) => getLocalizedSection(item, t)),
     [t],
-  );
-  const active = useMemo(
-    () => getLocalizedSection(getNavigationSection(activeSection), t),
-    [activeSection, t],
   );
   const activeProfile = chat.chatProfiles.find((profile) => profile.id === chat.activeChatProfileId);
   const go = (id: SectionId) => { setActiveSection(id); setSearchOpen(false); setModelOpen(false); };
@@ -295,13 +308,24 @@ function SunaAppShell() {
     <div className={`suna-new-app ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}${desktopShell ? " is-desktop-shell" : ""}`}>
       {desktopShell && <SunaTitleBar />}
       <div className="suna-new-body">
-      <aside className="suna-new-sidebar">
+      <aside className={`suna-new-sidebar ${sidebarCollapsed ? "is-collapsed" : ""}`}>
         <div className="suna-new-brand">
-          <SunaMark />
-          <div>
-            <strong>Suna</strong>
-            <span>Steel Research Agent</span>
+          <div className="suna-new-brand-content">
+            <SunaMark />
+            <div className="suna-new-brand-text">
+              <strong>Suna</strong>
+              <span>Steel Research Agent</span>
+            </div>
           </div>
+          <button
+            type="button"
+            className="suna-sidebar-toggle-btn"
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            title={sidebarCollapsed ? "展开侧边栏" : "折叠侧边栏"}
+            aria-label={sidebarCollapsed ? "展开侧边栏" : "折叠侧边栏"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
         </div>
         <button className="suna-new-create" onClick={() => { void chat.onNewConversation(); go("chat"); }} title={t("newConversation")} aria-label={t("newConversation")}>
           <div className="suna-new-create-left">
@@ -334,7 +358,7 @@ function SunaAppShell() {
             ) : recent.length === 0 ? (
               <span className="suna-new-history-empty">{t("navNoConversations")}</span>
             ) : (
-              recent.map((conversation) => (
+              (historyExpanded ? recent : recent.slice(0, 5)).map((conversation) => (
                 <div className="suna-new-history-item-wrap" key={conversation.id}>
                   <button
                     type="button"
@@ -401,6 +425,17 @@ function SunaAppShell() {
                 </div>
               ))
             )}
+            {recent.length > 5 && (
+              <button
+                type="button"
+                className="suna-new-history-more-toggle"
+                onClick={() => setHistoryExpanded((exp) => !exp)}
+                aria-expanded={historyExpanded}
+              >
+                <ChevronDown size={13} className={historyExpanded ? "rotate-180" : ""} />
+                <span>{historyExpanded ? "收起较早会话" : `显示更多会话 (${recent.length - 5})`}</span>
+              </button>
+            )}
           </div>
         </div>
         <div className="suna-new-sidebar-bottom">
@@ -435,15 +470,8 @@ function SunaAppShell() {
         </div>
       </aside>
       <main className="suna-new-main">
-        {activeSection !== "chat" && (
-          <header className="suna-new-header">
-            <div className="suna-new-breadcrumb">
-              <House size={16} />
-              <strong>{active.label}</strong>
-            </div>
-          </header>
-        )}
-        <ResearchProjectContext />
+        {/* 各业务页自带标题区；壳层面包屑会与页面 h1 重复，统一不再渲染。 */}
+        {showsResearchProjectContext(activeSection) && <ResearchProjectContext />}
         <div className="suna-new-content">{content}</div>
       </main>
       </div>
