@@ -7,7 +7,7 @@ use crate::{
     tools::{ConcurrencyPolicy, ToolDefinition, ToolId, ToolSource, ToolVersion},
 };
 use rmcp::{
-    model::{CallToolRequestParams, ClientInfo, ServerPeerInfo},
+    model::{CallToolRequestParams, ClientConfig, ServerPeerInfo},
     service::RunningService,
     transport::IntoTransport,
     RoleClient, ServiceError, ServiceExt,
@@ -16,7 +16,7 @@ use serde_json::Value;
 use std::{borrow::Cow, collections::BTreeSet, future::Future, time::Duration};
 
 pub struct McpClient {
-    service: RunningService<RoleClient, ClientInfo>,
+    service: RunningService<RoleClient, ClientConfig>,
     config: McpClientConfig,
     identity: McpServerIdentity,
     capabilities: McpCapabilities,
@@ -29,7 +29,7 @@ impl McpClient {
         E: std::error::Error + Send + Sync + 'static,
     {
         validate_config(&config)?;
-        let handler = ClientInfo::new(
+        let handler = ClientConfig::new(
             Default::default(),
             rmcp::model::Implementation::new(&config.client_name, &config.client_version),
         );

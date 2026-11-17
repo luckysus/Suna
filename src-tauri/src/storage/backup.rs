@@ -356,7 +356,10 @@ fn validate_archive(
         let mut entry = archive
             .by_index(index)
             .map_err(|error| format!("read backup entry failed: {error}"))?;
-        let name = entry.name().to_string();
+        let name = entry
+            .name()
+            .map_err(|error| format!("read backup entry name failed: {error}"))?
+            .into_owned();
         if !names.insert(name.clone()) {
             return Err(format!("duplicate backup entry: {name}"));
         }
@@ -445,10 +448,14 @@ fn extract_backup(
         if entry.is_dir() {
             continue;
         }
-        match validate_entry_name(entry.name())? {
+        let name = entry
+            .name()
+            .map_err(|error| format!("read backup entry name failed: {error}"))?
+            .into_owned();
+        match validate_entry_name(&name)? {
             EntryKind::Manifest => {}
             EntryKind::Database => {
-                if entry.name() != manifest.database_entry {
+                if name != manifest.database_entry {
                     return Err("backup database entry does not match its manifest".to_string());
                 }
                 let mut target = File::create(staging_database)
@@ -464,8 +471,7 @@ fn extract_backup(
                     .len();
             }
             EntryKind::Content => {
-                let relative = entry
-                    .name()
+                let relative = name
                     .strip_prefix(&manifest.content_prefix)
                     .ok_or_else(|| "invalid backup content entry".to_string())?;
                 let target =
@@ -477,7 +483,6 @@ fn extract_backup(
                 }
                 let mut output = File::create(&target)
                     .map_err(|error| format!("create restored content failed: {error}"))?;
-                let name = entry.name().to_string();
                 let (bytes, sha) = copy_hashed(&mut entry, &mut output)?;
                 if manifest.format_version == 2 && manifest.content_hashes.get(&name) != Some(&sha)
                 {

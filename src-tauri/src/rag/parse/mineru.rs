@@ -18,7 +18,7 @@ pub fn parse(bytes: &[u8], limits: ParseLimits) -> Result<ParsedDocument, ParseE
 
 fn select_main(archive: &mut OfficeArchive<'_>) -> Result<String, ParseError> {
     let candidates = archive
-        .names()
+        .names()?
         .into_iter()
         .filter(|name| {
             name.rsplit('/')

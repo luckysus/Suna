@@ -54,7 +54,9 @@ jobs:
       - name: Run Rust advisory scan
         # sqlx-postgres currently requires rsa 0.9.x for SCRAM authentication.
         # RUSTSEC-2023-0071 has no patched release; review when sqlx/rsa publishes one.
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        # RUSTSEC-2026-0459 (libsqlite3-sys): rusqlite bump conflicts with sqlx-sqlite
+        # links=sqlite3 until sqlx aligns; same exception as src-tauri/deny.toml.
+        run: cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0459
         working-directory: src-tauri
 
       - name: Run frontend dependency audit

@@ -70,7 +70,10 @@ pub(crate) fn read_entries(
     let mut total = 0usize;
     for i in 0..zip.len() {
         let mut file = zip.by_index(i).map_err(|_| "package_zip_invalid")?;
-        let name = file.name().to_string();
+        let name = file
+            .name()
+            .map_err(|_| "package_zip_invalid")?
+            .into_owned();
         if !allowed_name(&name)
             || file.is_dir()
             || file.encrypted()

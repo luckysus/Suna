@@ -42,7 +42,7 @@ pub(super) fn rewrite(bytes: &[u8], edit: impl FnOnce(&mut BTreeMap<String, Vec<
         let mut f = zip.by_index(i).unwrap();
         let mut b = Vec::new();
         f.read_to_end(&mut b).unwrap();
-        files.insert(f.name().to_string(), b);
+        files.insert(f.name().unwrap().into_owned(), b);
     }
     edit(&mut files);
     let mut writer = ZipWriter::new(Cursor::new(Vec::new()));

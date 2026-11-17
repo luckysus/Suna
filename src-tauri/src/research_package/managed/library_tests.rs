@@ -26,7 +26,7 @@ fn archive_bytes() -> Vec<u8> {
         file.read_to_end(&mut data).unwrap();
         writer
             .start_file(
-                file.name(),
+                file.name().unwrap().into_owned(),
                 zip::write::SimpleFileOptions::default()
                     .compression_method(zip::CompressionMethod::Deflated),
             )

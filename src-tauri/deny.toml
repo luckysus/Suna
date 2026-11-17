@@ -46,9 +46,7 @@ exceptions = []
 [advisories]
 version = 2
 # 漏洞（vulnerability）在 schema v2 中始终视为错误（deny），无 ignore 则阻断。
-#   本项目已通过 `cargo update -p plist`（plist 1.9.0 -> 1.10.0）移除易受攻击的
-#   quick-xml 0.39.4，直接依赖 quick-xml 亦已升至 0.41.0，故 vulnerabilities 已清零，
-#   不在此登记任何漏洞类 ignore。
+# 能升级的已通过 Cargo.toml / lockfile 升级清零；下方 ignore 仅保留暂无升级路径项。
 # yanked crate 仅告警，避免因上游撤回导致的构建阻断。
 yanked = "warn"
 # unmaintained：检查全部依赖（含传递依赖）。注意 schema v2 中该键仅控制“扫描范围”，
@@ -83,6 +81,16 @@ ignore = [
     # ttf-parser 由 pdf-extract -> lopdf 引入；当前无安全升级路径，替代解析器
     # 需要上游 pdf-extract 支持后才能移除该例外。
     "RUSTSEC-2026-0192",
+    # libsqlite3-sys：RUSTSEC-2026-0459 要求 >=0.39，但 rusqlite 升到对应版本后与
+    # sqlx-macros-core 拉入的 sqlx-sqlite（仍锁定旧 libsqlite3-sys）发生 links=sqlite3
+    # 冲突；桌面端 SQLite 为本地捆绑库、非对外服务面。待 sqlx 对齐后再移除例外。
+    # owner=luckysus，review date=2026-11-17。
+    "RUSTSEC-2026-0459",
+    # zbus 拆分出的 names/zvariant 栈：上游标记 unmaintained，经 tauri Linux D-Bus
+    # 路径引入，无安全替代版本。owner=luckysus，review date=2026-11-17。
+    "RUSTSEC-2026-0370", # zvariant
+    "RUSTSEC-2026-0371", # zbus_names
+    "RUSTSEC-2026-0372", # zvariant_derive
 ]
 
 # --------------------------------------------------------------------------
@@ -96,7 +104,7 @@ wildcards = "allow"
 skip = [
     # reqwest 双版本为显式设计：0.12（rustls-tls 栈）+ 0.13（rmcp 传输依赖）。
     { crate = "reqwest@0.12.28" },
-    { crate = "reqwest@0.13.4" },
+    { crate = "reqwest@0.13.5" },
 ]
 
 # --------------------------------------------------------------------------

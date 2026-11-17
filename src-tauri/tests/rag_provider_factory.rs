@@ -248,20 +248,17 @@ impl FactoryFixture {
     fn save_profile(&self, kind: ProviderKind, model_id: Option<&str>, enabled: bool) -> Uuid {
         let id = Uuid::new_v4();
         let mut connection = Connection::open(&self.database).unwrap();
-        provider_profiles::save(
-            &mut connection,
-            WORKSPACE,
-            ProviderProfile {
-                id,
-                kind,
-                display_name: format!("{kind:?}"),
-                base_url: "http://127.0.0.1:9/v1".to_string(),
-                model_id: model_id.map(str::to_string),
-                secret_ref: Some("api_key".to_string()),
-                enabled,
-            },
-        )
-        .unwrap();
+        let profile = ProviderProfile {
+            id,
+            kind,
+            display_name: format!("{kind:?}"),
+            base_url: "http://127.0.0.1:9/v1".to_string(),
+            model_id: model_id.map(str::to_string),
+            secret_ref: Some("api_key".to_string()),
+            enabled,
+        };
+        let model_type = provider_profiles::infer_model_type(&profile);
+        provider_profiles::save(&mut connection, WORKSPACE, profile, &model_type).unwrap();
         id
     }
 

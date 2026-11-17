@@ -333,13 +333,15 @@ fn extract_archive(source: File, destination: &Path) -> Result<(), DomainError> 
         let mut entry = archive
             .by_index(index)
             .map_err(|error| DomainError::InvalidResource(error.to_string()))?;
+        let raw_name = entry
+            .name()
+            .map_err(|error| DomainError::InvalidResource(error.to_string()))?
+            .into_owned();
         if entry.is_symlink() {
             return Err(DomainError::InvalidResource(format!(
-                "archive symlink entry is not allowed: {}",
-                entry.name()
+                "archive symlink entry is not allowed: {raw_name}"
             )));
         }
-        let raw_name = entry.name().to_string();
         let is_directory = entry.is_dir() || raw_name.ends_with('/') || raw_name.ends_with('\\');
         let (relative, path) =
             resolve_resource_path(destination, raw_name.trim_end_matches(['/', '\\']))?;

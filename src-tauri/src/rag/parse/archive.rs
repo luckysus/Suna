@@ -35,7 +35,11 @@ impl<'a> OfficeArchive<'a> {
             let entry = archive
                 .by_index(index)
                 .map_err(|error| ParseError::new("invalid_archive", error.to_string()))?;
-            if entry.enclosed_name().is_none() || entry.name().contains('\\') {
+            let name = entry
+                .name()
+                .map_err(|error| ParseError::new("invalid_archive", error.to_string()))?
+                .into_owned();
+            if entry.enclosed_name().is_none() || name.contains('\\') {
                 return Err(ParseError::new(
                     "archive_path_traversal",
                     "Office archive contains an unsafe entry path",
@@ -47,7 +51,7 @@ impl<'a> OfficeArchive<'a> {
                     "Office archive contains a symbolic link",
                 ));
             }
-            if !names.insert(entry.name().to_string()) {
+            if !names.insert(name) {
                 return Err(ParseError::new(
                     "archive_duplicate_entry",
                     "Office archive contains duplicate entry names",
@@ -128,8 +132,12 @@ impl<'a> OfficeArchive<'a> {
                 .archive
                 .by_index(index)
                 .map_err(|error| ParseError::new("invalid_archive", error.to_string()))?;
-            if !entry.is_dir() && entry.name().starts_with(prefix) {
-                names.push(entry.name().to_string());
+            let name = entry
+                .name()
+                .map_err(|error| ParseError::new("invalid_archive", error.to_string()))?
+                .into_owned();
+            if !entry.is_dir() && name.starts_with(prefix) {
+                names.push(name);
             }
         }
         names.sort();
@@ -139,14 +147,17 @@ impl<'a> OfficeArchive<'a> {
             .collect()
     }
 
-    pub fn names(&mut self) -> Vec<String> {
+    pub fn names(&mut self) -> Result<Vec<String>, ParseError> {
         let mut names = self
             .archive
             .file_names()
-            .map(str::to_string)
-            .collect::<Vec<_>>();
+            .map(|name| {
+                name.map(|cow| cow.into_owned())
+                    .map_err(|error| ParseError::new("invalid_archive", error.to_string()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         names.sort();
-        names
+        Ok(names)
     }
 }
 

@@ -94,7 +94,9 @@ fn synthetic_secret_absent_from_sqlite_and_backup_export() {
         secret_ref: Some("api_key".to_string()),
         enabled: true,
     };
-    provider_profiles::save(&mut conn, "local", profile).expect("save provider profile");
+    let model_type = provider_profiles::infer_model_type(&profile);
+    provider_profiles::save(&mut conn, "local", profile, &model_type)
+        .expect("save provider profile");
     conn.execute(
         "INSERT INTO settings (workspace_id, key, value_json, updated_at)
          VALUES ('local', 'provider.note', '{\"ref\":\"api_key\"}', 'now')",

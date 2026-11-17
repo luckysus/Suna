@@ -206,10 +206,11 @@ fn changed_content_with_valid_zip_crc_cannot_preview_or_replace_targets() {
     let mut writer = zip::ZipWriter::new(fs::File::create(&corrupt).unwrap());
     for n in 0..reader.len() {
         let mut entry = reader.by_index(n).unwrap();
+        let name = entry.name().unwrap().into_owned();
         writer
-            .start_file(entry.name(), SimpleFileOptions::default())
+            .start_file(&name, SimpleFileOptions::default())
             .unwrap();
-        if entry.name() == "content/objects/sample" {
+        if name == "content/objects/sample" {
             writer.write_all(b"tampered").unwrap();
         } else {
             std::io::copy(&mut entry, &mut writer).unwrap();
