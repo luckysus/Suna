@@ -57,17 +57,6 @@ unmaintained = "all"
 # 均为经 tauri/gtk3/rust-unic 生态引入的传递依赖，无安全升级路径，owner=luckysus，
 # review date=2026-11-08。
 ignore = [
-    # gtk-rs GTK3 绑定整体归档、不再维护（经 tauri -> wry/tao/muda 引入，Linux GUI 栈）。
-    "RUSTSEC-2024-0411", # gdkwayland-sys 0.18.2
-    "RUSTSEC-2024-0412", # gdk 0.18.2
-    "RUSTSEC-2024-0413", # atk 0.18.2
-    "RUSTSEC-2024-0414", # gdkx11-sys 0.18.2
-    "RUSTSEC-2024-0415", # gtk 0.18.2
-    "RUSTSEC-2024-0416", # atk-sys 0.18.2
-    "RUSTSEC-2024-0417", # gdkx11 0.18.2
-    "RUSTSEC-2024-0418", # gdk-sys 0.18.2
-    "RUSTSEC-2024-0419", # gtk3-macros 0.18.2
-    "RUSTSEC-2024-0420", # gtk-sys 0.18.2
     # proc-macro-error 1.0.4：维护者失联（经 glib-macros -> gtk3 栈引入）。
     "RUSTSEC-2024-0370",
     # bincode 1.3.3：团队宣布永久停止维护（经 hnsw_rs 0.3.4 引入，向量检索）。
